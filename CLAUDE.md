@@ -21,6 +21,7 @@ A student's money is spread across separate sources (checking account, credit ca
 - It uses a fixed demo "today" of **Mon Oct 26, 2026**: `config.DEMO_TODAY`, set in `.env`. `config.SEMESTER_START` and `config.SEMESTER_END` hold the semester dates.
 - Never use the real system date for money logic.
 - The demo student is **Maya**. Her synthetic data is in `data/maya/` (regenerate with `generate_maya_data.py`), and the planted stories and their evidence are in `data/maya/answer_key.json`.
+- **Key "explain why" moment (must survive into the final answer):** cancelling Apple Music saves $0 for checking before Dec 18. Its next charge (Nov 22) is on the card cycle that is paid Jan 7, after the semester. That is why the answer recommends cancelling Spotify, which charges checking directly. The tight margin is intended: with the refund plus Spotify cancelled, Maya bottoms out at $5.81.
 
 ## Non-negotiable rules
 
@@ -47,6 +48,11 @@ A student's money is spread across separate sources (checking account, credit ca
     - It requires each claim to cite evidence IDs like [E3].
     - After EXPLAIN, a check verifies that every dollar amount and date in the answer appears in the evidence or computed results.
     - On failure, retry once with the offending numbers listed, then show the answer with a visible warning.
+11. **Projection rule:**
+    - Known items are projected explicitly: rent schedule, paychecks from pay periods/scheduled shifts, payment-plan installments, card autopay from statements, detected monthly subscriptions, aid/refund releases.
+    - Everything else is variable spending, projected per account as the semester-to-date daily average of non-recurring purchases under $100.
+    - Purchases of $100 or more are one-offs and are not projected.
+    - The engine's tests must reproduce the answer key's self-check numbers to the cent. If they can't, change the DATA (`generate_maya_data.py`), never the rule.
 
 ## Sponsor tech
 

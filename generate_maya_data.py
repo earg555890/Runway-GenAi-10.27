@@ -728,7 +728,12 @@ def main():
     nov_pay = [p for p in periods if p[2] == date(2026, 11, 18)][0]
     nov_hours = sum((s.hours for s in shifts if nov_pay[0] <= s.day <= nov_pay[1]), Decimal("0"))
     oct_pay = [p for p in periods if p[2] == date(2026, 10, 16)][0]
-    oct_hours = sum((s.hours for s in shifts if oct_pay[0] <= s.day <= oct_pay[1] and s.status == "WORKED"), Decimal("0"))
+    # A normal pay period: Oct 1-15's regular shifts, leaving out the two fall-break extras.
+    oct_regular = [(sid, s) for sid, s in shift_ids
+                   if oct_pay[0] <= s.day <= oct_pay[1] and s.status == "WORKED" and s.day not in EXTRA_SHIFTS]
+    oct_hours = sum((s.hours for _, s in oct_regular), Decimal("0"))
+    oct_extra_hours = sum((s.hours for s in shifts if s.day in EXTRA_SHIFTS and oct_pay[0] <= s.day <= oct_pay[1]),
+                          Decimal("0"))
     oct1 = [(tid, t, bal) for kind in ("rent", "overdraft_fee", "paycheck") for tid, t, bal in ids[kind]
             if date(2026, 10, 1) <= t.day <= date(2026, 10, 2)]
     sep30_bal = [bal for tid, t, bal in [(f"CHK-{i:04d}", t, b) for i, (t, b) in enumerate(chk_rows, 1)]
@@ -790,17 +795,21 @@ def main():
             {
                 "id": 4, "title": "Payment-plan installment lands in a short-paycheck week",
                 "finding": f"The {money(PLAN_INSTALLMENT)} payment-plan installment is due Fri Nov 20, the same week as the "
-                           f"Wed Nov 18 paycheck, which covers only {nov_hours:.0f} scheduled hours (vs {oct_hours:.0f} worked for "
-                           "the Oct 1-15 period) because of the cafe renovation.",
+                           f"Wed Nov 18 paycheck, which covers only {nov_hours:.0f} scheduled hours (vs {oct_hours:.0f} in a normal "
+                           "pay period on her regular schedule) because of the cafe renovation.",
                 "key_numbers": {"installment": f"{PLAN_INSTALLMENT:.2f}", "installment_due": "2026-11-20",
                                 "paycheck_date": "2026-11-18", "nov_1_15_scheduled_hours": f"{nov_hours:.1f}",
-                                "oct_1_15_worked_hours": f"{oct_hours:.1f}", "hourly_rate": f"{HOURLY_RATE:.2f}",
+                                "normal_period_hours": f"{oct_hours:.1f}",
+                                "normal_period_basis": f"Oct 1-15 (PAY-04) regular shifts; PAY-04's {oct_hours + oct_extra_hours:.0f} "
+                                                       f"paid hours include {oct_extra_hours:.0f} hours of extra fall-break shifts",
+                                "hourly_rate": f"{HOURLY_RATE:.2f}",
                                 "withholding_pct": f"{WITHHOLDING_PCT}"},
                 "evidence": [
                     {"source": "bursar", "table": "payment_plan", "row_ids": ["PPI-04"]},
                     {"source": "shifts", "table": "pay_periods", "row_ids": [pay_ids[date(2026, 11, 18)], pay_ids[date(2026, 10, 16)]]},
                     {"source": "shifts", "table": "shifts",
-                     "row_ids": [sid for sid, s in shift_ids if nov_pay[0] <= s.day <= nov_pay[1]]},
+                     "row_ids": [sid for sid, s in shift_ids if nov_pay[0] <= s.day <= nov_pay[1]]
+                                + [sid for sid, _ in oct_regular]},
                     {"source": "shifts", "table": "job", "row_ids": ["JOB-01"]},
                 ],
             },

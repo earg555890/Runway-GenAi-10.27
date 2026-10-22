@@ -153,13 +153,14 @@
     {
       "id": 4,
       "title": "Payment-plan installment lands in a short-paycheck week",
-      "finding": "The $200.00 payment-plan installment is due Fri Nov 20, the same week as the Wed Nov 18 paycheck, which covers only 8 scheduled hours (vs 40 worked for the Oct 1-15 period) because of the cafe renovation.",
+      "finding": "The $200.00 payment-plan installment is due Fri Nov 20, the same week as the Wed Nov 18 paycheck, which covers only 8 scheduled hours (vs 32 in a normal pay period on her regular schedule) because of the cafe renovation.",
       "key_numbers": {
         "installment": "200.00",
         "installment_due": "2026-11-20",
         "paycheck_date": "2026-11-18",
         "nov_1_15_scheduled_hours": "8.0",
-        "oct_1_15_worked_hours": "40.0",
+        "normal_period_hours": "32.0",
+        "normal_period_basis": "Oct 1-15 (PAY-04) regular shifts; PAY-04's 40 paid hours include 8 hours of extra fall-break shifts",
         "hourly_rate": "15.50",
         "withholding_pct": "7.5"
       },
@@ -184,7 +185,15 @@
           "table": "shifts",
           "row_ids": [
             "SHF-040",
-            "SHF-041"
+            "SHF-041",
+            "SHF-023",
+            "SHF-024",
+            "SHF-025",
+            "SHF-026",
+            "SHF-027",
+            "SHF-028",
+            "SHF-030",
+            "SHF-032"
           ]
         },
         {
