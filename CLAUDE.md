@@ -51,6 +51,7 @@ This is part of the judging score, so keep it visible:
   - **Local files work.** Copy them into the driver container's shared data folder and use the container path: `docker cp file.csv zetaris-driver-1:/home/zetaris/customer-data/shared/<folder>/file.csv`, then `path "/home/zetaris/customer-data/shared/<folder>/file.csv"`. In Git Bash, set `MSYS_NO_PATHCONV=1` first, or it rewrites `/home/...` into a Windows path.
   - **Descriptions** (`DESCRIBE BY`) may only contain letters, digits, spaces and `_ . - ,`. Brackets are rejected.
   - **Sample data:** `NY_TAXI` and `TPCDS_DB` were registered the same way, from a public S3 bucket.
+- **Database naming (approved):** one Lightning database per source: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`. `RUNWAY_TEST` (5-row throwaway) still exists; drop it in the task that registers the real demo sources.
 - **Speed:** this laptop is ARM (Snapdragon), so the Intel/AMD images run under emulation.
   - Small local tables: about 1.5–4 s per query.
   - S3 sample tables: tens of seconds or more.
@@ -71,7 +72,7 @@ Python 3.11+, Streamlit for the UI, pytest for tests. Keep dependencies minimal.
 
 ## Status report
 
-Required at the end of EVERY response, no exceptions:
+Required at the end of EVERY response, no exceptions. Put the whole report inside one fenced ```text block so the user can copy it in one go and paste it to the project lead. Make it self-contained: no "see above", and include any SQL, file names, numbers or errors in the report itself.
 
 ```
 ## Status report for the project lead
