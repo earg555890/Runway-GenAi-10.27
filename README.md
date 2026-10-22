@@ -16,10 +16,20 @@ cp .env.example .env                                       # then fill in the va
 
 Zetaris itself runs separately in Docker (see the Zetaris bundle's README); it must be up for the Zetaris data path.
 
+## Demo data
+
+```bash
+.venv/Scripts/python generate_maya_data.py   # rewrite data/maya/ (fixed seed) and run the story self-check
+.venv/Scripts/python load_zetaris.py         # load data/maya into Zetaris: one Lightning database per source (safe to rerun)
+```
+
+The app reads data only through `data_access.py`: named queries (`data_access.catalog()`), each with a Lightning SQL template and an equivalent local implementation. `DATA_BACKEND=local` (default) reads the CSVs; `DATA_BACKEND=zetaris` queries Zetaris over JDBC, with results cached in `.cache/zetaris/` (`ZETARIS_CACHE=on`). Every result carries an evidence record (query, sources, tables, SQL, params, row IDs, backend, duration).
+
 ## Checks
 
 ```bash
-.venv/Scripts/python -m pytest                 # unit tests (no network, no real API calls)
+.venv/Scripts/python -m pytest                 # all tests; Zetaris parity tests skip if Zetaris is unreachable
+.venv/Scripts/python -m pytest -m "not zetaris" # fast: no network, no Zetaris, no real API calls
 .venv/Scripts/python nemotron_smoke_test.py    # live NVIDIA check: chat, tool calling, reasoning on/off
 .venv/Scripts/python benchmark_latency.py 3    # live latency comparison of Nemotron models (slow; measures only)
 ```

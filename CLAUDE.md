@@ -78,6 +78,8 @@ This is part of the judging score, so keep it visible:
   - **Local files work.** Copy them into the driver container's shared data folder and use the container path: `docker cp file.csv zetaris-driver-1:/home/zetaris/customer-data/shared/<folder>/file.csv`, then `path "/home/zetaris/customer-data/shared/<folder>/file.csv"`. In Git Bash, set `MSYS_NO_PATHCONV=1` first, or it rewrites `/home/...` into a Windows path.
   - **Descriptions** (`DESCRIBE BY`) may only contain letters, digits, spaces and `_ . - ,`. Brackets are rejected.
   - **Sample data:** `NY_TAXI` and `TPCDS_DB` were registered the same way, from a public S3 bucket.
+- **Other statements that work:** `SHOW LIGHTNING DATABASES`, `SHOW TABLES IN <DB>`, `DROP LIGHTNING DATABASE TABLE <DB>.<table>`, `DROP LIGHTNING DATABASE <DB>` (drop its tables first). Spark SQL functions work too: `to_date(col, 'MM/dd/yyyy')`, `UNION ALL`, joins, subqueries, `GROUP BY ... HAVING`. Empty CSV cells come back as NULL.
+- **Loading and access:** `load_zetaris.py` loads `data/maya`. The app reads only through the named queries in `data_access.py`, never ad-hoc SQL.
 - **Database naming (approved):** one Lightning database per source: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`. `RUNWAY_TEST` (5-row throwaway) still exists; drop it in the task that registers the real demo sources.
 - **Speed:** this laptop is ARM (Snapdragon), so the Intel/AMD images run under emulation.
   - Small local tables: about 1.5–4 s per query.

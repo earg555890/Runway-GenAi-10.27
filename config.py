@@ -60,6 +60,15 @@ DEMO_TODAY = date.fromisoformat(get("DEMO_TODAY") or "2026-10-26")
 SEMESTER_START = date(2026, 8, 24)
 SEMESTER_END = date(2026, 12, 18)
 
+# Data access (see data_access.py). Paths are relative to the project root.
+PROJECT_ROOT = Path(__file__).resolve().parent
+DATA_BACKEND = (get("DATA_BACKEND") or "local").lower()          # "local" or "zetaris"
+DATA_DIR = PROJECT_ROOT / (get("DATA_DIR") or "data/maya")
+ZETARIS_CACHE = (get("ZETARIS_CACHE") or "on").lower() in ("on", "true", "1", "yes")
+ZETARIS_CACHE_DIR = PROJECT_ROOT / ".cache" / "zetaris"
+ZETARIS_CONTAINER = get("ZETARIS_CONTAINER") or "zetaris-driver-1"
+ZETARIS_DATA_ROOT = get("ZETARIS_DATA_ROOT") or "/home/zetaris/customer-data/shared/runway"
+
 # Zetaris
 ZETARIS_JDBC_URL = get("ZETARIS_JDBC_URL")
 ZETARIS_USER = get("ZETARIS_USER")

@@ -36,3 +36,6 @@ output/
 outputs/
 scratch/
 *.log
+
+# Zetaris query cache
+.cache/
