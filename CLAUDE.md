@@ -26,6 +26,11 @@ A student's money is spread across separate sources (checking account, credit ca
 6. **Secrets** live only in `.env` (or the existing config files), which are gitignored. Never print or commit keys.
 7. **All data is synthetic.** Never connect real bank accounts.
 8. **The agent never sends anything on its own.** Actions are drafts the user approves.
+9. **At most 2 LLM calls per user question:**
+   - one PLAN call: the model picks which tools to run and with what arguments, as structured JSON;
+   - one EXPLAIN call: the model writes the answer from the evidence.
+
+   Everything between them, every query and all the math, runs in deterministic Python with no LLM calls. Never build an open-ended tool-calling loop. The PLAN call runs with thinking off; the EXPLAIN call runs with thinking on, and its reasoning trace is kept so the UI can show it. (Why: the hosted endpoint takes 80–200+ s per round trip.)
 
 ## Sponsor tech
 

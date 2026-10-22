@@ -19,5 +19,9 @@ Zetaris itself runs separately in Docker (see the Zetaris bundle's README); it m
 ## Checks
 
 ```bash
-.venv/Scripts/python nemotron_smoke_test.py   # NVIDIA Nemotron: chat, tool calling, reasoning on/off
+.venv/Scripts/python -m pytest                 # unit tests (no network, no real API calls)
+.venv/Scripts/python nemotron_smoke_test.py    # live NVIDIA check: chat, tool calling, reasoning on/off
+.venv/Scripts/python benchmark_latency.py 3    # live latency comparison of Nemotron models (slow; measures only)
 ```
+
+The LLM client is `llm_client.py`: `chat()` for normal calls, `chat_json()` for the PLAN call, and `stream_chat()` for the EXPLAIN call. Every call has a 90 s timeout and up to 2 retries on 5xx errors and timeouts.
