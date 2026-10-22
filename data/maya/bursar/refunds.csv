@@ -1,0 +1,2 @@
+REFUND_ID,TERM_CODE,REFUND_AMOUNT,BASIS,STATUS,STATUS_REASON,RELEASE_RULE,METHOD
+RFD-01,FA26,1850.00,Anticipated credit balance: aid (incl. anticipated Pell) exceeds Fall 2026 charges,HELD,Hold FV (HLD-01) active,Within 7 business days after all holds clear,Direct deposit to Prairie State CU x4417

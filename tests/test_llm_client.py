@@ -187,3 +187,24 @@ def test_stream_retries_opening_on_500_and_text_chunks():
     stream = llm_client.stream_chat([{"role": "user", "content": "explain"}], model=MODEL, client=client)
     assert list(stream.text_chunks()) == ["ok"]
     assert stream.result.retries == 1
+
+
+# default models (rule 9 split) -------------------------------------------------
+
+@pytest.fixture
+def split_models(monkeypatch):
+    monkeypatch.setenv("NVIDIA_PLAN_MODEL", "plan-model")
+    monkeypatch.setenv("NVIDIA_EXPLAIN_MODEL", "explain-model")
+
+
+def test_chat_json_defaults_to_plan_model(split_models):
+    client = FakeClient(completion('{"tools": []}'))
+    llm_client.chat_json([{"role": "user", "content": "plan"}], client=client)
+    assert client.calls[0]["model"] == "plan-model"
+
+
+def test_chat_and_stream_default_to_explain_model(split_models):
+    client = FakeClient(completion("a"), iter([chunk(content="b")]))
+    llm_client.chat([{"role": "user", "content": "x"}], client=client)
+    list(llm_client.stream_chat([{"role": "user", "content": "x"}], client=client))
+    assert [c["model"] for c in client.calls] == ["explain-model", "explain-model"]

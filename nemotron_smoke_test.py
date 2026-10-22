@@ -24,7 +24,7 @@ client = OpenAI(
     api_key=config.require("NVIDIA_API_KEY"),
     timeout=180,
 )
-MODEL = config.require("NVIDIA_MODEL")
+MODEL = config.require("NVIDIA_EXPLAIN_MODEL")
 
 
 def chat(messages, thinking, **kwargs):

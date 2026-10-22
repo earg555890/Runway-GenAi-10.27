@@ -1,0 +1,331 @@
+{
+  "generated_by": "generate_maya_data.py",
+  "seed": 20261026,
+  "demo_today": "2026-10-26",
+  "semester": [
+    "2026-08-24",
+    "2026-12-18"
+  ],
+  "stories": [
+    {
+      "id": 1,
+      "title": "Aid refund held by a verification hold",
+      "finding": "Maya's $1,850.00 Fall refund is held because her Pell Grant cannot disburse until she submits the 2026-27 Verification Worksheet, and the bursar's FV hold blocks refunds.",
+      "key_numbers": {
+        "refund_amount": "1850.00",
+        "pell_held": "3697.00",
+        "fall_charges": "5973.22",
+        "aid_disbursed": "4126.22",
+        "hold_since": "2026-09-10",
+        "release_rule_business_days": 7
+      },
+      "evidence": [
+        {
+          "source": "bursar",
+          "table": "refunds",
+          "row_ids": [
+            "RFD-01"
+          ]
+        },
+        {
+          "source": "bursar",
+          "table": "holds",
+          "row_ids": [
+            "HLD-01"
+          ]
+        },
+        {
+          "source": "bursar",
+          "table": "ledger",
+          "row_ids": [
+            "LED-004",
+            "LED-005",
+            "LED-006",
+            "LED-007",
+            "LED-008",
+            "LED-009",
+            "LED-010",
+            "LED-011"
+          ]
+        },
+        {
+          "source": "aid",
+          "table": "disbursements",
+          "row_ids": [
+            "DSB-03"
+          ]
+        },
+        {
+          "source": "aid",
+          "table": "requirements",
+          "row_ids": [
+            "REQ-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Paying for two music subscriptions",
+      "finding": "Maya pays for two music services every month: Spotify $11.99 on checking and Apple Music $10.99 on her credit card.",
+      "key_numbers": {
+        "spotify_monthly": "11.99",
+        "spotify_day": 14,
+        "apple_music_monthly": "10.99",
+        "apple_music_day": 22,
+        "combined_monthly": "22.98"
+      },
+      "evidence": [
+        {
+          "source": "checking",
+          "table": "transactions",
+          "row_ids": [
+            "CHK-0009",
+            "CHK-0031",
+            "CHK-0053"
+          ]
+        },
+        {
+          "source": "card",
+          "table": "transactions",
+          "row_ids": [
+            "CRD-0003",
+            "CRD-0009",
+            "CRD-0017",
+            "CRD-0024"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Overdraft fee because rent is due before payday",
+      "finding": "On Oct 1 the $725.00 rent payment overdrew checking (balance $718.08 the night before), triggering a $35.00 Courtesy Pay fee one day before the Oct 2 paycheck arrived.",
+      "key_numbers": {
+        "balance_sep_30": "718.08",
+        "rent": "725.00",
+        "balance_after_rent": "-6.92",
+        "overdraft_fee": "35.00",
+        "paycheck_oct_2": "516.15",
+        "rent_due_day": 1,
+        "scheduled_payday": "3rd (Oct 3 is a Saturday, so paid Fri Oct 2)"
+      },
+      "evidence": [
+        {
+          "source": "checking",
+          "table": "transactions",
+          "row_ids": [
+            "CHK-0042",
+            "CHK-0043",
+            "CHK-0044"
+          ]
+        },
+        {
+          "source": "checking",
+          "table": "account",
+          "row_ids": [
+            "ACCT-CHK-01"
+          ]
+        },
+        {
+          "source": "lease",
+          "table": "lease_terms",
+          "row_ids": [
+            "LT-01"
+          ]
+        },
+        {
+          "source": "shifts",
+          "table": "job",
+          "row_ids": [
+            "JOB-01"
+          ]
+        },
+        {
+          "source": "shifts",
+          "table": "pay_periods",
+          "row_ids": [
+            "PAY-03"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Payment-plan installment lands in a short-paycheck week",
+      "finding": "The $200.00 payment-plan installment is due Fri Nov 20, the same week as the Wed Nov 18 paycheck, which covers only 8 scheduled hours (vs 40 worked for the Oct 1-15 period) because of the cafe renovation.",
+      "key_numbers": {
+        "installment": "200.00",
+        "installment_due": "2026-11-20",
+        "paycheck_date": "2026-11-18",
+        "nov_1_15_scheduled_hours": "8.0",
+        "oct_1_15_worked_hours": "40.0",
+        "hourly_rate": "15.50",
+        "withholding_pct": "7.5"
+      },
+      "evidence": [
+        {
+          "source": "bursar",
+          "table": "payment_plan",
+          "row_ids": [
+            "PPI-04"
+          ]
+        },
+        {
+          "source": "shifts",
+          "table": "pay_periods",
+          "row_ids": [
+            "PAY-06",
+            "PAY-04"
+          ]
+        },
+        {
+          "source": "shifts",
+          "table": "shifts",
+          "row_ids": [
+            "SHF-040",
+            "SHF-041"
+          ]
+        },
+        {
+          "source": "shifts",
+          "table": "job",
+          "row_ids": [
+            "JOB-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "The $400 Thanksgiving flight needs the refund AND one cancelled subscription",
+      "finding": "Booking the $400 flight by Nov 10 keeps checking at or above $0 through Dec 18 only if the $1,850 refund is released and Spotify is cancelled; with either one alone, checking goes below $0.",
+      "key_numbers": {
+        "flight_cost": "400.00",
+        "book_by": "2026-11-10",
+        "start_balance_oct_26": "783.38",
+        "refund": "1850.00",
+        "refund_date_if_released": "2026-11-05",
+        "spotify_savings_through_dec_18": "23.98",
+        "apple_music_savings_through_dec_18": "0.00",
+        "scenarios_TEMPORARY_projection": {
+          "no_refund_no_cancel": {
+            "min_balance": "-1862.37",
+            "min_date": "2026-12-17",
+            "balance_dec_18": "-1812.53"
+          },
+          "refund_only": {
+            "min_balance": "-12.37",
+            "min_date": "2026-12-17",
+            "balance_dec_18": "37.47"
+          },
+          "cancel_spotify_only": {
+            "min_balance": "-1838.39",
+            "min_date": "2026-12-17",
+            "balance_dec_18": "-1788.55"
+          },
+          "refund_and_cancel_spotify": {
+            "min_balance": "5.81",
+            "min_date": "2026-11-02",
+            "balance_dec_18": "61.45"
+          },
+          "no_flight_no_refund": {
+            "min_balance": "-1462.37",
+            "min_date": "2026-12-17"
+          }
+        }
+      },
+      "why_spotify_not_apple_music": "Spotify charges checking on Nov 14 and Dec 14. Apple Music's next charge (Nov 22) is on the card cycle that closes Dec 12 and is paid Jan 7, after the semester, so cancelling Apple Music does not help checking before Dec 18.",
+      "projection_method_TEMPORARY": "(documented in answer_key.json so the real engine can reproduce it):\n  - known scheduled items: rent (1st), utility share (5th), Spotify (14th), plan installment,\n    card autopay (next business day after the 7th), paychecks from scheduled shifts;\n  - variable spending at the semester-to-date daily average (checking debit and card separately);\n  - the Nov 12 card statement = actual card spend Oct 13-26 + card daily average Oct 27-Nov 12\n    (Apple Music's next charge, Nov 22, falls in the cycle paid Jan 7, after the semester);\n  - the refund, if released, arrives REFUND_RELEASE_BUSINESS_DAYS business days after the hold\n    clears, assuming the missing form is submitted on Tue Oct 27;\n  - the flight is a $400 debit-card purchase on Nov 10.",
+      "projection_inputs": {
+        "variable_spend_window": [
+          "2026-08-24",
+          "2026-10-26"
+        ],
+        "checking_variable_per_day": "7.51",
+        "card_variable_per_day": "3.23",
+        "card_open_cycle_spend_oct_13_26": "230.31",
+        "card_autopay_nov_9": "359.53",
+        "card_statement_nov_12_projected": "285.22"
+      },
+      "evidence": [
+        {
+          "source": "checking",
+          "table": "account",
+          "row_ids": [
+            "ACCT-CHK-01"
+          ]
+        },
+        {
+          "source": "checking",
+          "table": "transactions",
+          "row_ids": [
+            "CHK-0009",
+            "CHK-0031",
+            "CHK-0053"
+          ]
+        },
+        {
+          "source": "bursar",
+          "table": "refunds",
+          "row_ids": [
+            "RFD-01"
+          ]
+        },
+        {
+          "source": "bursar",
+          "table": "payment_plan",
+          "row_ids": [
+            "PPI-04"
+          ]
+        },
+        {
+          "source": "lease",
+          "table": "rent_schedule",
+          "row_ids": [
+            "RS-04",
+            "RS-05"
+          ]
+        },
+        {
+          "source": "card",
+          "table": "statements",
+          "row_ids": [
+            "STM-004"
+          ]
+        },
+        {
+          "source": "card",
+          "table": "transactions",
+          "row_ids": [
+            "CRD-0003",
+            "CRD-0009",
+            "CRD-0017",
+            "CRD-0024"
+          ]
+        },
+        {
+          "source": "shifts",
+          "table": "pay_periods",
+          "row_ids": [
+            "PAY-05",
+            "PAY-06",
+            "PAY-07",
+            "PAY-08"
+          ]
+        },
+        {
+          "source": "shifts",
+          "table": "shifts",
+          "row_ids": [
+            "SHF-039",
+            "SHF-040",
+            "SHF-041",
+            "SHF-042",
+            "SHF-043"
+          ]
+        }
+      ]
+    }
+  ]
+}

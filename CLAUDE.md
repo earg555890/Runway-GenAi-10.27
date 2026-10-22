@@ -14,7 +14,13 @@ I'm working with a project lead (another Claude, in a separate chat) who plans t
 
 ## What it does
 
-A student's money is spread across separate sources (checking account, credit card, financial aid award, student account/bursar, lease, work shifts). Runway answers questions like "Can I afford a $400 spring break trip?" and "How many weeks will my money last?" It projects the balance forward through the semester, finds money leaks, explains WHY with evidence, and drafts actions (e.g., an email to the financial aid office) that the user approves before anything happens.
+A student's money is spread across separate sources (checking account, credit card, financial aid award, student account/bursar, lease, work shifts). Runway answers questions like "Can I afford a $400 flight home for Thanksgiving?" (the headline demo question) and "How many weeks will my money last?" It projects the balance forward through the semester, finds money leaks, explains WHY with evidence, and drafts actions (e.g., an email to the financial aid office) that the user approves before anything happens.
+
+**Demo timeline:**
+- The demo is set in the **Fall 2026 semester (Aug 24 – Dec 18, 2026)**.
+- It uses a fixed demo "today" of **Mon Oct 26, 2026**: `config.DEMO_TODAY`, set in `.env`. `config.SEMESTER_START` and `config.SEMESTER_END` hold the semester dates.
+- Never use the real system date for money logic.
+- The demo student is **Maya**. Her synthetic data is in `data/maya/` (regenerate with `generate_maya_data.py`), and the planted stories and their evidence are in `data/maya/answer_key.json`.
 
 ## Non-negotiable rules
 
@@ -22,7 +28,12 @@ A student's money is spread across separate sources (checking account, credit ca
 2. **The LLM never does arithmetic.** All money math happens in deterministic, tested Python. The LLM plans, picks tools, and writes explanations.
 3. **Every claim needs evidence.** Every claim in an answer must be backed by an evidence record: which source, what query, which rows. The UI must be able to show it.
 4. **Data sources stay separate.** Never merge them into one table or file. The app accesses every source through a data-access layer with two implementations: Zetaris (the real one) and local files (a fallback for testing and for the demo if Zetaris is down).
-5. **Reasoning model:** `nvidia/nemotron-3.5-super-vl-120b-a12b` (Nemotron 3.5 Super) through NVIDIA's OpenAI-compatible API, using the configuration provided. Read the model name and base URL from config (`config.NVIDIA_MODEL`, `config.NVIDIA_BASE_URL`), never hardcode them.
+5. **Models:** NVIDIA Nemotron through NVIDIA's OpenAI-compatible API, using the configuration provided.
+   - **PLAN:** `nvidia/nemotron-3.5-lightning-30b-a3b`, from `config.NVIDIA_PLAN_MODEL`.
+   - **EXPLAIN:** `nvidia/nemotron-3.5-super-vl-120b-a12b` (Nemotron 3.5 Super), from `config.NVIDIA_EXPLAIN_MODEL`. Its reasoning trace is what the UI shows.
+   - **Base URL:** `config.NVIDIA_BASE_URL`.
+
+   Read these from config, never hardcode them. `nvidia/nemotron-3-super-120b-a12b` is not available to our key (it returns 404); don't use it.
 6. **Secrets** live only in `.env` (or the existing config files), which are gitignored. Never print or commit keys.
 7. **All data is synthetic.** Never connect real bank accounts.
 8. **The agent never sends anything on its own.** Actions are drafts the user approves.
@@ -31,6 +42,11 @@ A student's money is spread across separate sources (checking account, credit ca
    - one EXPLAIN call: the model writes the answer from the evidence.
 
    Everything between them, every query and all the math, runs in deterministic Python with no LLM calls. Never build an open-ended tool-calling loop. The PLAN call runs with thinking off; the EXPLAIN call runs with thinking on, and its reasoning trace is kept so the UI can show it. (Why: the hosted endpoint takes 80–200+ s per round trip.)
+10. **Python computes every number the answer could need,** including results like "balance after the purchase", before EXPLAIN.
+    - The EXPLAIN prompt forbids introducing any number not in the evidence or computed results.
+    - It requires each claim to cite evidence IDs like [E3].
+    - After EXPLAIN, a check verifies that every dollar amount and date in the answer appears in the evidence or computed results.
+    - On failure, retry once with the offending numbers listed, then show the answer with a visible warning.
 
 ## Sponsor tech
 

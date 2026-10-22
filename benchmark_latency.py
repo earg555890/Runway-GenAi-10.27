@@ -19,7 +19,6 @@ import llm_client
 
 MODELS = [
     "nvidia/nemotron-3.5-super-vl-120b-a12b",
-    "nvidia/nemotron-3-super-120b-a12b",
     "nvidia/nemotron-3.5-lightning-30b-a3b",
 ]
 TIMEOUT_S = 120

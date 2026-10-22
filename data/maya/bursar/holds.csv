@@ -1,0 +1,3 @@
+HOLD_ID,HOLD_CODE,HOLD_DESC,FROM_DATE,TO_DATE,ORIGINATOR,BLOCKS,STATUS
+HLD-01,FV,Financial Aid Verification Incomplete,10-SEP-2026,,Office of Student Financial Aid,Aid disbursement; credit balance refunds,ACTIVE
+HLD-02,IM,Immunization Record Missing,01-JUL-2026,12-AUG-2026,Student Health,Registration,RELEASED

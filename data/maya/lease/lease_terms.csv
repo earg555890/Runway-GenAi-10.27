@@ -1,0 +1,2 @@
+term_id,lease_ref,landlord,premises,tenant,start_date,end_date,monthly_rent,rent_due_day,grace_period_days,late_fee,security_deposit,utilities_included,payment_method
+LT-01,GPM-2026-0817,Greenway Property Management,"1417 W Oak St, Apt 2B (2BR, shared)",Maya Rivera,2026/08/01,2027/07/31,725.00,1,5,50.00,725.00,"Water, trash",Resident portal (ACH)

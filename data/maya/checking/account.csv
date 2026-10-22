@@ -1,0 +1,2 @@
+account_id,institution,account_type,account_last4,holder,opening_balance_2026_08_01,current_balance,as_of,overdraft_program,overdraft_fee,overdraft_fee_rule
+ACCT-CHK-01,Prairie State Credit Union,Student Checking,4417,Maya Rivera,3010.00,783.38,2026-10-26,Courtesy Pay,35.00,Fee per item that overdraws the account; max 3 per day

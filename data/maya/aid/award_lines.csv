@@ -1,0 +1,8 @@
+awd_line_id,aid_yr,fund_code,fund_desc,term,offered_amt,accepted_amt,awd_status
+AWD-01,2627,PELL,Federal Pell Grant,FA26,3697.00,3697.00,ACCEPTED
+AWD-02,2627,PELL,Federal Pell Grant,SP27,3698.00,3698.00,ACCEPTED
+AWD-03,2627,DLSUB,Federal Direct Subsidized Loan,FA26,2250.00,2250.00,ACCEPTED
+AWD-04,2627,DLSUB,Federal Direct Subsidized Loan,SP27,2250.00,2250.00,ACCEPTED
+AWD-05,2627,SOG,State Opportunity Grant,FA26,1900.00,1900.00,ACCEPTED
+AWD-06,2627,SOG,State Opportunity Grant,SP27,1900.00,1900.00,ACCEPTED
+AWD-07,2627,DLUNS,Federal Direct Unsubsidized Loan,FA26,1000.00,0.00,DECLINED

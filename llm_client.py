@@ -1,10 +1,12 @@
 """LLM client for NVIDIA Nemotron over the OpenAI-compatible API.
 
-Model and base URL come from config. Three entry points, matching rule 9 in CLAUDE.md:
+Models and base URL come from config. Three entry points, matching rule 9 in CLAUDE.md:
 
-    chat(messages, thinking=False)        -> LLMResult             normal call
-    chat_json(messages, thinking=False)   -> LLMResult (.data)     PLAN call: validated JSON
-    stream_chat(messages, thinking=True)  -> LLMStream             EXPLAIN call: text as it arrives
+    chat(messages, thinking=False)        -> LLMResult             normal call    (default model: NVIDIA_EXPLAIN_MODEL)
+    chat_json(messages, thinking=False)   -> LLMResult (.data)     PLAN call      (default model: NVIDIA_PLAN_MODEL)
+    stream_chat(messages, thinking=True)  -> LLMStream             EXPLAIN call   (default model: NVIDIA_EXPLAIN_MODEL)
+
+Pass model= to override per call.
 
 Every call has a timeout (default 90 s) and up to 2 retries with exponential backoff on 5xx
 errors and timeouts, and writes one log line: model, thinking, duration, tokens, retries.
@@ -80,7 +82,7 @@ def _is_retryable(exc):
 
 def _request_kwargs(messages, thinking, model, timeout, max_tokens, temperature, extra):
     kwargs = dict(
-        model=model or config.require("NVIDIA_MODEL"),
+        model=model or config.require("NVIDIA_EXPLAIN_MODEL"),
         messages=messages,
         temperature=temperature,
         max_tokens=max_tokens,
@@ -166,6 +168,8 @@ def chat_json(messages, thinking=False, *, validate=None, **kwargs):
     error message sent back to the model. Raises InvalidJSONError if the second answer is
     invalid too.
     """
+    if not kwargs.get("model"):
+        kwargs["model"] = config.require("NVIDIA_PLAN_MODEL")
     total_start = time.perf_counter()
     result = chat(messages, thinking, **kwargs)
     total_retries = result.retries

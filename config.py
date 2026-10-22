@@ -1,10 +1,11 @@
 """All settings in one place, read from .env (real environment variables win).
 
     import config
-    config.NVIDIA_MODEL
+    config.NVIDIA_PLAN_MODEL, config.NVIDIA_EXPLAIN_MODEL, config.DEMO_TODAY
     config.require("ZETARIS_PASSWORD")   # raises a clear error if missing
 """
 import os
+from datetime import date
 from pathlib import Path
 
 ENV_FILE = Path(__file__).resolve().parent / ".env"
@@ -47,10 +48,17 @@ def require(name):
     return value
 
 
-# NVIDIA Nemotron
+# NVIDIA Nemotron. PLAN = fast model that picks tools (JSON, thinking off);
+# EXPLAIN = larger model that writes the answer (thinking on). See rule 9 in CLAUDE.md.
 NVIDIA_API_KEY = get("NVIDIA_API_KEY")
-NVIDIA_MODEL = get("NVIDIA_MODEL")
+NVIDIA_PLAN_MODEL = get("NVIDIA_PLAN_MODEL")
+NVIDIA_EXPLAIN_MODEL = get("NVIDIA_EXPLAIN_MODEL")
 NVIDIA_BASE_URL = get("NVIDIA_BASE_URL")
+
+# Demo timeline: the fixed "today" the demo runs on (Fall 2026 semester).
+DEMO_TODAY = date.fromisoformat(get("DEMO_TODAY") or "2026-10-26")
+SEMESTER_START = date(2026, 8, 24)
+SEMESTER_END = date(2026, 12, 18)
 
 # Zetaris
 ZETARIS_JDBC_URL = get("ZETARIS_JDBC_URL")
