@@ -20,8 +20,8 @@ Planted stories (expected findings, numbers and row IDs go to data/maya/answer_k
   5. The $400 Thanksgiving flight (booked by Nov 10) is affordable only if the refund is
      released AND one music subscription is cancelled.
 
-At the end, a TEMPORARY self-check projection confirms story 5. It is a stand-in until the
-real money engine and its tests exist, and will be replaced by them.
+Story 5's projection is the money engine's job (engine.py): tests/test_engine.py checks that the
+engine reproduces the story-5 numbers recorded in the answer key (STORY5_EXPECTED) to the cent.
 """
 import csv
 import json
@@ -74,7 +74,7 @@ def next_business_day(d):
 STUDENT = dict(name="Maya Rivera", student_id="U00418273", email="maya.rivera@stateu.example.edu",
                school="State University", year="Sophomore", address="1417 W Oak St, Apt 2B")
 
-CHECKING_OPEN_BALANCE = D("3010.00")   # Aug 1, 2026 (summer job savings) -- tuned, see self-check
+CHECKING_OPEN_BALANCE = D("3010.00")   # Aug 1, 2026 (summer job savings) -- tuned for story 5
 OVERDRAFT_FEE = D("35.00")
 
 RENT = D("725.00")
@@ -378,63 +378,40 @@ def money(x):
 
 
 # ---------------------------------------------------------------------------------------
-# TEMPORARY self-check projection for story 5. Replace with the real money engine's tests.
+# Story 5 expected results, written into the answer key. They are the money engine's outputs for
+# this data; tests/test_engine.py fails if the engine stops reproducing them to the cent. If the
+# data above changes, rerun the engine tests and copy the new values from the engine; never tune
+# the projection rule (CLAUDE.md rule 11). The answer key's "TEMPORARY" key names are kept so
+# answer_key.json stays byte-identical.
 # ---------------------------------------------------------------------------------------
-def temporary_projection(start_balance, chk_var_per_day, card_var_per_day, card_open_cycle_spend,
-                         next_card_payment, shifts, periods, refund_released, cancel_spotify, flight):
-    """Day-by-day checking balance from TODAY+1 to SEMESTER_END. Returns (min_balance, min_date, end_balance).
+STORY5_METHOD = """(documented in answer_key.json so the real engine can reproduce it):
+  - known scheduled items: rent (1st), utility share (5th), Spotify (14th), plan installment,
+    card autopay (next business day after the 7th), paychecks from scheduled shifts;
+  - variable spending at the semester-to-date daily average (checking debit and card separately);
+  - the Nov 12 card statement = actual card spend Oct 13-26 + card daily average Oct 27-Nov 12
+    (Apple Music's next charge, Nov 22, falls in the cycle paid Jan 7, after the semester);
+  - the refund, if released, arrives REFUND_RELEASE_BUSINESS_DAYS business days after the hold
+    clears, assuming the missing form is submitted on Tue Oct 27;
+  - the flight is a $400 debit-card purchase on Nov 10."""
+STORY5_EXPECTED = {
+    "card_statement_nov_12_projected": "285.22",
+    "scenarios": {
+        "no_refund_no_cancel": {"min_balance": "-1862.37", "min_date": "2026-12-17", "balance_dec_18": "-1812.53"},
+        "refund_only": {"min_balance": "-12.37", "min_date": "2026-12-17", "balance_dec_18": "37.47"},
+        "cancel_spotify_only": {"min_balance": "-1838.39", "min_date": "2026-12-17", "balance_dec_18": "-1788.55"},
+        "refund_and_cancel_spotify": {"min_balance": "5.81", "min_date": "2026-11-02", "balance_dec_18": "61.45"},
+        "no_flight_no_refund": {"min_balance": "-1462.37", "min_date": "2026-12-17"},
+    },
+}
+REFUND_FORM_SUBMITTED = date(2026, 10, 27)     # assumed submit date for the missing verification form
 
-    Method (documented in answer_key.json so the real engine can reproduce it):
-      - known scheduled items: rent (1st), utility share (5th), Spotify (14th), plan installment,
-        card autopay (next business day after the 7th), paychecks from scheduled shifts;
-      - variable spending at the semester-to-date daily average (checking debit and card separately);
-      - the Nov 12 card statement = actual card spend Oct 13-26 + card daily average Oct 27-Nov 12
-        (Apple Music's next charge, Nov 22, falls in the cycle paid Jan 7, after the semester);
-      - the refund, if released, arrives REFUND_RELEASE_BUSINESS_DAYS business days after the hold
-        clears, assuming the missing form is submitted on Tue Oct 27;
-      - the flight is a $400 debit-card purchase on Nov 10.
-    """
-    events = {}
 
-    def add(d, amt):
-        events[d] = events.get(d, Decimal("0")) + amt
-
-    for d in days(TODAY + timedelta(days=1), SEMESTER_END):
-        add(d, -chk_var_per_day)
-        if d.day == RENT_DUE_DAY:
-            add(d, -RENT)
-        if d.day == 5:
-            add(d, -UTIL_SHARE)
-        if d.day == SPOTIFY_DAY and not cancel_spotify:
-            add(d, -SPOTIFY)
-    for due in PLAN_DUE_DATES:
-        if due > TODAY:
-            add(next_business_day(due), -PLAN_INSTALLMENT)
-    add(next_business_day(date(2026, 11, CARD_DUE_DAY)), -next_card_payment)
-    nov12_stmt = card_open_cycle_spend + card_var_per_day * (date(2026, 11, 12) - TODAY).days
-    add(next_business_day(date(2026, 12, CARD_DUE_DAY)), -D(nov12_stmt))
-    for start, end, pay_day in periods:
-        if TODAY < pay_day <= SEMESTER_END:
-            hours = sum((s.hours for s in shifts if start <= s.day <= end and s.status in ("WORKED", "SCHEDULED")),
-                        Decimal("0"))
-            add(pay_day, net_pay(hours)[2])
-    refund_day = None
-    if refund_released:
-        refund_day, n, d = None, 0, date(2026, 10, 27)
-        while n < REFUND_RELEASE_BUSINESS_DAYS:
-            d += timedelta(days=1)
-            if d.weekday() < 5:
-                n += 1
-        refund_day = d
-        add(refund_day, D("1850.00"))
-    if flight:
-        add(FLIGHT_BOOK_BY, -FLIGHT_COST)
-    bal, low, low_day = start_balance, None, None
-    for d in days(TODAY + timedelta(days=1), SEMESTER_END):
-        bal += events.get(d, Decimal("0"))
-        if low is None or bal < low:
-            low, low_day = bal, d
-    return D(low), low_day, D(bal), refund_day, D(nov12_stmt)
+def add_business_days(d, n):
+    while n > 0:
+        d += timedelta(days=1)
+        if d.weekday() < 5:
+            n -= 1
+    return d
 
 
 # ---------------------------------------------------------------------------------------
@@ -679,7 +656,7 @@ def main():
         "", "This document is a display copy. The lease records are the official source.",
     ])
 
-    # ---- TEMPORARY self-check: story 5 ------------------------------------------------------
+    # ---- story 5 inputs (data summaries; the projection itself is engine.py) ---------------
     var_window = (SEMESTER_START, TODAY)
     n_days = (var_window[1] - var_window[0]).days + 1
     chk_var = -sum((t.amount for t in chk_txns if t.kind == "chk_var" and var_window[0] <= t.day <= var_window[1]),
@@ -688,22 +665,7 @@ def main():
                     Decimal("0"))
     chk_rate, card_rate = D(chk_var / n_days), D(card_var / n_days)
     next_card_payment = stmts[-1]["balance"]  # Oct 12 statement, autopay Nov 9
-    scenarios = {}
-    for name, refund, cancel in [("no_refund_no_cancel", False, False), ("refund_only", True, False),
-                                 ("cancel_spotify_only", False, True), ("refund_and_cancel_spotify", True, True)]:
-        low, low_day, end, refund_day, nov12 = temporary_projection(
-            end_balance, chk_rate, card_rate, open_cycle_spend, next_card_payment, shifts, periods,
-            refund, cancel, flight=True)
-        scenarios[name] = dict(min_balance=f"{low:.2f}", min_date=low_day.isoformat(), balance_dec_18=f"{end:.2f}")
-    low_nf, low_nf_day, _, _, _ = temporary_projection(end_balance, chk_rate, card_rate, open_cycle_spend,
-                                                       next_card_payment, shifts, periods, False, False, flight=False)
-    scenarios["no_flight_no_refund"] = dict(min_balance=f"{low_nf:.2f}", min_date=low_nf_day.isoformat())
-
-    print("TEMPORARY self-check projection (story 5), checking balance Oct 27 - Dec 18, flight on Nov 10:")
-    print(f"  start balance (Oct 26): {money(end_balance)}; variable spend/day: checking {money(chk_rate)}, card {money(card_rate)}")
-    print(f"  refund date if released: {refund_day}; Nov 12 card statement (projected): {money(nov12)}")
-    for name, v in scenarios.items():
-        print(f"  {name:<28} min {money(Decimal(v['min_balance'])):>11} on {v['min_date']}")
+    refund_day = add_business_days(REFUND_FORM_SUBMITTED, REFUND_RELEASE_BUSINESS_DAYS)
 
     # ---- history checks -------------------------------------------------------------------
     problems = []
@@ -715,12 +677,6 @@ def main():
                  if bal < 0 and not (date(2026, 10, 1) <= t.day <= date(2026, 10, 1))]
     if negatives:
         problems.append(f"checking negative outside Oct 1: {negatives[:3]}")
-    if Decimal(scenarios["refund_only"]["min_balance"]) >= 0:
-        problems.append("story 5: refund alone should still go below $0")
-    if Decimal(scenarios["cancel_spotify_only"]["min_balance"]) >= 0:
-        problems.append("story 5: cancelling alone should still go below $0")
-    if Decimal(scenarios["refund_and_cancel_spotify"]["min_balance"]) < 0:
-        problems.append("story 5: refund + cancel should stay at or above $0")
     if refund_amt != D("1850.00"):
         problems.append(f"refund is {refund_amt}, expected 1850.00")
 
@@ -822,17 +778,18 @@ def main():
                                 "refund_date_if_released": refund_day.isoformat(),
                                 "spotify_savings_through_dec_18": f"{SPOTIFY * 2:.2f}",
                                 "apple_music_savings_through_dec_18": "0.00",
-                                "scenarios_TEMPORARY_projection": scenarios},
+                                "scenarios_TEMPORARY_projection": STORY5_EXPECTED["scenarios"]},
                 "why_spotify_not_apple_music": "Spotify charges checking on Nov 14 and Dec 14. Apple Music's next charge (Nov 22) "
                                                "is on the card cycle that closes Dec 12 and is paid Jan 7, after the semester, "
                                                "so cancelling Apple Music does not help checking before Dec 18.",
-                "projection_method_TEMPORARY": temporary_projection.__doc__.split("Method")[1].strip(" :\n"),
+                "projection_method_TEMPORARY": STORY5_METHOD,
                 "projection_inputs": {"variable_spend_window": [var_window[0].isoformat(), var_window[1].isoformat()],
                                       "checking_variable_per_day": f"{chk_rate:.2f}",
                                       "card_variable_per_day": f"{card_rate:.2f}",
                                       "card_open_cycle_spend_oct_13_26": f"{open_cycle_spend:.2f}",
                                       "card_autopay_nov_9": f"{next_card_payment:.2f}",
-                                      "card_statement_nov_12_projected": f"{nov12:.2f}"},
+                                      "card_statement_nov_12_projected":
+                                          STORY5_EXPECTED["card_statement_nov_12_projected"]},
                 "evidence": [
                     {"source": "checking", "table": "account", "row_ids": ["ACCT-CHK-01"]},
                     {"source": "checking", "table": "transactions", "row_ids": [tid for tid, _, _ in ids["spotify"]]},
@@ -855,11 +812,11 @@ def main():
     for k, v in summary.items():
         print(f"  {k}: {v} rows")
     if problems:
-        print("\nSELF-CHECK FAILED:")
+        print("\nHISTORY CHECK FAILED:")
         for p in problems:
             print("  -", p)
         sys.exit(1)
-    print("\nSELF-CHECK PASSED (temporary projection; replace with the money engine's tests)")
+    print("\nHistory checks passed. Story 5 is checked by the engine: pytest tests/test_engine.py")
 
 
 if __name__ == "__main__":

@@ -19,11 +19,25 @@ Zetaris itself runs separately in Docker (see the Zetaris bundle's README); it m
 ## Demo data
 
 ```bash
-.venv/Scripts/python generate_maya_data.py   # rewrite data/maya/ (fixed seed) and run the story self-check
+.venv/Scripts/python generate_maya_data.py   # rewrite data/maya/ (fixed seed) and run the history checks
 .venv/Scripts/python load_zetaris.py         # load data/maya into Zetaris: one Lightning database per source (safe to rerun)
 ```
 
 The app reads data only through `data_access.py`: named queries (`data_access.catalog()`), each with a Lightning SQL template and an equivalent local implementation. `DATA_BACKEND=local` (default) reads the CSVs; `DATA_BACKEND=zetaris` queries Zetaris over JDBC, with results cached in `.cache/zetaris/` (`ZETARIS_CACHE=on`). Every result carries an evidence record (query, sources, tables, SQL, params, row IDs, backend, duration).
+
+## Money engine
+
+`normalize.py` turns the query results into typed records: one date type for every source's date format, and one sign convention (money out is negative). It also normalizes merchant names and classifies every transaction with rules (`MERCHANT_RULES`). `engine.py` does all the money math in plain, tested Python, with no LLM:
+
+```python
+import engine
+engine.project()                                                    # daily checking projection, "nothing changes"
+engine.project(engine.Scenario(refund_released=True, cancel_subscriptions=("Spotify",)))   # what-if
+engine.can_afford("400.00", "2026-11-10")                           # yes / no / yes_if + smallest set of fixes
+engine.find_leaks(); engine.refund_status(); engine.cash_crunches()
+```
+
+Each number is a `Computed` record (`C#`: label, value, unit, how, inputs = row IDs and other `C#` ids) that the EXPLAIN step can cite.
 
 ## Checks
 

@@ -53,6 +53,8 @@ A student's money is spread across separate sources (checking account, credit ca
     - Everything else is variable spending, projected per account as the semester-to-date daily average of non-recurring purchases under $100.
     - Purchases of $100 or more are one-offs and are not projected.
     - The engine's tests must reproduce the answer key's self-check numbers to the cent. If they can't, change the DATA (`generate_maya_data.py`), never the rule.
+12. **Classification is rule-based, never the LLM.** Categories: income, rent, recurring_bill (utility share, payment plan and similar), subscription (small fixed monthly digital services), card_payment (a transfer between Maya's own accounts; never count it as spending), fee, one_off ($100 or more, non-recurring), variable (everything else). Merchant keywords live in one place: `normalize.MERCHANT_RULES`.
+13. **The engine takes a scenario as input** (`engine.Scenario`; defaults = "nothing changes"), so the UI's what-if panel can recompute the projection instantly with no LLM call.
 
 ## Sponsor tech
 
@@ -80,6 +82,9 @@ This is part of the judging score, so keep it visible:
   - **Sample data:** `NY_TAXI` and `TPCDS_DB` were registered the same way, from a public S3 bucket.
 - **Other statements that work:** `SHOW LIGHTNING DATABASES`, `SHOW TABLES IN <DB>`, `DROP LIGHTNING DATABASE TABLE <DB>.<table>`, `DROP LIGHTNING DATABASE <DB>` (drop its tables first). Spark SQL functions work too: `to_date(col, 'MM/dd/yyyy')`, `UNION ALL`, joins, subqueries, `GROUP BY ... HAVING`. Empty CSV cells come back as NULL.
 - **Loading and access:** `load_zetaris.py` loads `data/maya`. The app reads only through the named queries in `data_access.py`, never ad-hoc SQL.
+- **Demo path (approved):** both.
+  - At app startup, warm the Zetaris cache with every query the three demo questions need (`normalize.queries()` lists the engine's), so answers are fast. Evidence still shows `zetaris-cached` with the original timing.
+  - A "Run live on Zetaris" button in the UI runs the federated query uncached, with a visible timer: the "this is Zetaris" moment. (UI comes later.)
 - **Database naming (approved):** one Lightning database per source: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`. `RUNWAY_TEST` (5-row throwaway) still exists; drop it in the task that registers the real demo sources.
 - **Speed:** this laptop is ARM (Snapdragon), so the Intel/AMD images run under emulation.
   - Small local tables: about 1.5–4 s per query.
