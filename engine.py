@@ -531,6 +531,16 @@ def project(scenario=None, ds=None, ledger=None):
                       first_neg is None, ledger, [start, lowest, lowest_date, end_bal, below, runway])
 
 
+def compare(base, current, ledger):
+    """Change from the base projection to the current one (what-if deltas). Both must use `ledger`."""
+    out = {}
+    for key, unit in (("runway_weeks", "weeks"), ("lowest", "USD"), ("end_balance", "USD")):
+        b, c = getattr(base, key), getattr(current, key)
+        out[key] = ledger.add(f"change in {c.label.split(' (')[0]} vs nothing changes", c.value - b.value, unit,
+                              f"{c.value} ({current.scenario.describe()}) minus {b.value} (nothing changes).", [c, b])
+    return out
+
+
 # ---------------------------------------------------------------------------------------
 # Fixes and their timing-aware savings
 # ---------------------------------------------------------------------------------------
@@ -546,18 +556,25 @@ class Fix:
         return scenario.plus(cancel_subscriptions=(self.name,))
 
 
-def subscription_savings(sub, ds, ledger, scenario=None):
-    """What cancelling now saves checking by SEMESTER_END, given when each charge actually hits checking."""
+def subscription_timing(sub, ds, scenario=None):
+    """[(charge date, date it reaches checking or None)] for the upcoming charges through one month
+    after SEMESTER_END. A card charge reaches checking when its cycle's statement is paid."""
     scenario, end = scenario or Scenario(), config.SEMESTER_END
-    hits = []
     if sub.account == "checking":
         hits = [(d, d) for d in sub.next_charges]
     else:
         cyc = card_cycles(ds, scenario, variable_rate(ds, "card", Ledger()), Ledger(), [sub])
+        hits = []
         for d in sub.next_charges:
             c = next((c for c in cyc if c.start <= d <= c.closing), None)
             hits.append((d, c.pay_date if c else None))
-    hits = [(d, pay) for d, pay in hits if d <= end + timedelta(days=31)]
+    return [(d, pay) for d, pay in hits if d <= end + timedelta(days=31)]
+
+
+def subscription_savings(sub, ds, ledger, scenario=None):
+    """What cancelling now saves checking by SEMESTER_END, given when each charge actually hits checking."""
+    end = config.SEMESTER_END
+    hits = subscription_timing(sub, ds, scenario)
     saved = [(d, pay) for d, pay in hits if pay and pay <= end]
     amount = D(-sub.amount * len(saved))
     lines = []

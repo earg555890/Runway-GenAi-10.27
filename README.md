@@ -25,6 +25,18 @@ Zetaris itself runs separately in Docker (see the Zetaris bundle's README); it m
 
 The app reads data only through `data_access.py`: named queries (`data_access.catalog()`), each with a Lightning SQL template and an equivalent local implementation. `DATA_BACKEND=local` (default) reads the CSVs; `DATA_BACKEND=zetaris` queries Zetaris over JDBC, with results cached in `.cache/zetaris/` (`ZETARIS_CACHE=on`). Every result carries an evidence record (query, sources, tables, SQL, params, row IDs, backend, duration).
 
+## Run the app
+
+```bash
+.venv/Scripts/python -m streamlit run ui/app.py                          # backend from .env (DATA_BACKEND, default local)
+DATA_BACKEND=local   .venv/Scripts/python -m streamlit run ui/app.py     # Git Bash: local CSVs
+DATA_BACKEND=zetaris .venv/Scripts/python -m streamlit run ui/app.py     # Git Bash: Zetaris (Docker bundle must be up)
+```
+
+PowerShell: `$env:DATA_BACKEND="zetaris"; .venv\Scripts\python -m streamlit run ui/app.py` (use `"local"` for the CSVs). Opens at http://localhost:8501. The first Zetaris load runs every engine query (about a minute on this laptop) and fills the query cache; later loads come from the cache. If Zetaris fails, the app falls back to the local files and says so.
+
+`ui/app.py` is short; each section is its own module in `ui/` (header, sidebar, hero, chart, whatif, findings, explain, live_zetaris, ask). The UI does no money math: every number comes from `engine`.
+
 ## Money engine
 
 `normalize.py` turns the query results into typed records: one date type for every source's date format, and one sign convention (money out is negative). It also normalizes merchant names and classifies every transaction with rules (`MERCHANT_RULES`). `engine.py` does all the money math in plain, tested Python, with no LLM:

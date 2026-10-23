@@ -199,3 +199,20 @@ def test_story4_installment_in_short_paycheck_week(ds, key):
     assert str(f.computed["hourly_rate"].value) == kn["hourly_rate"]
     assert str(f.computed["withholding_pct"].value) == kn["withholding_pct"]
     assert {k: set(v) for k, v in f.row_ids.items()} == key_rows(key[4])
+
+
+def test_compare_gives_what_if_deltas(ds):
+    ledger = e.Ledger()
+    base = e.project(e.Scenario(), ds, ledger)
+    cur = e.project(SCENARIOS["refund_and_cancel_spotify"][0], ds, ledger)
+    d = e.compare(base, cur, ledger)
+    assert d["lowest"].value == Decimal("5.81") - Decimal("-1462.37")
+    assert d["end_balance"].value == Decimal("61.45") - Decimal("-1412.53")
+    assert d["runway_weeks"].value == Decimal("5.5")
+    assert set(d["lowest"].inputs) == {cur.lowest.id, base.lowest.id}
+
+
+def test_subscription_timing(ds):
+    subs = {s.merchant: s for s in e.subscriptions(ds)}
+    assert e.subscription_timing(subs["Apple Music"], ds)[0] == (date(2026, 11, 22), date(2027, 1, 7))
+    assert e.subscription_timing(subs["Spotify"], ds)[:2] == [(date(2026, 11, 14),) * 2, (date(2026, 12, 14),) * 2]

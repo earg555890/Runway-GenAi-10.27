@@ -84,7 +84,8 @@ This is part of the judging score, so keep it visible:
 - **Loading and access:** `load_zetaris.py` loads `data/maya`. The app reads only through the named queries in `data_access.py`, never ad-hoc SQL.
 - **Demo path (approved):** both.
   - At app startup, warm the Zetaris cache with every query the three demo questions need (`normalize.queries()` lists the engine's), so answers are fast. Evidence still shows `zetaris-cached` with the original timing.
-  - A "Run live on Zetaris" button in the UI runs the federated query uncached, with a visible timer: the "this is Zetaris" moment. (UI comes later.)
+  - A "Run live on Zetaris" button in the UI runs the federated query uncached, with a visible timer: the "this is Zetaris" moment (`ui/live_zetaris.py`).
+- **UI labels:** show runway together with its date ("2.0 weeks, until Mon Nov 9"); always label the fee savings "estimated".
 - **Database naming (approved):** one Lightning database per source: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`. `RUNWAY_TEST` (5-row throwaway) still exists; drop it in the task that registers the real demo sources.
 - **Speed:** this laptop is ARM (Snapdragon), so the Intel/AMD images run under emulation.
   - Small local tables: about 1.5–4 s per query.
