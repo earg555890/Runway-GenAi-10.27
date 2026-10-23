@@ -381,8 +381,7 @@ def money(x):
 # Story 5 expected results, written into the answer key. They are the money engine's outputs for
 # this data; tests/test_engine.py fails if the engine stops reproducing them to the cent. If the
 # data above changes, rerun the engine tests and copy the new values from the engine; never tune
-# the projection rule (CLAUDE.md rule 11). The answer key's "TEMPORARY" key names are kept so
-# answer_key.json stays byte-identical.
+# the projection rule (CLAUDE.md rule 11).
 # ---------------------------------------------------------------------------------------
 STORY5_METHOD = """(documented in answer_key.json so the real engine can reproduce it):
   - known scheduled items: rent (1st), utility share (5th), Spotify (14th), plan installment,
@@ -778,11 +777,11 @@ def main():
                                 "refund_date_if_released": refund_day.isoformat(),
                                 "spotify_savings_through_dec_18": f"{SPOTIFY * 2:.2f}",
                                 "apple_music_savings_through_dec_18": "0.00",
-                                "scenarios_TEMPORARY_projection": STORY5_EXPECTED["scenarios"]},
+                                "scenarios": STORY5_EXPECTED["scenarios"]},
                 "why_spotify_not_apple_music": "Spotify charges checking on Nov 14 and Dec 14. Apple Music's next charge (Nov 22) "
                                                "is on the card cycle that closes Dec 12 and is paid Jan 7, after the semester, "
                                                "so cancelling Apple Music does not help checking before Dec 18.",
-                "projection_method_TEMPORARY": STORY5_METHOD,
+                "projection_method": STORY5_METHOD,
                 "projection_inputs": {"variable_spend_window": [var_window[0].isoformat(), var_window[1].isoformat()],
                                       "checking_variable_per_day": f"{chk_rate:.2f}",
                                       "card_variable_per_day": f"{card_rate:.2f}",

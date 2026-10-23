@@ -217,7 +217,7 @@
         "refund_date_if_released": "2026-11-05",
         "spotify_savings_through_dec_18": "23.98",
         "apple_music_savings_through_dec_18": "0.00",
-        "scenarios_TEMPORARY_projection": {
+        "scenarios": {
           "no_refund_no_cancel": {
             "min_balance": "-1862.37",
             "min_date": "2026-12-17",
@@ -245,7 +245,7 @@
         }
       },
       "why_spotify_not_apple_music": "Spotify charges checking on Nov 14 and Dec 14. Apple Music's next charge (Nov 22) is on the card cycle that closes Dec 12 and is paid Jan 7, after the semester, so cancelling Apple Music does not help checking before Dec 18.",
-      "projection_method_TEMPORARY": "(documented in answer_key.json so the real engine can reproduce it):\n  - known scheduled items: rent (1st), utility share (5th), Spotify (14th), plan installment,\n    card autopay (next business day after the 7th), paychecks from scheduled shifts;\n  - variable spending at the semester-to-date daily average (checking debit and card separately);\n  - the Nov 12 card statement = actual card spend Oct 13-26 + card daily average Oct 27-Nov 12\n    (Apple Music's next charge, Nov 22, falls in the cycle paid Jan 7, after the semester);\n  - the refund, if released, arrives REFUND_RELEASE_BUSINESS_DAYS business days after the hold\n    clears, assuming the missing form is submitted on Tue Oct 27;\n  - the flight is a $400 debit-card purchase on Nov 10.",
+      "projection_method": "(documented in answer_key.json so the real engine can reproduce it):\n  - known scheduled items: rent (1st), utility share (5th), Spotify (14th), plan installment,\n    card autopay (next business day after the 7th), paychecks from scheduled shifts;\n  - variable spending at the semester-to-date daily average (checking debit and card separately);\n  - the Nov 12 card statement = actual card spend Oct 13-26 + card daily average Oct 27-Nov 12\n    (Apple Music's next charge, Nov 22, falls in the cycle paid Jan 7, after the semester);\n  - the refund, if released, arrives REFUND_RELEASE_BUSINESS_DAYS business days after the hold\n    clears, assuming the missing form is submitted on Tue Oct 27;\n  - the flight is a $400 debit-card purchase on Nov 10.",
       "projection_inputs": {
         "variable_spend_window": [
           "2026-08-24",

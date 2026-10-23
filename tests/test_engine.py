@@ -66,7 +66,7 @@ SCENARIOS = {
 @pytest.mark.parametrize("name", SCENARIOS)
 def test_scenario_minimums(ds, key, name):
     scenario, low, low_date = SCENARIOS[name]
-    expected = key[5]["key_numbers"]["scenarios_TEMPORARY_projection"][name]
+    expected = key[5]["key_numbers"]["scenarios"][name]
     p = e.project(scenario, ds)
     assert (str(p.lowest.value), p.lowest_date.value.isoformat()) == (low, low_date)
     assert (expected["min_balance"], expected["min_date"]) == (low, low_date)
