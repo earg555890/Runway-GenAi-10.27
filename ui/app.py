@@ -24,8 +24,7 @@ changed = state.changed(scenario)
 ledger = engine.Ledger()
 base = engine.project(engine.Scenario(refund_submit_date=scenario.refund_submit_date), ds, ledger)
 current = engine.project(scenario, ds, ledger) if changed else base
-if changed:
-    engine.compare(base, current, ledger)
+deltas = engine.compare(base, current, ledger) if changed else None
 
 top.header(ds, note)
 top.status(current)
@@ -33,7 +32,7 @@ ask.render(ds, scenario)
 
 tab1, tab2, tab3 = st.tabs(["My semester", "Can I afford it?", "What we found"])
 with tab1:
-    semester.render(ds, subs, base, current, changed)
+    semester.render(ds, subs, base, current, changed, deltas)
 with tab2:
     afford.render(ds, current)
 with tab3:

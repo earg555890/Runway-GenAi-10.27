@@ -41,6 +41,7 @@ def answers():
                      "EXPLAIN s": t.get("explain_s"), "total s": t.get("total_s"),
                      "retries (plan JSON / rewrite)": f"{a.retries.get('plan_json', 0)} / "
                                                       f"{a.retries.get('explain_rewrite', 0)}",
+                     "written by": a.models.get("answered_by") or "-",
                      "number check": "passed" if a.check.get("ok") else ("failed" if a.check else "-")})
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 

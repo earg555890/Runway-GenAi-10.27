@@ -16,11 +16,35 @@ def _card(title, body, key, extra=None):
             extra()
 
 
-def render(ds, subs, base, current, changed):
+def _figure(label, value, when, delta):
+    tone = "rw-red" if value < 0 else "rw-green"
+    change = ""
+    if delta is not None and delta.value != 0:
+        up = delta.value > 0
+        change = (f'<span class="rw-delta {"rw-up" if up else "rw-down"}">{"+" if up else ""}'
+                  f'{fmt.html(fmt.money(delta.value))}</span>')
+    return (f'<div class="rw-fig"><span class="rw-fig-label">{label}:</span> <span class="rw-fig-value {tone}">'
+            f'{fmt.html(fmt.money(value))}</span>{fmt.html(when)} {change}</div>')
+
+
+def money_strip(current, deltas):
+    """The big number (checking today) and two smaller figures for the current what-ifs."""
+    d = deltas or {}
+    big, small = st.columns([1, 1], vertical_alignment="center")
+    big.markdown(f'<div class="rw-today">{fmt.html(fmt.money(current.start_balance.value))}</div>'
+                 '<div class="rw-today-cap">in your checking account today</div>', unsafe_allow_html=True)
+    small.markdown(_figure("Lowest point", current.lowest.value, f" on {fmt.day(current.lowest_date.value)}",
+                           d.get("lowest"))
+                   + _figure("End of semester", current.end_balance.value, "", d.get("end_balance")),
+                   unsafe_allow_html=True)
+
+
+def render(ds, subs, base, current, changed, deltas=None):
     s = st.session_state
+    money_strip(current, deltas)
     st.altair_chart(chart.build(base, current, changed), width="stretch")
-    st.caption("Your checking balance at the end of each day. Hover over the line or the dots for details."
-               + (" The dashed line is before your what-ifs." if changed else ""))
+    st.caption("Your checking balance at the end of each day. Hover anywhere on the chart to see that day."
+               + (" The dashed grey line is before your changes." if changed else ""))
 
     st.markdown("### Ways to fix it")
     fixes = {f.name: f for f in engine.available_fixes(engine.Scenario(refund_submit_date=s.wf_submit), ds,

@@ -86,6 +86,10 @@ def _thinking(a):
         st.markdown("**What Runway checked:** " + fmt.md(agent.plan_words(plan) if plan.tool else "nothing (off-topic)")
                     + ("  \n:gray[Matched by keywords because the planner wasn't available.]"
                        if plan.source == "keywords" else ""))
+        by = a.models.get("answered_by")
+        if plan.tool:
+            st.markdown("**Written by:** " + (f"{agent.model_name(by)} (`{by}`)" if by and by != "template" else
+                                               "a template built from your numbers (no model was available)"))
         c = a.check
         if c:
             st.markdown("**Number check:** " + (

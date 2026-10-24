@@ -38,7 +38,7 @@ A student's money is spread across separate sources (checking account, credit ca
 6. **Secrets** live only in `.env` (or the existing config files), which are gitignored. Never print or commit keys.
 7. **All data is synthetic.** Never connect real bank accounts.
 8. **The agent never sends anything on its own.** Actions are drafts the user approves.
-9. **At most 2 LLM calls per user question:**
+9. **At most 2 LLM calls per user question, plus at most one rewrite if the number check fails, plus model fallbacks on errors** (EXPLAIN: Super, then Lightning with thinking on, then a template answer):
    - one PLAN call: the model picks which tools to run and with what arguments, as structured JSON;
    - one EXPLAIN call: the model writes the answer from the evidence.
 

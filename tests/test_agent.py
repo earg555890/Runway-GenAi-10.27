@@ -45,10 +45,11 @@ class FakeStream:
 class FakeLLM:
     """Plays back PLAN replies (JSON strings, validated like llm_client.chat_json) and EXPLAIN texts."""
 
-    def __init__(self, plans=(), answers=(), plan_error=None, explain_error=None):
+    def __init__(self, plans=(), answers=(), plan_error=None, explain_error=None, failing_models=()):
         self.plans, self.answers = list(plans), list(answers)
         self.plan_error, self.explain_error = plan_error, explain_error
-        self.calls = []
+        self.failing_models = set(failing_models)      # explain_error only for these models (all if empty)
+        self.calls, self.messages = [], []
 
     def chat_json(self, messages, thinking=False, validate=None, **kwargs):
         self.calls.append(("plan", thinking))
@@ -64,9 +65,10 @@ class FakeLLM:
                 if attempt == 1:
                     raise llm_client.InvalidJSONError(str(exc), raw) from exc
 
-    def stream_chat(self, messages, thinking=True, **kwargs):
+    def stream_chat(self, messages, thinking=True, model=None, **kwargs):
         self.calls.append(("explain", thinking))
-        if self.explain_error:
+        self.messages.append((model, messages))
+        if self.explain_error and (not self.failing_models or model in self.failing_models):
             raise self.explain_error
         return FakeStream(self.answers.pop(0))
 
@@ -303,3 +305,59 @@ def test_empty_answer_is_rewritten_then_falls_back(ds):
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=["", " "])
     _, a = run_all(FLIGHT_Q, llm, ds=ds)
     assert a.explain_source == "template" and a.text.startswith("Yes, if you do 2 things") and a.check["ok"]
+
+
+def test_super_down_lightning_answers(ds, monkeypatch):
+    monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
+    monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+    llm = FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT], explain_error=llm_client.LLMError("503"),
+                  failing_models={"nvidia/nemotron-3.5-super-vl-120b-a12b"})
+    _, a = run_all(FLIGHT_Q, llm, ds=ds)
+    assert a.explain_source == "llm" and a.mode == "live" and a.text == GOOD_FLIGHT
+    assert a.models["answered_by"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+    assert [m for m, _ in llm.messages] == ["nvidia/nemotron-3.5-super-vl-120b-a12b",
+                                           "nvidia/nemotron-3.5-lightning-30b-a3b"]
+    assert llm.calls[-1] == ("explain", True)                       # Lightning explains with thinking on
+    assert any("Nemotron Lightning wrote this answer" in n for n in a.notes)
+
+
+def test_all_models_down_template_records_errors(ds):
+    _, a = run_all(FLIGHT_Q, FakeLLM(plans=[FLIGHT_PLAN], explain_error=llm_client.LLMError("503")), ds=ds)
+    assert a.models["answered_by"] == "template" and len(a.models["explain_errors"]) == len(agent.explain_chain())
+
+
+def test_leaks_prompt_requires_monthly_total(ds):
+    llm = FakeLLM(plans=['{"intent": "leaks", "tool": "find_leaks", "args": {}}'],
+                  answers=["You pay $22.98 a month [C3] for two music apps."])
+    run_all("Where is my money leaking?", llm, ds=ds)
+    prompt = llm.messages[0][1][1]["content"]
+    assert "must mention: the combined monthly cost of the duplicate subscriptions, $22.98 a month [C3]" in prompt
+
+
+def test_fourth_suggested_question_is_the_undated_flight(ds):
+    assert agent.SUGGESTED[3] == "Can I afford a $400 flight home for Thanksgiving?"
+    down = FakeLLM(plan_error=TimeoutError(), explain_error=TimeoutError())
+    _, a = run_all(agent.SUGGESTED[3], down, ds=ds)
+    assert a.verdict == "no" and a.verdict_label == "Not right now" and a.plan["args"]["date"] == "2026-10-27"
+
+
+@pytest.mark.parametrize("question,grounded", [
+    ("Can I afford a $400 flight home for Thanksgiving?", False),
+    ("Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?", True),
+    ("Can I buy a $30 pie on Thanksgiving?", True),
+    ("Can I afford $60 concert tickets this Friday?", True),
+    ("Can I afford headphones for $150 tomorrow?", True),
+])
+def test_purchase_date_must_come_from_the_question(question, grounded):
+    plan = agent.parse_plan({"intent": "afford", "tool": "can_afford",
+                             "args": {"item": "x", "cost": 400, "date": "2026-11-26"}}, SUBS)
+    plan = agent.ground_purchase_date(plan, question)
+    assert (plan.args["date"] == "2026-11-26") == grounded
+    assert bool(plan.assumptions) != grounded
+
+
+def test_thanksgiving_trip_date_from_planner_is_replaced(ds):
+    llm = FakeLLM(plans=['{"intent": "afford", "tool": "can_afford", "args": {"item": "flight home", "cost": 400, '
+                         '"date": "2026-11-26"}}'], answers=["Not right now [C1]."])
+    _, a = run_all("Can I afford a $400 flight home for Thanksgiving?", llm, ds=ds)
+    assert a.plan["args"]["date"] == "2026-10-27" and a.verdict == "no" and a.plan["assumptions"]

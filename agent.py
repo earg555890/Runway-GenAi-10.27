@@ -34,13 +34,16 @@ import wording as w
 PLAN_TIMEOUT_S = 120
 EXPLAIN_TIMEOUT_S = 240
 EXPLAIN_MAX_TOKENS = 8192        # the reasoning trace counts too; 4096 once left no room for the answer
+FALLBACK_MAX_TOKENS = 16384      # Lightning reasons at length (~20K characters) before it answers
 CALENDAR = ["Thanksgiving is Thu Nov 26, 2026."]
 MAX_PACK_CALCS = 24
 MAX_ROWS_PER_SOURCE = 8
 STAGES = {"plan": "Understanding your question...", "execute": "Checking your accounts...",
           "math": "Doing the math...", "explain": "Writing your answer..."}
+# The two flight questions side by side show timing: bought tomorrow it's "Not right now"; bought Nov 10,
+# after the refund arrives, it's "Yes, if you do 2 things".
 SUGGESTED = ["Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?", "How long will my money last?",
-             "Where is my money leaking?"]
+             "Where is my money leaking?", "Can I afford a $400 flight home for Thanksgiving?"]
 OFF_TOPIC = ("I can help with your money this semester: whether you can afford something, how long your money "
              "will last, where it's leaking, your refund, or what changes would help. Try asking one of those!")
 
@@ -225,7 +228,8 @@ def plan_messages(question, scenario, sub_names):
         '{"intent": one of ' + json.dumps(list(INTENTS)) + ', "tool": a tool name or "none", "args": {...}, '
         '"clarifying_question": null}\n'
         "Rules: dates are YYYY-MM-DD between tomorrow and the semester end. A purchase date is when the money "
-        "is spent, not when a trip happens; if the student gives none, leave \"date\" out. Questions that are "
+        "is spent, not when a trip happens (\"a flight home for Thanksgiving\" gives NO purchase date); if the "
+        "student gives none, leave \"date\" out. Questions that are "
         'not about the student\'s money get "intent": "off_topic", "tool": "none". Vague worries ("am I ok?") '
         "use runway.")
     return [{"role": "system", "content": system}, {"role": "user", "content": question}]
@@ -235,6 +239,25 @@ _AMOUNT = re.compile(r"\$\s?(\d[\d,]*(?:\.\d{1,2})?)")
 _MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov",
                                        "dec"], start=1)}
 _MDAY = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b", re.I)
+
+
+_DATE_WORDS = re.compile(
+    r"\b(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}|\d{1,2}/\d{1,2}|"
+    r"mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|"
+    r"today|tonight|tomorrow|next week|this week|weekend|in \d+ days?|on (?:thanksgiving|black friday|christmas))\b",
+    re.I)
+
+
+def ground_purchase_date(plan, question):
+    """A purchase date must come from the question. "A flight home for Thanksgiving" names the trip, not
+    when the money is spent, so an ungrounded date becomes tomorrow, with the assumption recorded."""
+    if plan.tool != "can_afford" or plan.assumptions or _DATE_WORDS.search(question):
+        return plan
+    tomorrow = config.DEMO_TODAY + timedelta(days=1)
+    if plan.args.get("date") != tomorrow.isoformat():
+        plan.args["date"] = tomorrow.isoformat()
+    plan.assumptions.append(f"You didn't say when you'd buy it, so I assumed tomorrow, {w.day(tomorrow)}.")
+    return plan
 
 
 def keyword_plan(question, sub_names):
@@ -519,6 +542,9 @@ def explain_messages(question, plan, result, pack, verdict_label):
     head = f"Question: {question}\nWhat Runway checked: {plan_words(plan)}"
     if verdict_label:
         head += f"\nThe answer: {verdict_label}"
+    musts = must_mention(plan, result, pack)
+    if musts:
+        head += "\nYour answer must mention: " + "; ".join(musts) + "."
     return [{"role": "system", "content": EXPLAIN_SYSTEM},
             {"role": "user", "content": f"{head}\n\n{facts}\n\nWrite the answer now."}]
 
@@ -637,6 +663,59 @@ def template_answer(plan, result, pack, ds, scenario):
     return OFF_TOPIC
 
 
+def explain_chain():
+    """EXPLAIN models to try in order: Super, then Lightning (the PLAN model, with thinking on)."""
+    return list(dict.fromkeys(m for m in (config.NVIDIA_EXPLAIN_MODEL, config.NVIDIA_PLAN_MODEL) if m))
+
+
+def model_name(model):
+    if not model or model == "template":
+        return "a template"
+    if "super" in model:
+        return "Nemotron Super"
+    if "lightning" in model:
+        return "Nemotron Lightning"
+    return model
+
+
+def _explain_with(llm, model, messages, pack, retries):
+    """Stream one EXPLAIN answer from `model`, check it, and allow one rewrite. Yields ("text"/"restart", ...)
+    events and returns (text, reasoning, check). Raises if the model fails or answers empty twice."""
+    text, reasoning, check = "", "", None
+    for attempt in range(2):
+        limit = EXPLAIN_MAX_TOKENS if model == config.NVIDIA_EXPLAIN_MODEL else FALLBACK_MAX_TOKENS
+        stream = llm.stream_chat(messages, thinking=True, model=model, timeout=EXPLAIN_TIMEOUT_S, retries=1,
+                                 max_tokens=limit)
+        for kind, chunk in stream:
+            if kind == "text":
+                yield "text", chunk
+        text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
+        check = check_answer(text, pack)
+        if check.ok or attempt == 1:
+            break
+        retries["explain_rewrite"] = retries.get("explain_rewrite", 0) + 1
+        yield "restart", "Double-checking the numbers..."
+        messages = messages + [
+            {"role": "assistant", "content": text},
+            {"role": "user", "content": "These are not in the facts: " + "; ".join(check.problems) +
+             ". Rewrite the answer using only numbers, dates and ids from the facts."}]
+    if not text:
+        raise llm_client.LLMError("the model returned an empty answer twice")
+    return text, reasoning, check
+
+
+def must_mention(plan, result, pack):
+    """Facts the answer has to include, per tool (e.g. the monthly total of duplicate subscriptions)."""
+    out = []
+    if plan.tool == "find_leaks":
+        for leak in result.facts["leaks"]:
+            for c in leak.computed:
+                if c.label.startswith("combined monthly cost"):
+                    out.append(f"the combined monthly cost of the duplicate subscriptions, {w.money(c.value)} a month "
+                               f"{pack.cite(c)}")
+    return out
+
+
 def _strip_think(text, reasoning):
     if "</think>" in text:
         head, _, text = text.partition("</think>")
@@ -745,7 +824,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
         try:
             res = llm.chat_json(plan_messages(question, scenario, sub_names), thinking=False,
                                 validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
-            plan = parse_plan(res.data, sub_names)
+            plan = ground_purchase_date(parse_plan(res.data, sub_names), question)
             retries["plan_json"] = res.json_retries + res.retries
         except Exception as exc:                                   # slow, down, or unusable: keywords
             notes.append(f"The planner wasn't available ({type(exc).__name__}); Runway matched your question "
@@ -778,45 +857,40 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
     actions = actions_for(plan, result, ds, scenario)
     timings["execute_s"] = round(time.perf_counter() - t, 3)
 
-    # EXPLAIN + CHECK (one rewrite at most)
+    # EXPLAIN + CHECK: Super, then Lightning (thinking on), then a template. One rewrite per model at most.
     yield "stage", STAGES["explain"]
     t = time.perf_counter()
     messages = explain_messages(question, plan, result, pack, label)
-    text, reasoning, check, source = "", "", None, "llm"
-    try:
-        if mode == "replay":
-            raise LookupError("no recorded answer")            # replay never calls the models
-        for attempt in range(2):
-            stream = llm.stream_chat(messages, thinking=True, timeout=EXPLAIN_TIMEOUT_S, retries=1,
-                                     max_tokens=EXPLAIN_MAX_TOKENS)
-            for kind, chunk in stream:
-                if kind == "text":
-                    yield "text", chunk
-            text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
-            check = check_answer(text, pack)
-            if check.ok or attempt == 1:
+    text, reasoning, check, source, answered_by = "", "", None, "template", None
+    errors = []
+    if mode == "replay":
+        errors.append("no recorded answer")                     # replay never calls the models
+    else:
+        for model in explain_chain():
+            try:
+                text, reasoning, check = yield from _explain_with(llm, model, messages, pack, retries)
+                source, answered_by = "llm", model
                 break
-            retries["explain_rewrite"] = 1
-            yield "restart", "Double-checking the numbers..."
-            messages = messages + [
-                {"role": "assistant", "content": text},
-                {"role": "user", "content": "These are not in the facts: " + "; ".join(check.problems) +
-                 ". Rewrite the answer using only numbers, dates and ids from the facts."}]
-        if not text:
-            raise llm_client.LLMError("the model returned an empty answer twice")
-        if not check.ok:
-            notes.append("Some numbers or dates in this answer couldn't be matched to your records: "
-                         + "; ".join(check.problems))
-    except Exception as exc:
-        source = "template"
+            except Exception as exc:
+                errors.append(f"{model_name(model)}: {type(exc).__name__}")
+                yield "restart", ""
+    if answered_by is None:
         text = template_answer(plan, result, pack, ds, scenario)
         check = check_answer(text, pack)
         notes.append("There's no recorded answer for this question, so this is a short summary built straight "
                      "from your numbers." if mode == "replay" else
-                     f"The AI explanation isn't available right now ({type(exc).__name__}), so this is a short "
+                     f"The AI explanation isn't available right now ({'; '.join(errors)}), so this is a short "
                      "summary built straight from your numbers.")
-        yield "restart", ""
         yield "text", text
+    else:
+        if errors:
+            notes.append(f"{model_name(config.NVIDIA_EXPLAIN_MODEL)} wasn't available ({'; '.join(errors)}), so "
+                         f"{model_name(answered_by)} wrote this answer.")
+        if not check.ok:
+            notes.append("Some numbers or dates in this answer couldn't be matched to your records: "
+                         + "; ".join(check.problems))
+    models["answered_by"] = answered_by or "template"
+    models["explain_errors"] = errors
     timings["explain_s"] = round(time.perf_counter() - t, 2)
     answer = finish(text, result.verdict, label, pack, check, reasoning, actions, result.fixes,
                     ans_mode="fallback" if source == "template" or plan.source == "keywords" else "live",

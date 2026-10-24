@@ -158,3 +158,51 @@ def test_ask_flight_question_shows_answer_chips_and_do_these(asked):
     assert not at.session_state["wf_cancel_Apple Music"]
     assert "Lowest point: $5.81 on Mon Nov 2." in status(at)
     assert len(at.session_state["history"]) == 1 and at.session_state["history"][0].mode == "live"
+
+
+# --- big number and chart -----------------------------------------------------------------------
+
+def test_big_number_and_figures(at):
+    t = texts(at)
+    assert any('class="rw-today">$783.38<' in x and "in your checking account today" in x for x in t)
+    fig = next(x for x in t if 'class="rw-fig"' in x)
+    assert "rw-red\">-$1,462.37</span> on Thu Dec 17" in fig and "End of semester:" in fig and "-$1,412.53" in fig
+    assert "rw-delta" not in fig
+    at.toggle(key="wf_refund").set_value(True)
+    run(at)
+    fig = next(x for x in texts(at) if 'class="rw-fig"' in x)
+    assert "rw-green\">$5.81</span> on Mon Nov 2" in fig and "rw-up\">+$1,468.18<" in fig and "+$1,850.00" in fig
+
+
+def _spec(changed):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    import engine
+    import normalize
+    from ui import chart
+    ds, ledger = normalize.load("local"), engine.Ledger()
+    base = engine.project(engine.Scenario(), ds, ledger)
+    cur = engine.project(engine.Scenario(refund_released=True, cancel_subscriptions=("Spotify",)), ds, ledger) \
+        if changed else base
+    return chart.build(base, cur, changed).to_dict(validate=True)
+
+
+def test_chart_layers_base():
+    spec = _spec(False)
+    marks = [l["mark"]["type"] if isinstance(l["mark"], dict) else l["mark"] for l in spec["layer"]]
+    assert marks.count("area") == 2 and "rule" in marks and "tick" in marks and "line" in marks
+    labels = [r["t"] for d in spec["datasets"].values() for r in d if "t" in r]
+    assert "$0" in labels and "Today $783.38" in labels and "Lowest: -$1,462.37, Thu Dec 17" in labels
+    assert "-$1,412.53" in labels and {"Rent", "Card payment", "Paycheck"} <= set(labels)
+    days = next(d for d in spec["datasets"].values() if d and "events" in d[0])
+    nov9 = next(r for r in days if r["when"] == "Mon Nov 9")
+    assert "Card payment -$359.53" in nov9["events"] and nov9["bal"] == "-$59.84"     # $307.20 - $359.53 - $7.51
+    assert "Before your changes" not in str(spec)
+
+
+def test_chart_layers_changed_shows_before_line_and_legend():
+    spec = _spec(True)
+    assert "Before your changes" in str(spec) and "With your changes" in str(spec)
+    labels = [r["t"] for d in spec["datasets"].values() for r in d if "t" in r]
+    assert "Lowest: $5.81, Mon Nov 2" in labels and "Refund" in labels

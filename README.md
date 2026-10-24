@@ -53,13 +53,13 @@ Each number is a `Computed` record (`C#`: label, value, unit, how, inputs = row 
 
 ## Ask Runway (the agent)
 
-`agent.py`: `agent.run(question, scenario)` yields progress stages, streamed text and a final `Answer`. Per question: one PLAN call (`NVIDIA_PLAN_MODEL`, thinking off, JSON) picks one engine tool, validated strictly in Python; the engine does all the math; one EXPLAIN call (`NVIDIA_EXPLAIN_MODEL`, thinking on, streamed) writes the answer from a small pack of calculations (C1..) and source records (E1..); a checker matches every dollar amount, date and citation against the pack and allows one rewrite. Drafts (email to financial aid, checklist) come from templates and are never sent. If a model is down or slow, keyword planning and template answers take over.
+`agent.py`: `agent.run(question, scenario)` yields progress stages, streamed text and a final `Answer`. Per question: one PLAN call (`NVIDIA_PLAN_MODEL`, thinking off, JSON) picks one engine tool, validated strictly in Python; the engine does all the math; one EXPLAIN call (`NVIDIA_EXPLAIN_MODEL`, thinking on, streamed) writes the answer from a small pack of calculations (C1..) and source records (E1..); a checker matches every dollar amount, date and citation against the pack and allows one rewrite. Drafts (email to financial aid, checklist) come from templates and are never sent. If a model is down or slow, fallbacks take over: keyword planning for PLAN; for EXPLAIN, Nemotron Super, then Nemotron Lightning (thinking on), then a template answer built from the numbers. The answer records which model wrote it.
 
 `ANSWER_MODE` in `.env`: `live` (always call), `cached` (default: reuse a saved answer for the same question and what-ifs), `replay` (saved answers only, typed out, for recording the demo). Saved answers live in `.cache/answers/`.
 
 ```bash
-.venv/Scripts/python pregenerate_answers.py   # live: cache the 3 suggested questions, with and without the "Do these" fixes
-.venv/Scripts/python eval_agent.py            # live: 10-question evaluation -> eval_results.md / eval_results.json
+.venv/Scripts/python pregenerate_answers.py   # live: cache the 4 suggested questions, with and without the "Do these" fixes
+.venv/Scripts/python eval_agent.py 3 240      # live: 10 questions x 3 runs, 240 s apart -> eval_summary.md (+ eval_results.*)
 ```
 
 ## Checks

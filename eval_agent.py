@@ -1,18 +1,23 @@
 """Live evaluation of Ask Runway: 10 realistic questions against the real NVIDIA models (not part of pytest).
 
-    .venv/Scripts/python eval_agent.py          # writes eval_results.md and eval_results.json
+    .venv/Scripts/python eval_agent.py              # one run  -> eval_results.md / eval_results.json
+    .venv/Scripts/python eval_agent.py 3 240        # 3 runs, 240 s apart -> also eval_summary.md
 
 For each question: did PLAN pick the expected tool, is the verdict right, did every number and date pass
-the check, do the key numbers appear in the answer. Expected verdicts and numbers come from the engine
-(deterministic), run with the arguments a correct plan would have.
+the check, do the key numbers appear in the answer, and did a Nemotron model write it. Expected verdicts and
+numbers come from the engine (deterministic), run with the arguments a correct plan would have. Before each
+run the script waits until the EXPLAIN endpoint answers a tiny request.
 """
 import json
+import sys
 import time
 from dataclasses import dataclass, field
 from decimal import Decimal
 
 import agent
+import config
 import engine
+import llm_client
 import normalize
 
 SUBS = None
@@ -52,15 +57,24 @@ def expected_verdict(case, ds):
     return agent.execute(plan, engine.Scenario(), ds).verdict
 
 
-def main():
-    global SUBS
-    ds = normalize.load()
-    SUBS = [s.merchant for s in engine.subscriptions(ds)]
-    rows, results = [], []
+def healthy(tries=10, wait_s=60):
+    """Wait until the EXPLAIN model answers a tiny request (the endpoint has bad spells)."""
+    for _ in range(tries):
+        try:
+            s = llm_client.stream_chat([{"role": "user", "content": "Say OK."}], thinking=False, retries=0, timeout=60)
+            if "".join(c for k, c in s if k == "text").strip():
+                return True
+        except Exception as exc:
+            print(f"  endpoint not healthy ({type(exc).__name__}), waiting {wait_s} s", flush=True)
+        time.sleep(wait_s)
+    return False
+
+
+def run_once(ds, run_no):
+    results = []
     for i, case in enumerate(CASES, start=1):
         start = time.perf_counter()
         a = agent.ask(case.question, engine.Scenario(), ds=ds, mode="live")
-        wall = time.perf_counter() - start
         want = expected_verdict(case, ds)
         amounts = {abs(v) for _, v in agent.find_amounts(a.text)}
         tool_ok = a.plan["tool"] == case.tool
@@ -68,29 +82,120 @@ def main():
         check_ok = bool(a.check.get("ok")) if case.tool else True
         numbers_ok = all(Decimal(n) in amounts for n in case.numbers) and \
             all(wd.lower() in a.text.lower() for wd in case.words)
-        llm_ok = a.mode in ("live", "off_topic") and a.explain_source in ("llm", "none")
-        passed = tool_ok and verdict_ok and check_ok and numbers_ok and llm_ok
-        r = dict(n=i, question=case.question, expected_tool=case.tool, tool=a.plan["tool"], plan_source=a.plan["source"],
-                 expected_verdict=want, verdict=a.verdict, check_ok=a.check.get("ok"), problems=a.check.get("problems"),
-                 numbers_ok=numbers_ok, mode=a.mode, explain_source=a.explain_source, retries=a.retries,
-                 timings=a.timings, wall_s=round(wall, 1), passed=passed, answer=a.text, notes=a.notes)
+        nvidia_error = a.explain_source == "template" or a.plan["source"] == "keywords"
+        model_answer = case.tool is None or a.explain_source == "llm"
+        passed = tool_ok and verdict_ok and check_ok and numbers_ok and model_answer
+        r = dict(run=run_no, n=i, question=case.question, expected_tool=case.tool, tool=a.plan["tool"],
+                 plan_source=a.plan["source"], expected_verdict=want, verdict=a.verdict, tool_ok=tool_ok,
+                 verdict_ok=verdict_ok, check_ok=check_ok, problems=a.check.get("problems"), numbers_ok=numbers_ok,
+                 answered_by=a.models.get("answered_by"), explain_errors=a.models.get("explain_errors"),
+                 nvidia_error=nvidia_error, passed=passed, mode=a.mode, retries=a.retries, timings=a.timings,
+                 wall_s=round(time.perf_counter() - start, 1), answer=a.text, notes=a.notes)
         results.append(r)
-        print(json.dumps({k: r[k] for k in ("n", "tool", "verdict", "check_ok", "numbers_ok", "passed", "timings")}),
-              flush=True)
-        mark = lambda ok: "yes" if ok else "NO"     # noqa: E731
-        rows.append(f"| {i} | {case.question} | {case.tool or 'none (off-topic)'} / {mark(tool_ok)} | "
-                    f"{want or '-'} / {mark(verdict_ok)} | {mark(check_ok)} | {mark(numbers_ok)} | "
-                    f"{a.retries['plan_json']}+{a.retries['explain_rewrite']} | {a.timings.get('plan_s', '-')} | "
-                    f"{a.timings.get('explain_s', '-')} | {a.timings.get('total_s', '-')} | "
-                    f"{'PASS' if passed else 'FAIL'} |")
-    score = sum(r["passed"] for r in results)
-    table = ("| # | Question | Tool / right? | Verdict / right? | Check passed | Key numbers | Retries (plan+explain) "
-             "| PLAN s | EXPLAIN s | Total s | Result |\n|---|---|---|---|---|---|---|---|---|---|---|\n"
-             + "\n".join(rows))
-    report = f"# Ask Runway live evaluation\n\nScore: **{score}/{len(CASES)}**\n\n{table}\n"
-    open("eval_results.md", "w", encoding="utf-8").write(report)
-    open("eval_results.json", "w", encoding="utf-8").write(json.dumps(results, indent=2, default=str))
-    print(report)
+        print(json.dumps({k: r[k] for k in ("run", "n", "tool", "verdict", "check_ok", "numbers_ok", "answered_by",
+                                            "passed", "timings")}), flush=True)
+    return results
+
+
+def _yes(ok):
+    return "yes" if ok else "NO"
+
+
+def table(results):
+    rows = [f"| {r['n']} | {r['question']} | {r['expected_tool'] or 'none (off-topic)'} / {_yes(r['tool_ok'])} | "
+            f"{r['expected_verdict'] or '-'} / {_yes(r['verdict_ok'])} | {_yes(r['check_ok'])} | "
+            f"{_yes(r['numbers_ok'])} | {agent.model_name(r['answered_by']) if r['expected_tool'] else '-'} | "
+            f"{r['retries']['plan_json']}+{r['retries'].get('explain_rewrite', 0)} | "
+            f"{r['timings'].get('plan_s', '-')} | {r['timings'].get('explain_s', '-')} | "
+            f"{r['timings'].get('total_s', '-')} | {'PASS' if r['passed'] else 'FAIL'} |" for r in results]
+    head = ("| # | Question | Tool / right? | Verdict / right? | Check passed | Key numbers | Written by | "
+            "Retries (plan+rewrite) | PLAN s | EXPLAIN s | Total s | Result |\n"
+            "|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+    return head + "\n".join(rows)
+
+
+def _mistake(r):
+    if not r["tool_ok"]:
+        return "picked the wrong tool"
+    if not r["verdict_ok"]:
+        return "gave the wrong verdict"
+    if not r["check_ok"]:
+        return "used a number or date that didn't match the records"
+    return "left out a key number"
+
+
+def summary(runs):
+    allr = [r for run in runs for r in run]
+    n = len(allr)
+
+    def count(key):
+        return sum(bool(r[key]) for r in allr)
+
+    fails = [r for r in allr if not r["passed"]]
+    nvidia = [r for r in fails if r["nvidia_error"]]
+    real = [r for r in fails if not r["nvidia_error"]]
+    writers = {}
+    for r in allr:
+        if r["expected_tool"]:
+            name = agent.model_name(r["answered_by"])
+            writers[name] = writers.get(name, 0) + 1
+    times = sorted(r["timings"]["explain_s"] for r in allr
+                   if r["answered_by"] not in (None, "template") and "explain_s" in r["timings"])
+    median = times[len(times) // 2] if times else None
+    lines = [
+        "# Ask Runway: how well it answers",
+        "",
+        f"We asked Runway {len(CASES)} realistic student questions, {len(runs)} separate times ({n} answers in all), "
+        "using the real NVIDIA Nemotron models. Every answer was graded automatically against numbers that Runway's "
+        "money engine computes on its own.",
+        "",
+        f"- **Picked the right tool:** {count('tool_ok')}/{n}",
+        f"- **Gave the right verdict** (yes / no / yes-if; money runs out or not): {count('verdict_ok')}/{n}",
+        f"- **Every dollar amount and date matched the student's records:** {count('check_ok')}/{n}",
+        f"- **Full answers** (all of the above, plus the key numbers, written by a Nemotron model): "
+        f"{count('passed')}/{n}",
+        "",
+        (f"{len(fails)} answer{'s were' if len(fails) != 1 else ' was'} not a full answer: "
+         f"{len(nvidia)} because of NVIDIA service errors (no model responded in time, so Runway showed a short "
+         f"summary built from the numbers instead) and {len(real)} because of real mistakes"
+         + (":" if real else ".") if fails else "Every answer was a full answer."),
+    ]
+    lines += [f"  - Run {r['run']}, \"{r['question']}\": {_mistake(r)}" for r in real]
+    lines += ["", "Who wrote the answers: " + ", ".join(f"{k} {v}" for k, v in sorted(writers.items()))
+              + " (the off-topic question gets a fixed reply and needs no writer).",
+              f"Typical time to write an answer: {median} s (median). Planning takes about a second.", "",
+              "The model never does the math: Runway's engine computes every number, and a checker rejects any "
+              "amount or date the model didn't take from the student's records.", ""]
+    for i, run in enumerate(runs, start=1):
+        lines += [f"## Run {i}: {sum(r['passed'] for r in run)}/{len(run)} full answers", "", table(run), ""]
+    return "\n".join(lines)
+
+
+def main():
+    global SUBS
+    n_runs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    gap_s = int(sys.argv[2]) if len(sys.argv) > 2 else 240
+    ds = normalize.load()
+    SUBS = [s.merchant for s in engine.subscriptions(ds)]
+    print(f"models: plan {config.NVIDIA_PLAN_MODEL}, explain chain {agent.explain_chain()}", flush=True)
+    runs = []
+    for run_no in range(1, n_runs + 1):
+        if run_no > 1:
+            time.sleep(gap_s)
+        if not healthy():
+            print("endpoint still unhealthy; running anyway", flush=True)
+        runs.append(run_once(ds, run_no))
+        last = runs[-1]
+        with open("eval_results.md", "w", encoding="utf-8") as f:
+            f.write(f"# Ask Runway live evaluation (latest run)\n\nScore: **{sum(r['passed'] for r in last)}/"
+                    f"{len(last)}**\n\n{table(last)}\n")
+        with open("eval_results.json", "w", encoding="utf-8") as f:
+            f.write(json.dumps(runs, indent=2, default=str))
+    if n_runs > 1:
+        text = summary(runs)
+        with open("eval_summary.md", "w", encoding="utf-8") as f:
+            f.write(text)
+        print(text)
 
 
 if __name__ == "__main__":

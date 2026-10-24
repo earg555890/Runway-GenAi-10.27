@@ -1,4 +1,4 @@
-"""Pre-generate cached Ask Runway answers for the three suggested questions (live NVIDIA calls).
+"""Pre-generate cached Ask Runway answers for the suggested questions (live NVIDIA calls).
 
     .venv/Scripts/python pregenerate_answers.py
 
@@ -36,7 +36,8 @@ def main():
                     break
             else:
                 failed += 1
-    print(f"\n{6 - failed}/6 answers cached in {config.ANSWER_CACHE_DIR}")
+    total = len(SCENARIOS) * len(agent.SUGGESTED)
+    print(f"\n{total - failed}/{total} answers cached in {config.ANSWER_CACHE_DIR}")
     sys.exit(1 if failed else 0)
 
 
