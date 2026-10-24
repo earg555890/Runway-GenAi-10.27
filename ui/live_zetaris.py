@@ -19,7 +19,7 @@ def _run(out):
 
 
 def render():
-    st.subheader("Run live on Zetaris")
+    st.markdown("#### Run live on Zetaris")
     st.markdown("One federated SQL query over two separate sources, the checking account and the credit card, "
                 "to find charges that repeat every month. No cache: this goes to Zetaris right now.")
     reachable = data.zetaris_reachable()

@@ -299,6 +299,11 @@ def _cache_path(name, params):
     return config.ZETARIS_CACHE_DIR / f"{name}-{key}.json"
 
 
+def is_cached(name, **params):
+    """True if a Zetaris result for this query and these parameters is already in the disk cache."""
+    return _cache_path(name, _validate(REGISTRY[name], params)).exists()
+
+
 def clear_cache():
     shutil.rmtree(config.ZETARIS_CACHE_DIR, ignore_errors=True)
 

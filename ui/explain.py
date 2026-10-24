@@ -1,4 +1,4 @@
-"""How Runway calculated this: every Computed record, traceable to source rows and query evidence."""
+"""Every calculation, step by step (inside "Behind the scenes"): each one traceable to source rows and queries."""
 import re
 from dataclasses import asdict
 from datetime import date
@@ -36,24 +36,24 @@ def _row(ds, row_id):
 
 
 def render(ledger, ds):
-    with st.expander("How Runway calculated this", icon=":material/calculate:"):
-        st.caption("Every number above is a computed record, worked out in plain Python from Maya's source rows "
-                   "(no AI does the math). Pick a record to see how it was made and which rows it came from.")
-        items = ledger.items
-        ids = [c.id for c in items]
-        st.dataframe(pd.DataFrame([{"id": c.id, "what": c.label, "value": fmt.value(c), "how": c.how} for c in items]),
-                     hide_index=True, width="stretch", height=280,
-                     column_config={"how": st.column_config.TextColumn(width="large")})
-        if st.session_state.get("explain_record") not in ids:
-            st.session_state.explain_record = ids[0]
-        st.selectbox("Look closer at a record", ids, key="explain_record",
-                     format_func=lambda i: f"{i}: {ledger.get(i).label}")
-        c = ledger.get(st.session_state.explain_record)
-        st.markdown(f"**{c.label}** = **{fmt.value(c)}**")
-        st.markdown(c.how)
-        if c.inputs:
-            st.pills("Built from (click a row ID to see the row, or a C# to jump to that record)", c.inputs,
-                     key="explain_input", on_change=_goto, args=(ids,))
-            picked = st.session_state.get("explain_input")
-            if picked and picked in c.inputs and not C_ID.match(picked):
-                _row(ds, picked)
+    st.markdown("#### Every calculation, step by step")
+    st.caption("Every number on this page is worked out in plain, tested Python from Maya's source records; "
+               "no AI does the math. Pick one to see how it was made and which records it came from.")
+    items = ledger.items
+    ids = [c.id for c in items]
+    st.dataframe(pd.DataFrame([{"id": c.id, "what": c.label, "value": fmt.value(c), "how": c.how} for c in items]),
+                 hide_index=True, width="stretch", height=280,
+                 column_config={"how": st.column_config.TextColumn(width="large")})
+    if st.session_state.get("explain_record") not in ids:
+        st.session_state.explain_record = ids[0]
+    st.selectbox("Look closer at a calculation", ids, key="explain_record",
+                 format_func=lambda i: f"{i}: {ledger.get(i).label}")
+    c = ledger.get(st.session_state.explain_record)
+    st.markdown(fmt.md(f"**{c.label}** = **{fmt.value(c)}**"))
+    st.markdown(fmt.md(c.how))
+    if c.inputs:
+        st.pills("Built from (click a record to see it, or a C number to jump to that calculation)", c.inputs,
+                 key="explain_input", on_change=_goto, args=(ids,))
+        picked = st.session_state.get("explain_input")
+        if picked and picked in c.inputs and not C_ID.match(picked):
+            _row(ds, picked)

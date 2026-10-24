@@ -10,31 +10,34 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st  # noqa: E402
 
 import engine  # noqa: E402
-from ui import ask, chart, data, explain, findings, header, hero, live_zetaris, sidebar, state, whatif  # noqa: E402
+from ui import afford, ask, behind, data, found, semester, state, style, top  # noqa: E402
 
-st.set_page_config(page_title="Runway", page_icon=":material/flight_takeoff:", layout="wide")
-
+st.set_page_config(page_title="Runway", page_icon=":material/flight_takeoff:", layout="wide",
+                   initial_sidebar_state="collapsed")
+style.apply()
 ds, note = data.load_dataset()
-header.render(ds, note)
-sidebar.render(ds)
-
 subs = engine.subscriptions(ds)
 state.init(subs)
+
 scenario = state.scenario(subs)
+changed = state.changed(scenario)
 ledger = engine.Ledger()
 base = engine.project(engine.Scenario(refund_submit_date=scenario.refund_submit_date), ds, ledger)
-same = state.is_base(scenario)
-current = base if same else engine.project(scenario, ds, ledger)
-deltas = None if same else engine.compare(base, current, ledger)
+current = engine.project(scenario, ds, ledger) if changed else base
+if changed:
+    engine.compare(base, current, ledger)
 
-hero.render(base, current, deltas)
-left, right = st.columns([3, 2], gap="large")
-with right:
-    whatif.render(ds, subs, current)
-with left:
-    chart.render(base, current, same)
-
-findings.render(ds, engine.Scenario(refund_submit_date=scenario.refund_submit_date))
-explain.render(ledger, ds)
-live_zetaris.render()
+top.header(ds, note)
+top.status(current)
 ask.render()
+
+tab1, tab2, tab3 = st.tabs(["My semester", "Can I afford it?", "What we found"])
+with tab1:
+    semester.render(ds, subs, base, current, changed)
+with tab2:
+    afford.render(ds, current)
+with tab3:
+    found.render(ds, engine.Scenario(refund_submit_date=scenario.refund_submit_date))
+
+st.write("")
+behind.render(ledger, ds)

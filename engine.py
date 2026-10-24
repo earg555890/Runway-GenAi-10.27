@@ -531,6 +531,51 @@ def project(scenario=None, ds=None, ledger=None):
                       first_neg is None, ledger, [start, lowest, lowest_date, end_bal, below, runway])
 
 
+@dataclass
+class Reason:
+    date: date                   # the key day: first day below $0, else the lowest day
+    event: Event | None          # biggest scheduled outflow in the 7 days up to that day
+    balance_before: Decimal | None   # end-of-day balance the day before the event
+
+
+def main_reason(p):
+    """What drives the projection's key moment: the biggest scheduled outflow in the week up to the first
+    day below $0 (or, if money lasts, the lowest day). A lookup over the projection; no new math."""
+    d = p.first_below_zero.value or p.lowest_date.value
+    window = [e for e in p.events if e.amount < 0 and d - timedelta(days=6) <= e.date <= d]
+    ev = min(window, key=lambda e: (e.amount, e.date), default=None)
+    if ev is None:
+        return Reason(d, None, None)
+    prev = ev.date - timedelta(days=1)
+    return Reason(d, ev, p.start_balance.value if prev <= config.DEMO_TODAY else p.balance_on(prev))
+
+
+def extra_shift_pay(shift, ds=None, scenario=None, ledger=None):
+    """How much one extra shift adds to its paycheck, and when that paycheck arrives (0 if after SEMESTER_END)."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    without = replace(scenario, extra_shifts=tuple(s for s in scenario.extra_shifts if s != shift))
+    start, stop, pay = pay_period_for(shift.date)
+    period = next((p for p in ds.pay_periods if p.start <= shift.date <= p.end), None)
+    if period:
+        pay = period.pay_date
+    before = {pc.start: pc for pc in paychecks(ds, without, Ledger())}
+    after = next((pc for pc in paychecks(ds, without.plus(extra_shifts=(shift,)), Ledger())
+                  if pc.start <= shift.date <= pc.end), None)
+    if after is None:
+        return pay, ledger.add(f"extra shift {shift.date} ({shift.hours} hours): added pay by {config.SEMESTER_END}",
+                               ZERO, "USD", f"A shift on {fmt_date(shift.date)} is paid {fmt_date(pay)}, after the "
+                               f"semester ends, so it adds nothing before {fmt_date(config.SEMESTER_END)}.",
+                               [ds.job.row_id])
+    old = before.get(after.start)
+    added = after.net.value - (old.net.value if old else ZERO)
+    return pay, ledger.add(f"extra shift {shift.date} ({shift.hours} hours): added pay", D(added), "USD",
+                           f"The {fmt_date(after.pay_date)} paycheck goes from "
+                           f"{fmt_money(old.net.value if old else ZERO)} ({old.hours if old else 0} hours) to "
+                           f"{fmt_money(after.net.value)} ({after.hours} hours) after withholding.",
+                           [*(after.net.inputs), ds.job.row_id])
+
+
 def compare(base, current, ledger):
     """Change from the base projection to the current one (what-if deltas). Both must use `ledger`."""
     out = {}

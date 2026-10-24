@@ -85,7 +85,7 @@ This is part of the judging score, so keep it visible:
 - **Demo path (approved):** both.
   - At app startup, warm the Zetaris cache with every query the three demo questions need (`normalize.queries()` lists the engine's), so answers are fast. Evidence still shows `zetaris-cached` with the original timing.
   - A "Run live on Zetaris" button in the UI runs the federated query uncached, with a visible timer: the "this is Zetaris" moment (`ui/live_zetaris.py`).
-- **UI labels:** show runway together with its date ("2.0 weeks, until Mon Nov 9"); always label the fee savings "estimated".
+- **UI language:** plain words for students. Never show "scenario", "Computed", "C#", "evidence", "row ID", "backend", "ledger", "projection" or "delta" outside "Behind the scenes". Numbers go in sentences with their date ("Your money runs out Mon Nov 9, 2 weeks from today"). Always label the fee savings "estimated". Red only for below $0.
 - **Database naming (approved):** one Lightning database per source: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`. `RUNWAY_TEST` (5-row throwaway) still exists; drop it in the task that registers the real demo sources.
 - **Speed:** this laptop is ARM (Snapdragon), so the Intel/AMD images run under emulation.
   - Small local tables: about 1.5–4 s per query.
@@ -93,6 +93,10 @@ This is part of the judging score, so keep it visible:
   - Registering a table: about 10 s.
 
   Use local files for development and tests, use Zetaris for the real demo path, and never let a Zetaris query block the UI.
+
+## Known issues
+
+- **JVM exit hang (Zetaris backend):** once a process has opened the Zetaris JDBC connection from a worker thread (Streamlit always does), the Python process doesn't exit; closing the connection or calling `jpype.shutdownJVM()` at exit didn't help. Queries themselves work. Workaround: close the terminal, or in PowerShell `Get-NetTCPConnection -LocalPort 8501 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`. Not fixed yet (by decision).
 
 ## Stack
 

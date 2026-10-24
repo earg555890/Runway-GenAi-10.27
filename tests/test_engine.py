@@ -216,3 +216,18 @@ def test_subscription_timing(ds):
     subs = {s.merchant: s for s in e.subscriptions(ds)}
     assert e.subscription_timing(subs["Apple Music"], ds)[0] == (date(2026, 11, 22), date(2027, 1, 7))
     assert e.subscription_timing(subs["Spotify"], ds)[:2] == [(date(2026, 11, 14),) * 2, (date(2026, 12, 14),) * 2]
+
+
+def test_main_reason(ds):
+    r = e.main_reason(e.project(ds=ds))
+    assert (r.date, r.event.kind, r.event.amount, r.balance_before) == \
+        (date(2026, 11, 9), "card_autopay", Decimal("-359.53"), Decimal("307.20"))
+    r = e.main_reason(e.project(SCENARIOS["refund_and_cancel_spotify"][0], ds))
+    assert (r.date, r.event.kind, r.event.date) == (date(2026, 11, 2), "rent", date(2026, 11, 1))
+
+
+def test_extra_shift_pay(ds):
+    pay, added = e.extra_shift_pay(e.ExtraShift(date(2026, 11, 4), Decimal("4")), ds)
+    assert (pay, added.value) == (date(2026, 11, 18), Decimal("57.35"))
+    pay, added = e.extra_shift_pay(e.ExtraShift(date(2026, 12, 17), Decimal("4")), ds)
+    assert pay > config.SEMESTER_END and added.value == Decimal("0.00")

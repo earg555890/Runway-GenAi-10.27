@@ -157,3 +157,10 @@ def test_zetaris_parity(zetaris, name):
     assert z.evidence.backend == "zetaris"
     assert z.evidence.row_ids == local.evidence.row_ids
     assert z.rows == local.rows
+
+
+def test_is_cached_validates_and_reports(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "ZETARIS_CACHE_DIR", tmp_path)
+    assert not da.is_cached("bursar_ledger", term="FA26")
+    with pytest.raises(da.QueryError):
+        da.is_cached("bursar_ledger", term="XX99")
