@@ -822,9 +822,10 @@ def reason_problems(text, pack, names):
         m = SAVES_RE.search(window)
         if m:
             written, v = find_amounts(m.group(1))[0]
-            savings = [Decimal(it["raw"]) for it in pack.items if it["kind"] == "calc" and it.get("unit") == "USD"
-                       and name.lower() in it["title"].lower() and ("sav" in it["title"].lower()
-                                                                   or "cancel" in it["title"].lower())]
+            titles = [(it, it["title"].split("(")[0].lower()) for it in pack.items      # not the what-ifs in (...)
+                      if it["kind"] == "calc" and it.get("unit") == "USD"]
+            savings = [Decimal(it["raw"]) for it, t in titles
+                       if name.lower() in t and ("sav" in t or "cancel" in t)]
             ok = any(abs(v) == abs(x) or ("." not in written and abs(v) == _rounded(x)) for x in savings)
             if not ok:
                 problems.append(f"\"saves {written.strip()}\" for {name} doesn't match its computed saving"

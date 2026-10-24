@@ -169,6 +169,63 @@ def asked(at, monkeypatch, tmp_path):
     return at
 
 
+def _fake_models(monkeypatch, tmp_path, plans, answers):
+    import llm_client
+    from test_chat import RecordingLLM
+
+    fake = RecordingLLM(plans=plans, answers=answers)
+    monkeypatch.setattr(llm_client, "chat_json", fake.chat_json)
+    monkeypatch.setattr(llm_client, "stream_chat", fake.stream_chat)
+    monkeypatch.setattr(config, "ANSWER_MODE", "live")
+    monkeypatch.setattr(config, "ANSWER_CACHE_DIR", tmp_path / "answers")
+    monkeypatch.setattr(config, "NVIDIA_API_KEY", "test-key")
+    return fake
+
+
+def test_chat_thread_follow_up_and_new_chat(at, monkeypatch, tmp_path):
+    import json
+
+    from test_agent import FLIGHT_PLAN, GOOD_FLIGHT
+    resolved = "Can I afford the $400 flight home if I book it Nov 17?"
+    follow = json.dumps({"resolved_question": resolved, "calls": [{"tool": "can_afford", "args": {
+        "item": "flight home", "cost": 400, "date": "2026-11-17"}}]})
+    fake = _fake_models(monkeypatch, tmp_path, [FLIGHT_PLAN, follow], [GOOD_FLIGHT, GOOD_FLIGHT])
+    at.button(key="ask_suggest_0").click()
+    run(at)
+    assert [m.name for m in at.chat_message] == ["user", "assistant"]
+    assert not [b for b in at.button if str(b.key).startswith("ask_suggest_")]   # chips only in an empty thread
+    at.chat_input(key="ask_input").set_value("what about Nov 17 instead?")
+    run(at)
+    assert [m.name for m in at.chat_message] == ["user", "assistant", "user", "assistant"]   # newest at the bottom
+    assert f"Answering: {resolved}" in [plain(c.value) for c in at.chat_message[2].caption]
+    assert "Recent conversation" in fake.plan_messages[1][0]["content"]              # the earlier turn reached PLAN
+    history = at.session_state["history"]
+    assert [a.question for a in history] == ["what about Nov 17 instead?", agent_suggested(0)]
+    assert history[0].plan["args"]["date"] == "2026-11-17"
+    at.button(key="ask_new").click()
+    run(at)
+    assert not at.chat_message and at.session_state["history"] == []
+    assert len([b for b in at.button if str(b.key).startswith("ask_suggest_")]) == 4
+
+
+def test_think_harder_toggle_routes_to_super_with_thinking(at, monkeypatch, tmp_path):
+    from test_agent import FLIGHT_PLAN, GOOD_FLIGHT
+    fake = _fake_models(monkeypatch, tmp_path, [FLIGHT_PLAN], [GOOD_FLIGHT])
+    monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "super")
+    at.toggle(key="ask_think").set_value(True)
+    run(at)
+    at.button(key="ask_suggest_0").click()
+    run(at)
+    assert fake.calls[-1] == ("explain", True) and fake.messages[-1][0] == "super"
+    a = at.session_state["history"][0]
+    assert a.think and any("Think harder: Nemotron Super, thinking on" in plain(m.value) for m in at.markdown)
+
+
+def agent_suggested(i):
+    import agent
+    return agent.SUGGESTED[i]
+
+
 def test_ask_flight_question_shows_structured_answer(asked):
     at = asked
     t = texts(at)

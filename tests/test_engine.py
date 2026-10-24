@@ -240,3 +240,67 @@ def test_latest_shift_paid_before_run_out(ds):
     assert e.latest_shift_paid_before(date(2026, 10, 28), ds) is None              # nothing is paid that soon
     shift, pay = e.latest_shift_paid_before(date(2026, 11, 20), ds)
     assert (shift.value, pay.value) == (date(2026, 11, 15), date(2026, 11, 18))
+
+
+# --- lookups for Ask Runway's data questions ----------------------------------------------------
+
+def test_spending_summary_october_by_category():
+    sp = e.spending_summary("2026-10-01", "2026-10-31")
+    assert sp.end == date(2026, 10, 26)                                    # history stops at today
+    assert sp.total.value == Decimal("1756.78") and sp.count == 21
+    top = [(n, c.value) for n, c, _ in sp.groups[:4]]
+    assert top == [("Rent", Decimal("725.00")), ("Shopping", Decimal("460.99")), ("School", Decimal("200.00")),
+                   ("Groceries", Decimal("176.49"))]
+    assert "Transfer" not in [n for n, _, _ in sp.groups]                  # card payments aren't spending
+
+
+def test_find_transactions_kroger_and_no_match():
+    m = e.find_transactions("kroger")
+    assert m.count.value == 17 and m.spent.value == Decimal("570.03") and m.last.value == date(2026, 10, 26)
+    assert {t.account for t in m.rows} == {"checking", "card"}             # both sources
+    none = e.find_transactions("starbucks")
+    assert none.count.value == 0 and none.spent is None and none.last is None
+
+
+def test_upcoming_bills_until_run_out():
+    b = e.upcoming_bills("2026-10-27", "2026-11-09")
+    assert [(e.kind, e.date, e.amount) for e in b.events] == [
+        ("rent", date(2026, 11, 1), Decimal("-725.00")), ("recurring_bill", date(2026, 11, 5), Decimal("-55.00")),
+        ("card_autopay", date(2026, 11, 9), Decimal("-359.53"))]
+    assert b.total.value == Decimal("1139.53") and b.balance_after.value == Decimal("-59.84")
+
+
+def test_work_summary_october():
+    wk = e.work_summary("2026-10-01", "2026-10-31")
+    assert wk.worked_hours.value == Decimal("64.0") and wk.scheduled_hours.value == Decimal("4.0")
+    assert [(d.value, n.value) for _, n, d in wk.periods] == [(date(2026, 10, 2), Decimal("516.15")),
+                                                               (date(2026, 10, 16), Decimal("573.50"))]
+    assert wk.pay_total.value == Decimal("1089.65")
+
+
+def test_balance_on_past_and_future():
+    assert e.balance_on("2026-11-26").balance.value == Decimal("-284.80")     # Thanksgiving, projected
+    assert e.balance_on("2026-10-15").balance.value == Decimal("510.68")      # the bank's running balance
+    nov9 = e.balance_on("2026-11-09")
+    assert nov9.balance.value == Decimal("-59.84") and [e.kind for e in nov9.events] == ["card_autopay"]
+
+
+def test_accounts_today():
+    t = e.accounts_today()
+    assert t.checking.value == Decimal("783.38")
+    assert (t.next_card_payment.amount, t.next_card_payment.date) == (Decimal("-359.53"), date(2026, 11, 9))
+    assert t.refund.value == Decimal("1850.00") and t.refund_release.value == date(2026, 11, 5)
+    assert (t.next_paycheck.date, t.next_paycheck.amount) == (date(2026, 11, 3), Decimal("401.45"))
+
+
+def test_money_ideas_ranked_by_when_the_money_arrives():
+    ideas, deadline, p = e.money_ideas()
+    assert deadline.value == date(2026, 11, 9)
+    assert [(i.kind, i.amount.value, i.arrives.value) for i in ideas] == [
+        ("shift", Decimal("57.35"), date(2026, 11, 3)), ("refund", Decimal("1850.00"), date(2026, 11, 5))]
+    assert ideas[0].detail.value == date(2026, 10, 31)                       # a shift worked by Sat, Oct 31
+    # Spotify's next charge (Nov 14) is after the run-out date, so it isn't a way to get money in time
+    assert not any(i.kind == "cancel" for i in ideas)
+    covered, deadline, _ = e.money_ideas(e.Scenario(refund_released=True))
+    assert deadline.value == date(2026, 12, 18)
+    assert [(i.name, i.amount.value) for i in covered] == [("cancel Spotify", Decimal("23.98"))]
