@@ -294,13 +294,36 @@ def test_check_catches_the_five_times_repeated_shift_bullet():
     assert agent.repetition_problems(near)                                        # near-identical counts too
 
 
+def test_check_catches_the_wrong_date_for_an_event(ds):
+    """Seen in a regenerated answer: "Watch your balance before rent on Mon, Nov 9" (rent is due on the 1st;
+    Nov 9 is the card payment)."""
+    pack = _leaks(ds, engine.Scenario())
+    events = agent.event_dates(ds, engine.Scenario())
+    bad = ("ANSWER: Your money leaks from two music apps and a fee.\nWHY:\n- Rent caused a $35 overdraft fee [C9].\n"
+           "DO THIS:\n1. Watch your balance before rent on Mon, Nov 9 [C15].")
+    assert "Mon, Nov 9 is not a rent date" in agent.check_answer(bad, pack, True, events=events).problems
+    ok = ("ANSWER: Two dates matter.\nWHY:\n- Rent of $725 is due Sun, Nov 1 and the card payment on Mon, Nov 9.\n"
+          "- Your refund arrives around Thu, Nov 5. Send the refund form by Tue, Oct 27.")
+    assert agent.event_date_problems(ok, events) == []
+
+
+def test_check_catches_a_copied_fact_label(ds):
+    """Seen in a regenerated answer: "the duplicate subscription Apple Music: You pay for Apple Music [C3]."."""
+    plan, results, pack, required = _pieces([{"tool": "find_leaks", "args": {}}], ds)
+    text = ("ANSWER: Your money leaks from music subscriptions.\nWHY:\n- the duplicate subscription Apple Music: You "
+            "pay for Apple Music [C3].\nDO THIS:\n1. Cancel Spotify.")
+    assert agent.copied_label_problems(text, required) == [
+        'the answer copied an instruction: "the duplicate subscription Apple Music:"']
+    assert required[0].prompt().endswith(': "You pay for Apple Music [C3]."')       # the sentence is quoted
+
+
 def test_check_catches_a_copied_placement_hint():
     """Seen live: the model copied the required-fact line with its hint, "...on Mon, Nov 2. (as a WHY bullet)"."""
     text = ("ANSWER: Yes, if you do 2 things.\nWHY:\n- Your lowest point would be $5.81 on Mon, Nov 2. "
             "(as a WHY bullet)\nDO THIS:\n1. Send the form.")
     assert agent.copied_hint_problems(text) == ["the answer copied an instruction: (as a WHY bullet)"]
     fact = agent.Fact("lowest", "the lowest point", "Your lowest point would be $5.81 on Mon, Nov 2.", where="why")
-    assert fact.prompt() == "- the lowest point (as a WHY bullet): Your lowest point would be $5.81 on Mon, Nov 2."
+    assert fact.prompt() == '- the lowest point (as a WHY bullet): "Your lowest point would be $5.81 on Mon, Nov 2."'
 
 
 def test_check_catches_invented_budgets():

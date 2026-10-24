@@ -153,13 +153,38 @@ def chat(messages, thinking=False, *, model=None, timeout=DEFAULT_TIMEOUT_S, ret
 _FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
 
 
+def repair_brackets(text):
+    """Close brackets the model forgot: a "]" where a "}" is still open gets the "}" first, and anything left
+    open at the end is closed. Strings are left alone. (Lightning sometimes writes `...5}]}]}` for `...5}]}}]}`.)"""
+    out, stack, in_str, esc = [], [], False, False
+    pairs = {"{": "}", "[": "]"}
+    for ch in text:
+        if in_str:
+            in_str = not (ch == '"' and not esc)
+            esc = ch == "\\" and not esc
+        elif ch == '"':
+            in_str = True
+        elif ch in pairs:
+            stack.append(pairs[ch])
+        elif ch in "}]":
+            while stack and stack[-1] != ch:
+                out.append(stack.pop())
+            if stack:
+                stack.pop()
+        out.append(ch)
+    return "".join(out) + "".join(reversed(stack))
+
+
 def parse_json(text):
-    """Parse a JSON answer, tolerating a ```json fence around it. Raises ValueError."""
+    """Parse a JSON answer, tolerating a ```json fence around it and forgotten closing brackets. Raises ValueError."""
     text = text.strip()
     match = _FENCE.match(text)
     if match:
         text = match.group(1)
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return json.loads(repair_brackets(text))
 
 
 def chat_json(messages, thinking=False, *, validate=None, **kwargs):

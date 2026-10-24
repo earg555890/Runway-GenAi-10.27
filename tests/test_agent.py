@@ -358,7 +358,7 @@ def test_leaks_prompt_requires_monthly_total(ds):
     run_all("Where is my money leaking?", llm, ds=ds)
     prompt = llm.messages[0][1][1]["content"]
     assert "Your answer must include all of these:" in prompt
-    assert "- their monthly total: Together they cost $22.98 a month [C3]." in prompt
+    assert '- their monthly total: "Together they cost $22.98 a month [C3]."' in prompt
 
 
 def test_fourth_suggested_question_is_the_undated_flight(ds):

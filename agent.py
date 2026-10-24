@@ -927,8 +927,58 @@ def cutoff_problems(text, finish_reason=None):
     return []
 
 
+EVENT_WORDS = {"rent": "rent", "credit card payment": "card", "card payment": "card", "card bill": "card",
+               "paycheck": "pay", "payday": "pay", "refund": "refund", "tuition": "tuition", "installment": "tuition"}
+EVENT_RE = re.compile(r"\b(" + "|".join(sorted(EVENT_WORDS, key=len, reverse=True)) + r")\b(?!\s+(?:form|money))",
+                      re.I)
+
+
+def event_dates(ds, scenario):
+    """{"rent" | "card" | "pay" | "refund" | "tuition": dates that event really happens} from the records and the
+    projection, for the event/date check."""
+    out = {k: set() for k in ("rent", "card", "pay", "refund", "tuition")}
+    out["rent"] |= {r.due for r in ds.rent_schedule} | {t.date for t in ds.checking_txns if t.category == "rent"}
+    out["card"] |= {s.due for s in ds.statements} | {t.date for t in ds.checking_txns if t.category == "card_payment"}
+    out["pay"] |= {p.pay_date for p in ds.pay_periods} | {t.date for t in ds.checking_txns if t.purpose == "wages"}
+    out["tuition"] |= {i.due for i in ds.installments}
+    for s in {scenario, engine.Scenario(refund_released=True, refund_submit_date=scenario.refund_submit_date)}:
+        p = engine.project(s, ds, engine.Ledger())
+        for e in p.events:
+            kind = {"rent": "rent", "card_autopay": "card", "paycheck": "pay", "refund": "refund",
+                    "installment": "tuition"}.get(e.kind)
+            if kind:
+                out[kind].add(e.date)
+        rel = engine.refund_release_date(ds, s)
+        if rel:
+            out["refund"].add(rel)
+    return out
+
+
+def event_date_problems(text, events):
+    """"Rent on Mon, Nov 9" must be a real rent date (rent is due on the 1st; Nov 9 is the card payment): the first
+    date after an event word, in the same clause and before any other event word, must be one of its dates."""
+    if not events:
+        return []
+    problems = []
+    for sentence in SENTENCE_END.split(text):
+        hits = list(EVENT_RE.finditer(sentence))
+        for i, m in enumerate(hits):
+            stop = hits[i + 1].start() if i + 1 < len(hits) else len(sentence)
+            window = sentence[m.end():min(stop, m.end() + 60)]
+            found = find_dates(window)
+            if found and found[0][1] and found[0][1] not in events[EVENT_WORDS[m.group(1).lower()]]:
+                problems.append(f"{found[0][0].strip()} is not a {m.group(1).lower()} date")
+    return problems
+
+
+def copied_label_problems(text, required):
+    """The required facts' labels ("the duplicate subscription Apple Music:") are instructions, not answer text."""
+    low = text.lower()
+    return [f"the answer copied an instruction: \"{f.label}:\"" for f in required if f"{f.label.lower()}:" in low][:1]
+
+
 def check_answer(text, pack, require_format=False, *, names=None, finish_reason=None, general=False,
-                 private=None):
+                 private=None, required=(), events=None):
     """Every dollar amount and date must come from the pack; every citation must exist. A whole-dollar amount
     ("$1,462") matches a pack value that rounds to it ($1,462.37); signs are ignored, so "$1,462 below zero"
     and "-$1,462.37" both match -$1,462.37. Also: reason claims about merchants (names: merchant_accounts()),
@@ -960,6 +1010,7 @@ def check_answer(text, pack, require_format=False, *, names=None, finish_reason=
         problems += [f"[{c}] is not in the facts" for c in dict.fromkeys(cites) if c not in ids]
         if names:
             problems += reason_problems(text, pack, names)
+        problems += event_date_problems(text, events) + copied_label_problems(text, required)
     if text.strip():
         problems += (repetition_problems(text) + cutoff_problems(text, finish_reason) + invented_budget_problems(text)
                      + copied_hint_problems(text))
@@ -992,7 +1043,8 @@ EXPLAIN_SYSTEM = (
     "- DO THIS steps use only amounts from the facts. Never invent a budget, a limit or a target amount.\n"
     "- Only say what the facts support. Don't guess about holds, rules or deadlines.\n"
     "- Include EVERY fact listed under \"Your answer must include all of these\", with its number, date and "
-    "citation, in the place it asks for. The easy way: copy each of those lines as written.\n"
+    "citation, in the place it asks for. The easy way: copy each quoted sentence as written (without the quotes "
+    "or the words before it).\n"
     "- Never write record IDs such as HLD-01, CHK-0042 or RFD-01. Cite with [C#] or [E#] only.\n"
     "- No jargon: never say scenario, projection, ledger, evidence or computed. No bold, no headings.")
 
@@ -1235,7 +1287,7 @@ def model_name(model):
 
 
 def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *, names=None, general=False,
-                  private=None):
+                  private=None, events=None):
     """Stream one EXPLAIN answer from `model`, check it (numbers, dates, citations, format, record IDs, reasons,
     repetition, cut-off, required facts), and allow one rewrite. Yields ("text"/"restart", ...) events and returns
     (text, reasoning, check, missing) where missing are the required facts the model still left out. Raises if the
@@ -1251,7 +1303,8 @@ def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *,
                 yield "text", chunk
         text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
         check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
-                             finish_reason=getattr(stream.result, "finish_reason", None))
+                             finish_reason=getattr(stream.result, "finish_reason", None), required=required,
+                             events=events)
         missing = missing_facts(text, required) if text else list(required)
         if (check.ok and not missing) or attempt == 1:
             break
@@ -1292,7 +1345,7 @@ class Fact:
     def prompt(self):
         place = {"lead": " (put this FIRST: in ANSWER or the first WHY bullet)", "note": " (in NOTE)",
                  "answer": " (in ANSWER)", "why": " (as a WHY bullet)"}.get(self.where, "")
-        return f"- {self.label}{place}: {self.line}"
+        return f'- {self.label}{place}: "{self.line}"'
 
 
 def _hours(x):
@@ -1883,13 +1936,14 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     yield "stage", STAGES["explain"]
     t = time.perf_counter()
     names, private = merchant_accounts(ds), private_amounts(ds) if general else None
+    events = None if general else event_dates(ds, scenario)
     messages = explain_messages(plan.resolved_question or question, plan, results, pack, label, required, general)
     text, reasoning, check, answered_by, missing, errors = "", "", None, None, [], []
     for model, thinking in chain:
         try:
             text, reasoning, check, missing = yield from _explain_with(
                 llm, model, thinking, messages, pack, retries, required, names=names, general=general,
-                private=private)
+                private=private, events=events)
             answered_by = model
             break
         except Exception as exc:
@@ -1898,7 +1952,8 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     if answered_by is not None and missing:              # still missing after the rewrite: add them ourselves
         text = append_facts(text, missing)
         retries["facts_appended"] = len(missing)
-        check = check_answer(text, pack, require_format=True, names=names, general=general, private=private)
+        check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
+                             required=required, events=events)
     passed = answered_by is not None and check.ok
     if passed:
         source = "llm"
@@ -1920,7 +1975,8 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
                          "answer built straight from your numbers.")
         text = quick or ("I can't look that up right now. Try again in a minute." if general else OFF_TOPIC)
         missing = missing_facts(text, required)
-        check = check_answer(text, pack, names=names, general=general, private=private)
+        check = check_answer(text, pack, names=names, general=general, private=private, required=required,
+                             events=events)
         reasoning = reasoning if answered_by is not None else ""
         yield "restart", ""
     facts_record = [{"key": f.key, "label": f.label, "appended": f in missing} for f in required]

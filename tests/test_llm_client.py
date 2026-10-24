@@ -208,3 +208,12 @@ def test_chat_and_stream_default_to_explain_model(split_models):
     llm_client.chat([{"role": "user", "content": "x"}], client=client)
     list(llm_client.stream_chat([{"role": "user", "content": "x"}], client=client))
     assert [c["model"] for c in client.calls] == ["explain-model", "explain-model"]
+
+
+def test_parse_json_repairs_a_forgotten_closing_brace():
+    # seen live from Lightning for "What if I pick up a 5 hour shift on Nov 7?"
+    raw = ('{"resolved_question": "What if I pick up a 5 hour shift on Nov 7?", "intent": "what_if", "calls": '
+           '[{"tool": "what_if", "args": {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}]}')
+    data = llm_client.parse_json(raw)
+    assert data["calls"][0]["args"]["extra_shifts"] == [{"date": "2026-11-07", "hours": 5}]
+    assert llm_client.parse_json('{"a": "}]", "b": [1, 2') == {"a": "}]", "b": [1, 2]}   # strings untouched
