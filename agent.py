@@ -422,6 +422,21 @@ def ground_purchase_date(plan, question):
     return plan
 
 
+BROAD_RE = re.compile(r"\b(?:get through|make (?:me )?a plan|what should i do|help me (?:out|with my money|survive)|"
+                      r"survive (?:the|this) semester|help me (?:get|make it))\b", re.I)
+BROAD_CALLS = ("runway", "money_ideas", "find_leaks")
+
+
+def widen_broad_plan(plan, question):
+    """A broad request for help ("Help me get through the semester") needs the whole picture: when PLAN picked
+    just one overview tool, add the other two (rule-based; still one PLAN call)."""
+    tools = [c["tool"] for c in plan.calls]
+    if BROAD_RE.search(question) and len(tools) == 1 and tools[0] in BROAD_CALLS + ("accounts_today",):
+        plan.calls = [{"tool": t, "args": {}} for t in BROAD_CALLS]
+        plan.tool, plan.args = plan.calls[0]["tool"], plan.calls[0]["args"]
+    return plan
+
+
 def keyword_plan(question, sub_names):
     """Fallback when PLAN fails: keywords for the suggested questions. None if nothing matches."""
     q = question.lower()
@@ -880,6 +895,14 @@ BUDGET_RE = re.compile(r"\b(?:budget|limit|cap|target|goal)\b[^.\n]{0,40}\$|\$[\
                        r"(?:budget|limit|cap|target|goal)\b", re.I)
 
 
+COPIED_HINT = re.compile(r"\((?:as a WHY bullet|in NOTE|in ANSWER|put this FIRST[^)]*)\)", re.I)
+
+
+def copied_hint_problems(text):
+    """The prompt's placement hints ("(as a WHY bullet)") must never end up in the answer."""
+    return [f"the answer copied an instruction: {m.group(0)}" for m in COPIED_HINT.finditer(text)][:1]
+
+
 def invented_budget_problems(text):
     """A step that sets a budget or limit with a dollar amount invents a number the engine never computed."""
     sec = parse_sections(text) or {}
@@ -938,7 +961,8 @@ def check_answer(text, pack, require_format=False, *, names=None, finish_reason=
         if names:
             problems += reason_problems(text, pack, names)
     if text.strip():
-        problems += repetition_problems(text) + cutoff_problems(text, finish_reason) + invented_budget_problems(text)
+        problems += (repetition_problems(text) + cutoff_problems(text, finish_reason) + invented_budget_problems(text)
+                     + copied_hint_problems(text))
     return Check(not problems, list(dict.fromkeys(problems)), len(amounts), len(found), len(cites))
 
 
@@ -1268,7 +1292,7 @@ class Fact:
     def prompt(self):
         place = {"lead": " (put this FIRST: in ANSWER or the first WHY bullet)", "note": " (in NOTE)",
                  "answer": " (in ANSWER)", "why": " (as a WHY bullet)"}.get(self.where, "")
-        return f"- {self.label}: {self.line}{place}"
+        return f"- {self.label}{place}: {self.line}"
 
 
 def _hours(x):
@@ -1811,6 +1835,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
                             validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
         plan = parse_plan(res.data, sub_names)
         plan = ground_purchase_date(plan, f"{question} {plan.resolved_question or ''}")
+        plan = widen_broad_plan(plan, question)
         retries["plan_json"] = res.json_retries + res.retries
     except Exception as exc:                                       # slow, down, or unusable: keywords
         notes.append(f"The planner wasn't available ({type(exc).__name__}); Runway matched your question "

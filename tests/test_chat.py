@@ -118,6 +118,15 @@ def test_multi_step_plan_one_plan_call_one_merged_pack(ds):
     assert "Your money runs out on Mon, Nov 9" in a.text and "$57.35" in a.text and "$22.98" in a.text
 
 
+def test_broad_request_is_widened_when_plan_picks_one_tool(ds):
+    """Seen live: Lightning answered "Help me get through the semester" with runway alone."""
+    llm = FakeLLM(plans=[plan_json([{"tool": "runway"}])], answers=["x", "x"])
+    _, a = run_all("Help me get through the semester", llm, ds)
+    assert [c["tool"] for c in a.plan["calls"]] == ["runway", "money_ideas", "find_leaks"]
+    p = agent.parse_plan({"calls": [{"tool": "runway"}]}, SUBS)
+    assert len(agent.widen_broad_plan(p, "How long will my money last?").calls) == 1      # specific: unchanged
+
+
 def test_parse_plan_limits_calls():
     with pytest.raises(ValueError, match="at most 3"):
         agent.parse_plan({"calls": [{"tool": "runway"}] * 2 + [{"tool": "find_leaks"}, {"tool": "money_ideas"}]},
@@ -283,6 +292,15 @@ def test_check_catches_the_five_times_repeated_shift_bullet():
     near = ("ANSWER: You can afford it.\nWHY:\n- Your lowest point is $5.81 on Mon, Nov 2.\n"
             "- Your lowest point is $5.81 on Mon, Nov 2!")
     assert agent.repetition_problems(near)                                        # near-identical counts too
+
+
+def test_check_catches_a_copied_placement_hint():
+    """Seen live: the model copied the required-fact line with its hint, "...on Mon, Nov 2. (as a WHY bullet)"."""
+    text = ("ANSWER: Yes, if you do 2 things.\nWHY:\n- Your lowest point would be $5.81 on Mon, Nov 2. "
+            "(as a WHY bullet)\nDO THIS:\n1. Send the form.")
+    assert agent.copied_hint_problems(text) == ["the answer copied an instruction: (as a WHY bullet)"]
+    fact = agent.Fact("lowest", "the lowest point", "Your lowest point would be $5.81 on Mon, Nov 2.", where="why")
+    assert fact.prompt() == "- the lowest point (as a WHY bullet): Your lowest point would be $5.81 on Mon, Nov 2."
 
 
 def test_check_catches_invented_budgets():
