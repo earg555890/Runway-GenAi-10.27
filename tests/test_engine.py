@@ -231,3 +231,12 @@ def test_extra_shift_pay(ds):
     assert (pay, added.value) == (date(2026, 11, 18), Decimal("57.35"))
     pay, added = e.extra_shift_pay(e.ExtraShift(date(2026, 12, 17), Decimal("4")), ds)
     assert pay > config.SEMESTER_END and added.value == Decimal("0.00")
+
+
+def test_latest_shift_paid_before_run_out(ds):
+    shift, pay = e.latest_shift_paid_before(date(2026, 11, 9), ds)
+    assert (shift.value, pay.value) == (date(2026, 10, 31), date(2026, 11, 3))     # Sat Oct 31 -> Tue Nov 3
+    assert "PAY-05" in shift.inputs and "JOB-01" in shift.inputs
+    assert e.latest_shift_paid_before(date(2026, 10, 28), ds) is None              # nothing is paid that soon
+    shift, pay = e.latest_shift_paid_before(date(2026, 11, 20), ds)
+    assert (shift.value, pay.value) == (date(2026, 11, 15), date(2026, 11, 18))

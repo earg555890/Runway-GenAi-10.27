@@ -351,6 +351,11 @@ def execute(plan, scenario, ds):
         shift_pay = [engine.extra_shift_pay(s, ds, scenario, ledger) for s in new.extra_shifts
                      if s not in scenario.extra_shifts]
         key += [c for _, c in shift_pay]
+        latest = None                       # a shift paid after the run-out date: when would one be paid in time?
+        run_out = after.first_below_zero.value
+        if run_out and any(pay_date >= run_out for pay_date, _ in shift_pay):
+            latest = engine.latest_shift_paid_before(run_out, ds, ledger)
+            key += list(latest or [])
         fixes = engine.available_fixes(scenario, ds, ledger)
         chosen = [f for f in fixes if (f.kind == "refund" and a["send_verification_form"])
                   or f.name in a["cancel_subscriptions"]]
@@ -358,7 +363,7 @@ def execute(plan, scenario, ds):
         return ToolResult("covered" if after.lasts_through_semester else "runs_out", key, ledger, chosen,
                           [f for f in fixes if f.savings.value <= 0 and f.name in a["cancel_subscriptions"]],
                           {"projection": after, "before": before, "reason": r, "shift_pay": shift_pay,
-                           "new_scenario": new})
+                           "new_scenario": new, "latest_shift": latest})
     if plan.tool == "find_leaks":
         leaks = engine.find_leaks(scenario, ds, ledger)
         key = [c for leak in leaks for c in leak.computed]
@@ -681,7 +686,14 @@ def template_answer(plan, result, pack, ds, scenario):
                       f"{w.weeks_words(p.runway_weeks.value)} {c(p.runway_weeks)}.")
             why = [f"Your {w.event_name(r.event)} of {w.dollars(r.event.amount)} is due that week "
                    f"{c(r.event.computed)}."] if r.event else ["Everyday spending slowly adds up."]
-        why += [f"The extra shift adds {w.dollars(pay.value)} to your pay {c(pay)}." for _, pay in f.get("shift_pay", [])]
+        changes = [f"The extra shift adds {w.dollars(pay.value)} to your {w.day(pay_date)} paycheck {c(pay)}."
+                   for pay_date, pay in f.get("shift_pay", [])]
+        if changes:                                       # a what-if leads with the change itself
+            answer, why = changes[0], [answer] + why + changes[1:]
+        if f.get("latest_shift"):
+            shift_c, pay_c = f["latest_shift"]
+            why.append(f"A shift worked by {w.day(shift_c.value)} is paid {w.day(pay_c.value)}, before you run out "
+                       f"{c(shift_c)}.")
         return _format(answer, why, ["Look at the ways to fix it in My semester."], note)
     if plan.tool == "find_leaks":
         why, do = [], []
@@ -778,7 +790,7 @@ class Fact:
     label: str                   # what it is, in plain words (for the prompt and the rewrite request)
     line: str                    # a deterministic sentence stating it, with its citation (the fallback)
     money: tuple = ()            # amounts that must appear (rounded whole dollars accepted)
-    date: date | None = None     # a date that must appear
+    date: date | tuple | None = None   # a date (or a tuple of dates) that must appear
     words: tuple = ()            # at least one of these words must appear (case-insensitive)
     where: str = "any"           # "any", "lead" (ANSWER or the first WHY bullet), "note", "answer"
 
@@ -817,6 +829,11 @@ def required_facts(plan, result, pack, ds, scenario):
                 fact = _fix_fact(fx, ds, f["new_scenario"], c)
                 fact.where = "lead"
                 out.append(fact)
+            if f.get("latest_shift"):
+                shift_c, pay_c = f["latest_shift"]
+                out.append(Fact("latest_shift", "the latest shift that would be paid before you run out",
+                                f"A shift worked by {w.day(shift_c.value)} is paid {w.day(pay_c.value)}, before you "
+                                f"run out {c(shift_c)}.", date=(shift_c.value, pay_c.value)))
         if p.lasts_through_semester:
             out.append(Fact("lowest", "covered all semester, and the lowest point",
                             f"You're covered all semester. Your lowest point is {w.balance(p.lowest.value)} "
@@ -900,7 +917,8 @@ def fact_present(fact, text, sections=None):
         text = sec.get("answer", "")
     low = text.lower()
     return (all(_has_money(text, m) for m in fact.money)
-            and (fact.date is None or any(d == fact.date for _, d, _ in find_dates(text)))
+            and all(any(d == want for _, d, _ in find_dates(text))
+                    for want in (fact.date if isinstance(fact.date, tuple) else (fact.date,) if fact.date else ()))
             and (not fact.words or any(x.lower() in low for x in fact.words)))
 
 

@@ -44,9 +44,12 @@ def money_strip(current, deltas):
 def render(ds, subs, base, current, changed, deltas=None):
     s = st.session_state
     money_strip(current, deltas)
+    if changed:
+        with_cls = "rw-sw-with rw-sw-good" if current.lasts_through_semester else "rw-sw-with"   # matches the line
+        st.markdown('<div class="rw-legend"><span class="rw-sw rw-sw-before"></span>Before your changes'
+                    f'<span class="rw-sw {with_cls}"></span>With your changes</div>', unsafe_allow_html=True)
     st.altair_chart(chart.build(base, current, changed), width="stretch")
-    st.caption("Your balance at the end of each day. Hover for details."
-               + (" The dashed line is before your changes." if changed else ""))
+    st.caption("Your balance at the end of each day. Hover for details.")
 
     st.markdown("### Ways to fix it")
     fixes = {f.name: f for f in engine.available_fixes(engine.Scenario(refund_submit_date=s.wf_submit), ds,
@@ -79,9 +82,15 @@ def render(ds, subs, base, current, changed, deltas=None):
                          max_value=config.SEMESTER_END, format="MM/DD/YYYY")
             b.number_input("Hours", key="wf_shift_hours", min_value=0.5, max_value=12.0, step=0.5)
 
-        _card("Pick up an extra shift",
-              f"Adds {fmt.dollars(added.value)} to your {fmt.day(pay)} paycheck." if added.value > 0 else
-              f"That shift is paid {fmt.day(pay)}, after the semester.", "wf_shift_on", pickers)
+        sentence = (f"Adds {fmt.dollars(added.value)} to your {fmt.day(pay)} paycheck." if added.value > 0 else
+                    f"That shift is paid {fmt.day(pay)}, after the semester.")
+        run_out = current.first_below_zero.value
+        if added.value > 0 and run_out and pay >= run_out:      # paid too late to stop the run-out
+            in_time = engine.latest_shift_paid_before(run_out, ds)
+            if in_time:
+                sentence += (f" That's after you run out. A shift worked by {fmt.day(in_time[0].value)} is paid "
+                             f"{fmt.day(in_time[1].value)}, in time.")
+        _card("Pick up an extra shift", sentence, "wf_shift_on", pickers)
 
     for sub in useless + helpful[1:]:
         f = fixes[sub.merchant]

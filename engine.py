@@ -550,6 +550,28 @@ def main_reason(p):
     return Reason(d, ev, p.start_balance.value if prev <= config.DEMO_TODAY else p.balance_on(prev))
 
 
+def latest_shift_paid_before(deadline, ds=None, ledger=None):
+    """The latest day after DEMO_TODAY whose shift pay arrives before `deadline` (e.g. the run-out date), by the
+    pay-date rule. Returns (shift-date Computed, pay-date Computed), or None if no such day exists."""
+    ds = _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    d = deadline - timedelta(days=1)
+    while d > config.DEMO_TODAY:
+        period = next((p for p in ds.pay_periods if p.start <= d <= p.end), None)
+        start, stop, pay = (period.start, period.end, period.pay_date) if period else pay_period_for(d)
+        if pay < deadline:
+            why = (f"A shift on {fmt_date(d)} is in the {fmt_date(start)} to {fmt_date(stop)} pay period, paid "
+                   f"{fmt_date(pay)}, before {fmt_date(deadline)}. Any later shift is paid after that date.")
+            inputs = [*([period.row_id] if period else []), ds.job.row_id]
+            shift_c = ledger.add(f"latest shift paid before {deadline}", d, "date", why, inputs)
+            pay_c = ledger.add(f"pay date for a shift on {d}", pay, "date",
+                               f"Pay-date rule: the {fmt_date(start)} to {fmt_date(stop)} period is paid "
+                               f"{fmt_date(pay)}.", inputs)
+            return shift_c, pay_c
+        d -= timedelta(days=1)
+    return None
+
+
 def extra_shift_pay(shift, ds=None, scenario=None, ledger=None):
     """How much one extra shift adds to its paycheck, and when that paycheck arrives (0 if after SEMESTER_END)."""
     scenario, ds = scenario or Scenario(), _ds(ds)

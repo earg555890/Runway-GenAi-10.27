@@ -21,8 +21,14 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 .rw-today-cap {font-size: 1rem; opacity: .85; margin-top: .25rem;}
 .rw-fig {margin-top: .35rem;}
 .rw-fig-label {font-size: .95rem; opacity: .85;}
-.rw-fig-value {font-size: 1.45rem; font-weight: 700; line-height: 1.3;}
-.rw-fig-when {font-size: .95rem; opacity: .85;}
+.rw-fig-value {font-size: 1.6rem; font-weight: 400; line-height: 1.25;}
+.rw-fig-when {font-size: .9rem; opacity: .75;}
+.rw-legend {font-size: .9rem; opacity: .85; margin: .9rem 0 0;}
+.rw-sw {display: inline-block; width: 22px; height: 0; vertical-align: middle; margin: 0 .4rem 0 .9rem;}
+.rw-sw:first-child {margin-left: 0;}
+.rw-sw-before {border-top: 2px dashed #9ca3af;}
+.rw-sw-with {border-top: 3px solid #2563eb;}
+.rw-sw-good {border-top-color: #16a34a;}
 .rw-delta {font-size: .8rem; font-weight: 600; margin-left: .35rem; padding: .05rem .4rem; border-radius: 999px;
            vertical-align: middle;}
 .rw-up {color: #16a34a; background: rgba(34, 197, 94, .14);}

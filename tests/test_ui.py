@@ -212,38 +212,128 @@ def test_behind_the_scenes_drills_into_records(at):
 
 # --- chart --------------------------------------------------------------------------------------
 
-def _spec(changed):
+def _spec(scenario_name):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from datetime import date
+    from decimal import Decimal
+
     import engine
     import normalize
     from ui import chart
     ds, ledger = normalize.load("local"), engine.Ledger()
     base = engine.project(engine.Scenario(), ds, ledger)
-    cur = engine.project(engine.Scenario(refund_released=True, cancel_subscriptions=("Spotify",)), ds, ledger) \
-        if changed else base
-    return chart.build(base, cur, changed).to_dict(validate=True)
+    scenarios = {
+        "base": None,
+        "fixes": engine.Scenario(refund_released=True, cancel_subscriptions=("Spotify",), purchases=(
+            engine.Purchase(Decimal("400"), date(2026, 11, 10), "checking", "Flight home"),)),
+        "shift": engine.Scenario(extra_shifts=(engine.ExtraShift(date(2026, 11, 7), Decimal("5")),)),
+    }
+    s = scenarios[scenario_name]
+    cur = engine.project(s, ds, ledger) if s else base
+    return chart.build(base, cur, s is not None).to_dict(validate=True)
 
 
 def _labels(spec):
     return [r["t"] for d in spec["datasets"].values() for r in d if "t" in r]
 
 
-def test_chart_layers_base():
-    spec = _spec(False)
-    marks = [l["mark"]["type"] if isinstance(l["mark"], dict) else l["mark"] for l in spec["layer"]]
-    assert marks.count("area") == 2 and "rule" in marks and "tick" in marks and "line" in marks
+def _marks(spec):
+    return [l["mark"]["type"] if isinstance(l["mark"], dict) else l["mark"] for l in spec["layer"]]
+
+
+def test_chart_base_has_run_out_marker_and_story_labels():
+    spec = _spec("base")
     labels = _labels(spec)
-    assert {"$0", "Today", "Lowest point"} <= set(labels)          # amounts live in the figures above the chart
-    assert not any("below zero" in x for x in labels)
-    assert {"Rent", "Card payment", "Paycheck"} <= set(labels)
+    assert "Runs out · Mon, Nov 9" in labels                                   # the headline marker
+    marker = [d for d in spec["datasets"].values() if d and set(d[0]) == {"x"}]
+    assert marker and marker[0][0]["x"] == "2026-11-08T12:00"                  # at the Nov 9 step
+    assert {"Card payment $360", "Rent $725", "Card payment $285", "Today", "Lowest point"} <= set(labels)
+    assert "Covered all semester" not in labels
+    assert "tick" not in _marks(spec)                                          # no bottom rows of ticks
+    assert "$0" not in labels                                                  # $0 only on the axis
+    assert not any("below zero" in t for t in labels)                          # amounts live above the chart
+    line_rows = next(d for d in spec["datasets"].values() if d and "sign" in d[0])
+    assert {"pos", "neg"} == {r["sign"] for r in line_rows}                    # split at $0: blue / red
+    assert any(r["y"] == 0.0 for r in line_rows)                               # an inserted crossing point
     days = next(d for d in spec["datasets"].values() if d and "events" in d[0])
     nov9 = next(r for r in days if r["when"] == "Mon, Nov 9")
-    assert "Card payment: $360 out" in nov9["events"] and nov9["bal"] == "$59.84 below zero"   # under $100: cents kept
-    assert nov9["balance"] == -59.84                                                       # the exact value
-    assert "Before your changes" not in str(spec)
+    assert "Card payment: $360 out" in nov9["events"] and nov9["bal"] == "$59.84 below zero"
+    assert nov9["y"] == -59.84                                                 # the exact engine value
 
 
-def test_chart_layers_changed_shows_before_line_and_legend():
-    spec = _spec(True)
-    assert "Before your changes" in str(spec) and "With your changes" in str(spec)
-    assert {"Lowest point", "Refund"} <= set(_labels(spec))
+def test_chart_covered_has_no_marker_and_green_note():
+    spec = _spec("fixes")
+    labels = _labels(spec)
+    assert "Covered all semester" in labels and not any(t.startswith("Runs out") for t in labels)
+    assert {"Rent $725", "Refund +$1,850", "Lowest point"} <= set(labels)
+    line_rows = next(d for d in spec["datasets"].values() if d and "sign" in d[0])
+    assert {r["sign"] for r in line_rows} == {"pos"}
+    assert "#16a34a" in str(spec)                                              # green line when covered
+
+
+def test_chart_shift_only_still_runs_out():
+    labels = _labels(_spec("shift"))
+    assert "Runs out · Mon, Nov 9" in labels
+
+
+def test_chart_line_is_smooth_between_events():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    import engine
+    import normalize
+    from ui import chart
+    p = engine.project(ds=normalize.load("local"))
+    pts = chart.polyline(p)
+    steps = [a for a, b in zip(pts, pts[1:]) if a[0] == b[0]]
+    step_days = {e.date for e in p.events if e.kind in chart.STEP_KINDS}
+    assert len(steps) == len(step_days)                                        # vertical steps only on event days
+    assert len(pts) == 1 + len(p.daily) + 2 * len(step_days)
+
+
+def _story_marks(spec):
+    """{label: mark} for the 12 px semi-bold story labels."""
+    return {spec["datasets"][l["data"]["name"]][0]["t"]: l["mark"] for l in spec["layer"]
+            if isinstance(l["mark"], dict) and l["mark"].get("fontWeight") == 600 and l["mark"].get("dx", 0) != 3
+            and l["mark"].get("color") == "#7c8aa5"}
+
+
+def test_story_labels_fit_at_phone_width_or_hide_there():
+    base = _story_marks(_spec("base"))
+    assert set(base) == {"Card payment $360", "Rent $725", "Card payment $285"}
+    assert all(m["opacity"] == 1 for m in base.values())                       # all fit at 400 px
+    fixes = _story_marks(_spec("fixes"))
+    assert fixes["Refund +$1,850"]["opacity"] == 1
+    assert fixes["Rent $725"]["opacity"] == {"expr": "width < 700 ? 0 : 1"}    # no room on a phone: wide only
+
+
+def test_label_layout_avoids_lines_labels_and_edges():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from datetime import timedelta
+    import config
+    from ui import chart
+    t0 = config.DEMO_TODAY
+    step = chart._at(t0 + timedelta(days=10), -12)                    # a flat line at $1,000 stepping up to $2,000
+    line = [(chart._at(t0), 1000.0), (step, 1000.0), (step, 2000.0), (chart._at(t0 + timedelta(days=50)), 2000.0)]
+    lay = chart._Layout(0.0, 3000.0, [line], chart.PHONE_W)
+    crossing = lay.box(chart._at(t0 + timedelta(days=5)), 1500.0, "Rent $725", "left", 0, 0)
+    assert not lay.free(crossing)                                     # runs into the vertical step
+    clear = lay.box(chart._at(t0 + timedelta(days=1)), 500.0, "Rent", "left", 0, 0)
+    assert lay.free(clear)                                            # below the flat line, before the step
+    lay.boxes.append(clear)
+    assert not lay.free(clear)                                        # a placed label blocks the next one
+    assert not lay.free(lay.box(chart._at(t0), 500.0, "Rent $725", "right", -7, 0))     # off the left edge
+
+
+def test_legend_only_when_changed_and_secondary_numbers_are_quiet(at):
+    assert not any(t.startswith('<div class="rw-legend"') for t in texts(at))
+    css = next(t for t in texts(at) if t.startswith("<style>"))
+    assert ".rw-fig-value {font-size: 1.6rem; font-weight: 400;" in css and ".rw-today {font-size: 3.4rem;" in css
+    at.toggle(key="wf_refund").set_value(True)
+    run(at)
+    legend = next(t for t in texts(at) if t.startswith('<div class="rw-legend"'))
+    assert "Before your changes" in legend and "With your changes" in legend
+
+
+def test_shift_card_hints_when_paid_after_running_out(at):
+    body = "\n".join(texts(at))
+    assert "Adds $57.35 to your Wed, Nov 18 paycheck." in body
+    assert "That's after you run out. A shift worked by Sat, Oct 31 is paid Tue, Nov 3, in time." in body

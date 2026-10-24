@@ -471,13 +471,15 @@ def test_what_if_answer_leads_with_the_change(ds):
     buried = ("ANSWER: Your money still runs out on Mon, Nov 9 [C7].\nWHY:\n- A big card bill is due.\n"
               "- The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14].\nDO THIS:\n1. Take the shift.")
     lead = ("ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14].\nWHY:\n- Your money still runs "
-            "out on Mon, Nov 9 [C7].\nDO THIS:\n1. Take the shift.")
+            "out on Mon, Nov 9 [C7].\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C15].\n"
+            "DO THIS:\n1. Take the shift.")
     _, a = run_all("What if I pick up a 5 hour shift on Nov 7?", FakeLLM(plans=[plan], answers=[buried, lead]), ds=ds)
     assert a.text == lead and a.retries["explain_rewrite"] == 1
     _, a = run_all("What if I pick up a 5 hour shift on Nov 7?", FakeLLM(plans=[plan], answers=[buried, buried]),
                    ds=ds)
     assert a.sections["why"][0] == "The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14]."
-    assert a.retries["facts_appended"] == 1
+    assert a.retries["facts_appended"] == 2                 # the extra pay (as the lead) and the in-time shift
+    assert "A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C15]." in a.sections["why"]
 
 
 def test_template_answers_contain_every_required_fact(ds):
@@ -486,3 +488,11 @@ def test_template_answers_contain_every_required_fact(ds):
         _, a = run_all(q, down, ds=ds)
         assert a.check["ok"], (q, a.check)
         assert a.facts and all(f["key"] for f in a.facts)
+
+
+def test_late_shift_answer_must_say_which_shift_is_paid_in_time(ds):
+    f = _facts("what_if", {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}, ds)
+    from datetime import date
+    assert f["latest_shift"].date == (date(2026, 10, 31), date(2026, 11, 3))
+    assert f["latest_shift"].line.startswith("A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out")
+    assert "latest_shift" not in _facts("what_if", {"extra_shifts": [{"date": "2026-10-30", "hours": 4}]}, ds)
