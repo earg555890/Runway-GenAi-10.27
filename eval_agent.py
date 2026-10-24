@@ -13,8 +13,10 @@ script waits until the endpoint answers a tiny request.
 """
 import json
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import agent
 import config
@@ -230,6 +232,7 @@ def main():
     gap_s = int(sys.argv[2]) if len(sys.argv) > 2 else 240
     ds = normalize.load()
     SUBS = [s.merchant for s in engine.subscriptions(ds)]
+    config.ANSWER_CACHE_DIR = Path(tempfile.mkdtemp(prefix="runway-eval-"))       # keep the app cache clean
     print(f"models: plan {config.NVIDIA_PLAN_MODEL}, modes {modes}", flush=True)
     runs = []
     for run_no, mode in enumerate(modes, start=1):

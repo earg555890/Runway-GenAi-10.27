@@ -305,6 +305,21 @@ def test_check_catches_the_wrong_date_for_an_event(ds):
     ok = ("ANSWER: Two dates matter.\nWHY:\n- Rent of $725 is due Sun, Nov 1 and the card payment on Mon, Nov 9.\n"
           "- Your refund arrives around Thu, Nov 5. Send the refund form by Tue, Oct 27.")
     assert agent.event_date_problems(ok, events) == []
+    # seen live: "Wait for your next paycheck after Nov 20" - the date belongs to the tuition payment
+    assert agent.event_date_problems("Wait for your next paycheck after Fri, Nov 20 [E3].", events) == []
+    assert agent.event_date_problems("Your next paycheck is on Fri, Nov 20.", events) == [
+        "Fri, Nov 20 is not a paycheck date"]
+
+
+def test_card_subscription_reaching_checking_via_the_card_bill_is_not_a_false_claim(ds):
+    names = agent.merchant_accounts(ds)
+    pack = _leaks(ds, engine.Scenario())
+    true_claim = ("ANSWER: Apple Music won't help this semester.\nWHY:\n- Apple Music hits checking only when the card "
+                  "bill is paid, after the semester [C6].")
+    assert not any("does not charge checking" in p for p in agent.reason_problems(true_claim, pack, names))
+    false_claim = "ANSWER: x.\nWHY:\n- Apple Music charges your checking every month [C6]."
+    assert "Apple Music does not charge checking (it is billed to the credit card)" in \
+        agent.reason_problems(false_claim, pack, names)
 
 
 def test_check_catches_a_copied_fact_label(ds):

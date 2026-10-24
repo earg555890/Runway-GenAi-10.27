@@ -817,8 +817,8 @@ def private_amounts(ds):
 CARD_CLAIM = re.compile(r"\b(?:charged|billed|charges?|bills?|goes|go|is|are|lands?)\s+(?:to|on)\s+(?:your\s+|the\s+|her\s+)?"
                         r"(?:credit\s+)?card\b|\bcard\s+(?:bill|charges?)\b|\bon\s+(?:your\s+|the\s+)?credit\s+card\b",
                         re.I)
-CHECKING_CLAIM = re.compile(r"\b(?:charged|billed|charges?|bills?|comes?|hits?|is|are|goes)\s+(?:to|on|out of|from)?\s*"
-                            r"(?:your\s+|the\s+)?checking\b|\bdirectly from (?:your\s+)?checking\b", re.I)
+CHECKING_CLAIM = re.compile(r"\b(?:charged|billed)\s+(?:to|on)\s+(?:your\s+|the\s+)?checking\b|\bcharges\s+(?:your\s+)?"
+                            r"checking\b|\bdirectly from (?:your\s+)?checking\b", re.I)   # an explicit charging claim
 SAVES_RE = re.compile(r"\bsav(?:e|es|ed|ing|ings of)\s+(?:you\s+|her\s+)?(?:only\s+|about\s+|just\s+)?"
                       r"([-−]?\$\s?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)", re.I)
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n")
@@ -966,6 +966,9 @@ def event_date_problems(text, events):
             stop = hits[i + 1].start() if i + 1 < len(hits) else len(sentence)
             window = sentence[m.end():min(stop, m.end() + 60)]
             found = find_dates(window)
+            between = window[:window.find(found[0][0])].lower() if found else ""
+            if re.search(r",|\b(?:before|after|until|by|than|since|following|then|and)\b", between):
+                continue                       # "paycheck after Fri, Nov 20": the date belongs to something else
             if found and found[0][1] and found[0][1] not in events[EVENT_WORDS[m.group(1).lower()]]:
                 problems.append(f"{found[0][0].strip()} is not a {m.group(1).lower()} date")
     return problems
@@ -1039,7 +1042,7 @@ EXPLAIN_SYSTEM = (
     "- If the facts list an assumption, put it in NOTE.\n"
     "- Only name a store, app or subscription that appears in the facts. Only say what it is charged to (the "
     "credit card or checking) if the facts say so.\n"
-    "- Never repeat a sentence or a bullet. Finish every sentence.\n"
+    "- Never repeat a sentence or a bullet, and never repeat the ANSWER in WHY. Finish every sentence.\n"
     "- DO THIS steps use only amounts from the facts. Never invent a budget, a limit or a target amount.\n"
     "- Only say what the facts support. Don't guess about holds, rules or deadlines.\n"
     "- Include EVERY fact listed under \"Your answer must include all of these\", with its number, date and "
