@@ -519,6 +519,9 @@ def _projection_key(p, ledger):
         key.append(ledger.add("balance the day before that payment", r.balance_before, "USD",
                               f"End-of-day checking balance on {w.day(r.event.date - timedelta(days=1))}.",
                               [p.lowest]))
+        key.append(ledger.add("balance at the end of the day of that payment", p.balance_on(r.event.date), "USD",
+                              f"End-of-day checking balance on {w.day(r.event.date)}, after the payment.",
+                              [p.lowest]))
     return key, r
 
 
@@ -1316,6 +1319,9 @@ def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *,
         problems = check.problems + [f"missing {f.label}: {f.line}" + (" (put it FIRST)" if f.where == "lead" else
                                                                          " (in NOTE)" if f.where == "note" else "")
                                      for f in missing]
+        if any(p.startswith("the answer repeats itself") for p in check.problems):   # Lightning resends it as is
+            problems.append("ANSWER must be ONE short sentence; say each reason once, in WHY only, and delete "
+                            "the copy")
         messages = messages + [
             {"role": "assistant", "content": text},
             {"role": "user", "content": "Problems: " + "; ".join(problems) +
@@ -1629,12 +1635,12 @@ def _core_facts(tool, result, pack, ds, scenario):
         else:
             out.append(Fact("runs_out", "the day the money runs out",
                             f"Your money runs out on {w.day(p.first_below_zero.value)} {c(p.first_below_zero)}.",
-                            date=p.first_below_zero.value))
+                            date=p.first_below_zero.value, where="answer" if tool == "runway" else "any"))
             if tool == "runway" and r.event:
                 out.append(Fact("cause", "the payment that causes it and what you'll have",
                                 f"A {w.dollars(r.event.amount)} {w.event_name(r.event)} {c(r.event.computed)} is due "
                                 f"{w.day(r.event.date)}, when you'll have {w.balance(r.balance_before)}.",
-                                money=(r.event.amount, r.balance_before)))
+                                money=(r.event.amount, r.balance_before), where="why"))
     elif tool == "find_leaks":
         for leak in f["leaks"]:
             if leak.kind == "duplicate_subscriptions":

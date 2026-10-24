@@ -199,6 +199,7 @@ def test_story4_installment_in_short_paycheck_week(ds, key):
     assert str(f.computed["hourly_rate"].value) == kn["hourly_rate"]
     assert str(f.computed["withholding_pct"].value) == kn["withholding_pct"]
     assert {k: set(v) for k, v in f.row_ids.items()} == key_rows(key[4])
+    assert f.computed["shortfall"].value == Decimal("85.30")        # $200.00 installment - $114.70 paycheck
 
 
 def test_compare_gives_what_if_deltas(ds):

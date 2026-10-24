@@ -974,6 +974,11 @@ def cash_crunches(scenario=None, ds=None, ledger=None):
                                      f"{normal_hours} hours x {fmt_money(ds.job.hourly_rate)} less "
                                      f"{ds.job.withholding_pct}% withholding.",
                                      [c["normal_period_hours"], ds.job.row_id])
+        short = D(-inst.amount) - pc.net.value
+        if short > 0:
+            c["shortfall"] = ledger.add("how much more the installment is than that paycheck", short, "USD",
+                                        f"{fmt_money(-inst.amount)} installment - {fmt_money(pc.net.value)} paycheck.",
+                                        [c["installment"], c["paycheck_net"]])
         rows = {("bursar", "payment_plan"): [inst.row_id],
                 ("shifts", "pay_periods"): [pc.period_id, normal_period.row_id],
                 ("shifts", "shifts"): [*pc.shift_ids, *(s.row_id for s in normal_rows)],

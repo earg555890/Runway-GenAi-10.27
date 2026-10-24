@@ -433,6 +433,10 @@ def test_required_facts_per_tool_use_engine_values(ds):
     assert f["assumption"].where == "note" and f["assumption"].date == date(2026, 10, 27)
     f = _facts("runway", {}, ds)
     assert f["runs_out"].date == date(2026, 11, 9) and f["cause"].money == (Dec("-359.53"), Dec("307.20"))
+    assert f["runs_out"].where == "answer" and f["cause"].where == "why"    # never both in ANSWER
+    plan = agent.parse_plan({"intent": "x", "tool": "runway", "args": {}}, SUBS)
+    pack = agent.build_pack(agent.execute(plan, engine.Scenario(), ds), ds, plan, engine.Scenario())
+    assert "balance at the end of the day of that payment = -$59.84" in pack.prompt_text()
     f = _facts("what_if", {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}, ds)
     assert f["shift_pay"].money == (Dec("71.69"),) and f["shift_pay"].date == date(2026, 11, 18)
     assert f["shift_pay"].where == "lead"
@@ -489,17 +493,17 @@ def test_record_id_triggers_rewrite_and_never_reaches_the_screen(ds):
 def test_what_if_answer_leads_with_the_change(ds):
     plan = '{"intent": "what_if", "tool": "what_if", "args": {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}}'
     buried = ("ANSWER: Your money still runs out on Mon, Nov 9 [C7].\nWHY:\n- A big card bill is due.\n"
-              "- The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14].\nDO THIS:\n1. Take the shift.")
-    lead = ("ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14].\nWHY:\n- Your money still runs "
-            "out on Mon, Nov 9 [C7].\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C15].\n"
+              "- The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\nDO THIS:\n1. Take the shift.")
+    lead = ("ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\nWHY:\n- Your money still runs "
+            "out on Mon, Nov 9 [C7].\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\n"
             "DO THIS:\n1. Take the shift.")
     _, a = run_all("What if I pick up a 5 hour shift on Nov 7?", FakeLLM(plans=[plan], answers=[buried, lead]), ds=ds)
     assert a.text == lead and a.retries["explain_rewrite"] == 1
     _, a = run_all("What if I pick up a 5 hour shift on Nov 7?", FakeLLM(plans=[plan], answers=[buried, buried]),
                    ds=ds)
-    assert a.sections["why"][0] == "The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14]."
+    assert a.sections["why"][0] == "The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15]."
     assert a.retries["facts_appended"] == 2                 # the extra pay (as the lead) and the in-time shift
-    assert "A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C15]." in a.sections["why"]
+    assert "A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16]." in a.sections["why"]
 
 
 def test_template_answers_contain_every_required_fact(ds):
