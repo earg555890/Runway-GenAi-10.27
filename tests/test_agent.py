@@ -333,10 +333,12 @@ def test_all_models_down_template_records_errors(ds):
 
 def test_leaks_prompt_requires_monthly_total(ds):
     llm = FakeLLM(plans=['{"intent": "leaks", "tool": "find_leaks", "args": {}}'],
-                  answers=["ANSWER: Two leaks.\nWHY:\n- You pay $22.98 a month [C3] for two music apps."])
+                  answers=["ANSWER: Two leaks.\nWHY:\n- You pay $22.98 a month [C3] for Spotify and Apple Music.\n"
+                           "- Rent caused a $35 fee [C9]."])
     run_all("Where is my money leaking?", llm, ds=ds)
     prompt = llm.messages[0][1][1]["content"]
-    assert "must mention: the combined monthly cost of the duplicate subscriptions, $22.98 a month [C3]" in prompt
+    assert "Your answer must include all of these:" in prompt
+    assert "- their monthly total: Together they cost $22.98 a month [C3]." in prompt
 
 
 def test_fourth_suggested_question_is_the_undated_flight(ds):
@@ -389,3 +391,98 @@ def test_parse_sections_tolerates_markdown():
     s = agent.parse_sections("**ANSWER:** Yes.\n**WHY:**\n* one\n* two\n**DO THIS:**\n1) go\nNOTE: n")
     assert s == {"answer": "Yes.", "why": ["one", "two"], "do": ["go"], "note": "n"}
     assert agent.parse_sections("Just a paragraph.") is None
+
+
+# --- required facts: built from the engine, enforced by CHECK -------------------------------------
+
+def _facts(tool, args, ds):
+    plan = agent.parse_plan({"intent": "x", "tool": tool, "args": args}, SUBS)
+    result = agent.execute(plan, engine.Scenario(), ds)
+    pack = agent.build_pack(result, ds, plan, engine.Scenario())
+    return {f.key: f for f in agent.required_facts(plan, result, pack, ds, engine.Scenario())}
+
+
+def test_required_facts_per_tool_use_engine_values(ds):
+    from datetime import date
+    from decimal import Decimal as Dec
+    f = _facts("can_afford", {"item": "flight home", "cost": 400, "date": "2026-11-10"}, ds)
+    assert set(f) == {"verdict", "fix_refund", "fix_Spotify", "lowest"}
+    assert f["fix_refund"].money == (Dec("1850.00"),) and f["fix_refund"].date == date(2026, 11, 5)
+    assert f["fix_Spotify"].money == (Dec("23.98"),) and f["lowest"].money == (Dec("5.81"),)
+    f = _facts("can_afford", {"item": "headphones", "cost": 150}, ds)
+    assert f["assumption"].where == "note" and f["assumption"].date == date(2026, 10, 27)
+    f = _facts("runway", {}, ds)
+    assert f["runs_out"].date == date(2026, 11, 9) and f["cause"].money == (Dec("-359.53"), Dec("307.20"))
+    f = _facts("what_if", {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}, ds)
+    assert f["shift_pay"].money == (Dec("71.69"),) and f["shift_pay"].date == date(2026, 11, 18)
+    assert f["shift_pay"].where == "lead"
+    f = _facts("find_leaks", {}, ds)
+    assert f["monthly_total"].money == (Dec("22.98"),) and f["fee"].money == (Dec("35.00"),)
+    assert {"sub_Spotify", "sub_Apple Music"} <= set(f)
+    f = _facts("refund_status", {}, ds)
+    assert f["refund_amount"].money == (Dec("1850.00"),) and f["arrives"].date == date(2026, 11, 5)
+    assert "Verification Worksheet" in f["waiting_on"].line
+    f = _facts("cash_crunches", {}, ds)
+    assert f["payment0"].money == (Dec("200.00"),) and f["paycheck0"].money == (Dec("114.70"),)
+    assert f["paycheck0"].date == date(2026, 11, 18)
+
+
+REFUND_Q = "Why is my refund on hold?"
+REFUND_PLAN = '{"intent": "refund", "tool": "refund_status", "args": {}}'
+REFUND_GOOD = ("ANSWER: Your $1,850 refund [C4] is on hold.\nWHY:\n- Financial aid is waiting for your "
+               "verification worksheet.\nDO THIS:\n1. Send it. The refund arrives around Thu, Nov 5 [C7].")
+REFUND_NO_AMOUNT = ("ANSWER: Your refund is on hold.\nWHY:\n- Financial aid is waiting for your verification "
+                    "worksheet.\nDO THIS:\n1. Send it. The refund arrives around Thu, Nov 5 [C7].")
+
+
+def test_missing_required_fact_triggers_the_rewrite(ds):
+    llm = FakeLLM(plans=[REFUND_PLAN], answers=[REFUND_NO_AMOUNT, REFUND_GOOD])
+    _, a = run_all(REFUND_Q, llm, ds=ds)
+    assert a.text == REFUND_GOOD and a.retries["explain_rewrite"] == 1 and a.retries["facts_appended"] == 0
+    rewrite_request = llm.messages[1][1][-1]["content"]
+    assert "missing the refund amount: Your $1,850 refund [C4] is on hold." in rewrite_request
+    assert all(not f["appended"] for f in a.facts)
+
+
+def test_rewrite_still_missing_gets_the_deterministic_line(ds):
+    llm = FakeLLM(plans=[REFUND_PLAN], answers=[REFUND_NO_AMOUNT, REFUND_NO_AMOUNT])
+    _, a = run_all(REFUND_Q, llm, ds=ds)
+    assert a.retries["facts_appended"] == 1 and a.check["ok"] and a.mode == "live"
+    assert "Your $1,850 refund [C4] is on hold." in a.sections["why"]
+    assert [f["key"] for f in a.facts if f["appended"]] == ["refund_amount"]
+    assert agent.missing_facts(a.text, _facts("refund_status", {}, ds).values()) == []
+
+
+def test_record_id_triggers_rewrite_and_never_reaches_the_screen(ds):
+    with_id = REFUND_GOOD.replace("Financial aid", "Hold HLD-01 means financial aid")
+    llm = FakeLLM(plans=[REFUND_PLAN], answers=[with_id, REFUND_GOOD])
+    _, a = run_all(REFUND_Q, llm, ds=ds)
+    assert a.retries["explain_rewrite"] == 1 and "HLD-01" not in a.text
+    assert "HLD-01 is a record ID" in llm.messages[1][1][-1]["content"]
+    pack = agent.build_pack(*(lambda p: (agent.execute(p, engine.Scenario(), ds), ds, p, engine.Scenario()))(
+        agent.parse_plan({"intent": "x", "tool": "refund_status", "args": {}}, SUBS)))
+    assert not agent.check_answer(with_id, pack).ok
+    from ui import fmt
+    assert "HLD" not in fmt.strip_ids("Hold HLD-01 blocks refunds.")
+
+
+def test_what_if_answer_leads_with_the_change(ds):
+    plan = '{"intent": "what_if", "tool": "what_if", "args": {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}}'
+    buried = ("ANSWER: Your money still runs out on Mon, Nov 9 [C7].\nWHY:\n- A big card bill is due.\n"
+              "- The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14].\nDO THIS:\n1. Take the shift.")
+    lead = ("ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14].\nWHY:\n- Your money still runs "
+            "out on Mon, Nov 9 [C7].\nDO THIS:\n1. Take the shift.")
+    _, a = run_all("What if I pick up a 5 hour shift on Nov 7?", FakeLLM(plans=[plan], answers=[buried, lead]), ds=ds)
+    assert a.text == lead and a.retries["explain_rewrite"] == 1
+    _, a = run_all("What if I pick up a 5 hour shift on Nov 7?", FakeLLM(plans=[plan], answers=[buried, buried]),
+                   ds=ds)
+    assert a.sections["why"][0] == "The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C14]."
+    assert a.retries["facts_appended"] == 1
+
+
+def test_template_answers_contain_every_required_fact(ds):
+    down = FakeLLM(plan_error=TimeoutError(), explain_error=TimeoutError())
+    for q in agent.SUGGESTED + [REFUND_Q]:
+        _, a = run_all(q, down, ds=ds)
+        assert a.check["ok"], (q, a.check)
+        assert a.facts and all(f["key"] for f in a.facts)

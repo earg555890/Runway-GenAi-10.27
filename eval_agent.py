@@ -4,15 +4,15 @@
     .venv/Scripts/python eval_agent.py 3 240        # 3 runs, 240 s apart -> also eval_summary.md
 
 For each question: did PLAN pick the expected tool, is the verdict right, did every number and date pass
-the check, do the key numbers appear in the answer, and did a Nemotron model write it. Expected verdicts and
-numbers come from the engine (deterministic), run with the arguments a correct plan would have. Before each
-run the script waits until the EXPLAIN endpoint answers a tiny request.
+the check, did the model itself write every required fact (agent.required_facts: the same table the app
+enforces), and did a Nemotron model write it. Expected verdicts come from the engine (deterministic). Answers
+that needed Runway's deterministic fact lines are counted separately. Before each run the script waits until
+the EXPLAIN endpoint answers a tiny request.
 """
 import json
 import sys
 import time
 from dataclasses import dataclass, field
-from decimal import Decimal
 
 import agent
 import config
@@ -28,25 +28,21 @@ class Case:
     question: str
     tool: str | None
     args: dict = field(default_factory=dict)
-    numbers: list = field(default_factory=list)       # dollar amounts that must appear in the answer
-    words: list = field(default_factory=list)         # phrases that must appear (case-insensitive)
 
 
 CASES = [
-    Case(agent.SUGGESTED[0], "can_afford", {"item": "flight home", "cost": 400, "date": "2026-11-10"},
-         ["5.81", "1850.00", "23.98"]),
-    Case(agent.SUGGESTED[1], "runway", {}, ["359.53"], ["Nov 9"]),
-    Case(agent.SUGGESTED[2], "find_leaks", {}, ["22.98", "23.98"]),
+    Case(agent.SUGGESTED[0], "can_afford", {"item": "flight home", "cost": 400, "date": "2026-11-10"}),
+    Case(agent.SUGGESTED[1], "runway"),
+    Case(agent.SUGGESTED[2], "find_leaks"),
     Case("What if I pick up a 5 hour shift on Nov 7?", "what_if",
-         {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}, ["71.69"]),
-    Case("Can I afford new headphones for $150?", "can_afford", {"item": "headphones", "cost": 150}, [],
-         ["Oct 27"]),
+         {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}),
+    Case("Can I afford new headphones for $150?", "can_afford", {"item": "headphones", "cost": 150}),
     Case("Can I put a $120 concert ticket on my credit card on Nov 20?", "can_afford",
-         {"item": "concert ticket", "cost": 120, "date": "2026-11-20", "account": "card"}, []),
+         {"item": "concert ticket", "cost": 120, "date": "2026-11-20", "account": "card"}),
     Case("What's the capital of France?", None),
-    Case("am I ok?", "runway", {}, [], ["Nov 9"]),
-    Case("Why is my refund on hold?", "refund_status", {}, ["1850.00"]),
-    Case("Is there a week coming up where money gets really tight?", "cash_crunches", {}, ["200.00", "114.70"]),
+    Case("am I ok?", "runway"),
+    Case("Why is my refund on hold?", "refund_status"),
+    Case("Is there a week coming up where money gets really tight?", "cash_crunches"),
 ]
 
 
@@ -76,25 +72,24 @@ def run_once(ds, run_no):
         start = time.perf_counter()
         a = agent.ask(case.question, engine.Scenario(), ds=ds, mode="live")
         want = expected_verdict(case, ds)
-        found = agent.find_amounts(a.text)
-        amounts = {abs(v) for _, v in found}
-        rounded = {abs(v) for w, v in found if "." not in w}          # "$360" stands for $359.53 (readability rule)
         tool_ok = a.plan["tool"] == case.tool
         verdict_ok = a.verdict == want
         check_ok = bool(a.check.get("ok")) if case.tool else True
-        numbers_ok = all(Decimal(n) in amounts or agent._rounded(Decimal(n)) in rounded for n in case.numbers) and \
-            all(wd.lower() in a.text.lower() for wd in case.words)
+        facts = a.facts or []
+        appended = [f["label"] for f in facts if f["appended"]]
+        facts_ok = not appended                                   # every required fact written by the model itself
         nvidia_error = a.explain_source == "template" or a.plan["source"] == "keywords"
         model_answer = case.tool is None or a.explain_source == "llm"
-        passed = tool_ok and verdict_ok and check_ok and numbers_ok and model_answer
+        passed = tool_ok and verdict_ok and check_ok and facts_ok and model_answer
         r = dict(run=run_no, n=i, question=case.question, expected_tool=case.tool, tool=a.plan["tool"],
                  plan_source=a.plan["source"], expected_verdict=want, verdict=a.verdict, tool_ok=tool_ok,
-                 verdict_ok=verdict_ok, check_ok=check_ok, problems=a.check.get("problems"), numbers_ok=numbers_ok,
+                 verdict_ok=verdict_ok, check_ok=check_ok, problems=a.check.get("problems"), facts_ok=facts_ok,
+                 facts=len(facts), appended=appended, rewrites=a.retries.get("explain_rewrite", 0),
                  answered_by=a.models.get("answered_by"), explain_errors=a.models.get("explain_errors"),
                  nvidia_error=nvidia_error, passed=passed, mode=a.mode, retries=a.retries, timings=a.timings,
                  wall_s=round(time.perf_counter() - start, 1), answer=a.text, notes=a.notes)
         results.append(r)
-        print(json.dumps({k: r[k] for k in ("run", "n", "tool", "verdict", "check_ok", "numbers_ok", "answered_by",
+        print(json.dumps({k: r[k] for k in ("run", "n", "tool", "verdict", "check_ok", "facts_ok", "appended", "answered_by",
                                             "passed", "timings")}), flush=True)
     return results
 
@@ -106,11 +101,12 @@ def _yes(ok):
 def table(results):
     rows = [f"| {r['n']} | {r['question']} | {r['expected_tool'] or 'none (off-topic)'} / {_yes(r['tool_ok'])} | "
             f"{r['expected_verdict'] or '-'} / {_yes(r['verdict_ok'])} | {_yes(r['check_ok'])} | "
-            f"{_yes(r['numbers_ok'])} | {agent.model_name(r['answered_by']) if r['expected_tool'] else '-'} | "
+            f"{('all ' + str(r['facts'])) if not r['appended'] else (str(len(r['appended'])) + ' added')} | "
+            f"{agent.model_name(r['answered_by']) if r['expected_tool'] else '-'} | "
             f"{r['retries']['plan_json']}+{r['retries'].get('explain_rewrite', 0)} | "
             f"{r['timings'].get('plan_s', '-')} | {r['timings'].get('explain_s', '-')} | "
             f"{r['timings'].get('total_s', '-')} | {'PASS' if r['passed'] else 'FAIL'} |" for r in results]
-    head = ("| # | Question | Tool / right? | Verdict / right? | Check passed | Key numbers | Written by | "
+    head = ("| # | Question | Tool / right? | Verdict / right? | Check passed | Required facts by model | Written by | "
             "Retries (plan+rewrite) | PLAN s | EXPLAIN s | Total s | Result |\n"
             "|---|---|---|---|---|---|---|---|---|---|---|---|\n")
     return head + "\n".join(rows)
@@ -123,7 +119,7 @@ def _mistake(r):
         return "gave the wrong verdict"
     if not r["check_ok"]:
         return "used a number or date that didn't match the records"
-    return "left out a key number"
+    return "left out a required fact (Runway added it: " + ", ".join(r["appended"]) + ")"
 
 
 def summary(runs):
@@ -154,8 +150,11 @@ def summary(runs):
         f"- **Picked the right tool:** {count('tool_ok')}/{n}",
         f"- **Gave the right verdict** (yes / no / yes-if; money runs out or not): {count('verdict_ok')}/{n}",
         f"- **Every dollar amount and date matched the student's records:** {count('check_ok')}/{n}",
-        f"- **Full answers** (all of the above, plus the key numbers, written by a Nemotron model): "
+        f"- **Full answers** (all of the above, and the model itself wrote every required fact): "
         f"{count('passed')}/{n}",
+        f"- Answers that needed one rewrite after the check: {sum(1 for r in allr if r['rewrites'])}/{n}",
+        f"- Answers where the model still left out a required fact, so Runway added a plain line built from the "
+        f"numbers: {sum(1 for r in allr if r['appended'])}/{n}",
         "",
         (f"{len(fails)} answer{'s were' if len(fails) != 1 else ' was'} not a full answer: "
          f"{len(nvidia)} because of NVIDIA service errors (no model responded in time, so Runway showed a short "

@@ -124,6 +124,7 @@ class Answer:
     scenario: str
     created: float = 0.0
     sections: dict = field(default_factory=dict)     # {"answer", "why": [...], "do": [...], "note"}
+    facts: list = field(default_factory=list)        # required facts: [{"key", "label", "appended"}]
 
     def to_json(self):
         return json.dumps(asdict(self), default=str)
@@ -451,6 +452,7 @@ DATE_RE = re.compile(r"\b(?:(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+)?"
                      r"(?:,?\s+(20\d\d))?", re.I)
 ISO_RE = re.compile(r"\b(20\d\d)-(\d\d)-(\d\d)\b")
 CITE_RE = re.compile(r"\[((?:[CE]\d+)(?:\s*[,;]\s*[CE]\d+)*)\]")
+RECORD_ID = re.compile(r"\b(?:ACCT|AWD|CHK|CRD|DSB|HLD|JOB|LED|LT|PAY|PPI|REQ|RFD|RS|SHF|STM)-[A-Z0-9]+(?:-[A-Z0-9]+)*\b")
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
@@ -533,6 +535,7 @@ def check_answer(text, pack, require_format=False):
     rounded = {_rounded(v) for v in money}
     ids = {it["id"] for it in pack.items}
     problems = [] if text.strip() else ["the answer is empty"]
+    problems += [f"{x} is a record ID; never write record IDs" for x in dict.fromkeys(RECORD_ID.findall(text))]
     if require_format and text.strip() and parse_sections(text) is None:
         problems.append("the answer is not in the ANSWER / WHY / DO THIS format")
     amounts = find_amounts(text)
@@ -557,7 +560,7 @@ def check_answer(text, pack, require_format=False):
 EXPLAIN_SYSTEM = (
     "You are Runway, a friendly money coach for a stressed college student.\n"
     "Write at a grade 6-8 reading level. Short sentences (under 15 words). One idea per sentence.\n"
-    "Reply in EXACTLY this format, under 90 words in total:\n"
+    "Reply in EXACTLY this format, under 110 words in total:\n"
     "ANSWER: <one short sentence with the answer>\n"
     "WHY:\n- <short reason>\n- <short reason>\n- <optional third reason>\n"
     "DO THIS:\n1. <concrete next step>\n2. <optional second step>\n"
@@ -573,17 +576,19 @@ EXPLAIN_SYSTEM = (
     "- If the facts list an assumption, put it in NOTE.\n"
     "- If cancelling a subscription is part of the answer and one saves $0.00, explain why in NOTE: its charges "
     "go on the credit card, and that bill is paid after the semester ends.\n"
+    "- Include EVERY fact listed under \"Your answer must include all of these\", with its number, date and "
+    "citation, in the place it asks for.\n"
+    "- Never write record IDs such as HLD-01, CHK-0042 or RFD-01. Cite with [C#] or [E#] only.\n"
     "- No jargon: never say scenario, projection, ledger, evidence or computed. No bold, no headings.")
 
 
-def explain_messages(question, plan, result, pack, verdict_label):
+def explain_messages(question, plan, result, pack, verdict_label, required=()):
     facts = pack.prompt_text()
     head = f"Question: {question}\nWhat Runway checked: {plan_words(plan)}"
     if verdict_label:
         head += f"\nThe answer: {verdict_label}"
-    musts = must_mention(plan, result, pack)
-    if musts:
-        head += "\nYour answer must mention: " + "; ".join(musts) + "."
+    if required:
+        head += "\nYour answer must include all of these:\n" + "\n".join(f.prompt() for f in required)
     return [{"role": "system", "content": EXPLAIN_SYSTEM},
             {"role": "user", "content": f"{head}\n\n{facts}\n\nWrite the answer now, in the format."}]
 
@@ -727,10 +732,12 @@ def model_name(model):
     return model
 
 
-def _explain_with(llm, model, messages, pack, retries):
-    """Stream one EXPLAIN answer from `model`, check it, and allow one rewrite. Yields ("text"/"restart", ...)
-    events and returns (text, reasoning, check). Raises if the model fails or answers empty twice."""
-    text, reasoning, check = "", "", None
+def _explain_with(llm, model, messages, pack, retries, required=()):
+    """Stream one EXPLAIN answer from `model`, check it (numbers, dates, citations, format, record IDs, required
+    facts), and allow one rewrite. Yields ("text"/"restart", ...) events and returns (text, reasoning, check,
+    missing) where missing are the required facts the model still left out. Raises if the model fails or answers
+    empty twice."""
+    text, reasoning, check, missing = "", "", None, []
     for attempt in range(2):
         limit = EXPLAIN_MAX_TOKENS if model == config.NVIDIA_EXPLAIN_MODEL else FALLBACK_MAX_TOKENS
         stream = llm.stream_chat(messages, thinking=True, model=model, timeout=EXPLAIN_TIMEOUT_S, retries=1,
@@ -740,38 +747,177 @@ def _explain_with(llm, model, messages, pack, retries):
                 yield "text", chunk
         text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
         check = check_answer(text, pack, require_format=True)
-        if check.ok or attempt == 1:
+        missing = missing_facts(text, required) if text else list(required)
+        if (check.ok and not missing) or attempt == 1:
             break
         retries["explain_rewrite"] = retries.get("explain_rewrite", 0) + 1
         yield "restart", "Double-checking the numbers..."
+        problems = check.problems + [f"missing {f.label}: {f.line}" + (" (put it FIRST)" if f.where == "lead" else
+                                                                         " (in NOTE)" if f.where == "note" else "")
+                                     for f in missing]
         messages = messages + [
             {"role": "assistant", "content": text},
-            {"role": "user", "content": "Problems: " + "; ".join(check.problems) +
-             ". Rewrite the answer in the ANSWER / WHY / DO THIS format, using only numbers, dates and ids from "
-             "the facts."}]
+            {"role": "user", "content": "Problems: " + "; ".join(problems) +
+             ". Rewrite the answer in the ANSWER / WHY / DO THIS / NOTE format, using only numbers, dates and ids "
+             "from the facts, and include every required fact."}]
     if not text:
         raise llm_client.LLMError("the model returned an empty answer twice")
-    return text, reasoning, check
+    return text, reasoning, check, missing
 
 
-def must_mention(plan, result, pack):
-    """Facts the answer has to include, per tool (e.g. the monthly total of duplicate subscriptions)."""
-    out = []
-    if plan.tool in ("runway", "what_if"):
-        p, r = result.facts["projection"], result.facts["reason"]
-        if r.event and not p.lasts_through_semester:
-            out.append(f"the reason: the {w.event_name(r.event)} of {w.dollars(r.event.amount)} on "
-                       f"{w.day(r.event.date)} {pack.cite(r.event.computed)}, when you'll have "
-                       f"{w.balance(r.balance_before)}")
-        out.append("as the next step, the biggest fix from the facts (for example sending the verification form)"
-                   if not p.lasts_through_semester else "how close the lowest point is")
-    if plan.tool == "find_leaks":
-        for leak in result.facts["leaks"]:
-            for c in leak.computed:
-                if c.label.startswith("combined monthly cost"):
-                    out.append(f"the combined monthly cost of the duplicate subscriptions, {w.dollars(c.value)} a month "
-                               f"{pack.cite(c)}")
+# ---------------------------------------------------------------------------------------
+# Required facts: what every answer must contain, per tool (enforced by CHECK and scored by eval_agent.py)
+# ---------------------------------------------------------------------------------------
+VERDICT_WORDS = {"yes": ("yes", "can afford"), "yes_if": ("yes", "can afford"),
+                 "no": ("not right now", "no,", "no.", "can't", "cannot", "not yet")}
+
+
+@dataclass
+class Fact:
+    key: str
+    label: str                   # what it is, in plain words (for the prompt and the rewrite request)
+    line: str                    # a deterministic sentence stating it, with its citation (the fallback)
+    money: tuple = ()            # amounts that must appear (rounded whole dollars accepted)
+    date: date | None = None     # a date that must appear
+    words: tuple = ()            # at least one of these words must appear (case-insensitive)
+    where: str = "any"           # "any", "lead" (ANSWER or the first WHY bullet), "note", "answer"
+
+    def prompt(self):
+        place = {"lead": " (put this FIRST: in ANSWER or the first WHY bullet)", "note": " (in NOTE)",
+                 "answer": " (in ANSWER)"}.get(self.where, "")
+        return f"- {self.label}: {self.line}{place}"
+
+
+def required_facts(plan, result, pack, ds, scenario):
+    """The facts one answer must contain, each with its exact engine value and citation."""
+    c, f, out = pack.cite, result.facts, []
+    tool = plan.tool
+    if tool == "can_afford":
+        r = f["result"]
+        label = verdict_label(result)
+        out.append(Fact("verdict", "the answer", f"{label} {c(r.verdict_computed)}.",
+                        words=VERDICT_WORDS[r.verdict], where="answer"))
+        for fx in r.fixes:
+            out.append(_fix_fact(fx, ds, scenario, c))
+        best = r.with_fixes if r.verdict in ("yes_if", "no") and r.with_fixes else r.without_fixes
+        what = "with the fixes" if r.verdict == "yes_if" else ("even with every fix" if r.verdict == "no" else "")
+        out.append(Fact("lowest", f"the lowest point {what}".strip(),
+                        f"Your lowest point would be {w.balance(best.lowest.value)} {c(best.lowest)} on "
+                        f"{w.day(best.lowest_date.value)}.", money=(best.lowest.value,),
+                        date=best.lowest_date.value))
+    elif tool in ("runway", "what_if"):
+        p, r = f["projection"], f["reason"]
+        if tool == "what_if":
+            for pay_date, pay in f.get("shift_pay", []):
+                out.append(Fact("shift_pay", "the extra pay from the shift",
+                                f"The extra shift adds {w.dollars(pay.value)} to your {w.day(pay_date)} paycheck "
+                                f"{c(pay)}.", money=(pay.value,), date=pay_date if pay.value > 0 else None,
+                                where="lead"))
+            for fx in result.fixes:
+                fact = _fix_fact(fx, ds, f["new_scenario"], c)
+                fact.where = "lead"
+                out.append(fact)
+        if p.lasts_through_semester:
+            out.append(Fact("lowest", "covered all semester, and the lowest point",
+                            f"You're covered all semester. Your lowest point is {w.balance(p.lowest.value)} "
+                            f"{c(p.lowest)} on {w.day(p.lowest_date.value)}.",
+                            money=(p.lowest.value,), date=p.lowest_date.value))
+        else:
+            out.append(Fact("runs_out", "the day the money runs out",
+                            f"Your money runs out on {w.day(p.first_below_zero.value)} {c(p.first_below_zero)}.",
+                            date=p.first_below_zero.value))
+            if tool == "runway" and r.event:
+                out.append(Fact("cause", "the payment that causes it and what you'll have",
+                                f"A {w.dollars(r.event.amount)} {w.event_name(r.event)} {c(r.event.computed)} is due "
+                                f"{w.day(r.event.date)}, when you'll have {w.balance(r.balance_before)}.",
+                                money=(r.event.amount, r.balance_before)))
+    elif tool == "find_leaks":
+        for leak in f["leaks"]:
+            if leak.kind == "duplicate_subscriptions":
+                names = tuple(x.label.removesuffix(" monthly cost") for x in leak.computed
+                              if x.label.endswith("monthly cost"))
+                comb = next(x for x in leak.computed if x.label.startswith("combined"))
+                for n in names:
+                    out.append(Fact(f"sub_{n}", f"the duplicate subscription {n}",
+                                    f"You pay for {n} {c(comb)}.", words=(n,)))
+                out.append(Fact("monthly_total", "their monthly total",
+                                f"Together they cost {w.dollars(comb.value)} a month {c(comb)}.",
+                                money=(comb.value,)))
+            else:
+                fee = next(x for x in leak.computed if x.label.startswith("fee "))
+                out.append(Fact("fee", "the overdraft fee", f"Rent caused a {w.dollars(fee.value)} overdraft fee "
+                                f"{c(fee)}.", money=(fee.value,), words=("fee",)))
+    elif tool == "refund_status":
+        k = f["finding"].computed
+        reqs = [ds.row(i) for i in f["finding"].row_ids[("aid", "requirements")]]
+        form = reqs[0].description.split(" (")[0] if reqs else "verification form"
+        out += [Fact("refund_amount", "the refund amount", f"Your {w.dollars(k['refund_amount'].value)} refund "
+                     f"{c(k['refund_amount'])} is on hold.", money=(k["refund_amount"].value,)),
+                Fact("waiting_on", "what it's waiting on, by name",
+                     f"Financial aid is waiting for your {form}.", words=("verification",)),
+                Fact("arrives", "when it would arrive", f"Send it, and the refund arrives around "
+                     f"{w.day(k['release_date'].value)} {c(k['release_date'])}.", date=k["release_date"].value)]
+    elif tool == "cash_crunches":
+        for i, fi in enumerate(f["findings"]):
+            k = fi.computed
+            out += [Fact(f"payment{i}", "the payment and its date",
+                         f"A {w.dollars(k['installment'].value)} tuition payment {c(k['installment'])} is due "
+                         f"{w.day(k['installment_due'].value)}.", money=(k["installment"].value,),
+                         date=k["installment_due"].value),
+                    Fact(f"paycheck{i}", "the small paycheck and its date",
+                         f"Your {w.day(k['paycheck_date'].value)} paycheck is only "
+                         f"{w.dollars(k['paycheck_net'].value)} {c(k['paycheck_net'])}.",
+                         money=(k["paycheck_net"].value,), date=k["paycheck_date"].value)]
+    for a in plan.assumptions:
+        out.append(Fact("assumption", "the assumption", a, date=config.DEMO_TODAY + timedelta(days=1), where="note"))
     return out
+
+
+def _fix_fact(fx, ds, scenario, c):
+    if fx.kind == "refund":
+        rel = engine.refund_release_date(ds, scenario)
+        return Fact("fix_refund", "sending the verification form, the refund amount and when it arrives",
+                    f"Send your verification form: your {w.dollars(fx.savings.value)} refund arrives around "
+                    f"{w.day(rel)} {c(fx.savings)}.", money=(fx.savings.value,), date=rel)
+    return Fact(f"fix_{fx.name}", f"cancelling {fx.name} and what it saves",
+                f"Cancelling {fx.name} saves {w.dollars(fx.savings.value)} this semester {c(fx.savings)}.",
+                money=(fx.savings.value,), words=(fx.name,))
+
+
+def _has_money(text, value):
+    target = abs(Decimal(value))
+    return any(abs(v) == target or ("." not in written and abs(v) == _rounded(target))
+               for written, v in find_amounts(text))
+
+
+def fact_present(fact, text, sections=None):
+    sec = sections or parse_sections(text) or {}
+    if fact.where == "lead" and sec:
+        text = " ".join([sec.get("answer", "")] + sec.get("why", [])[:1])
+    elif fact.where == "note" and sec:
+        text = sec.get("note", "")
+    elif fact.where == "answer" and sec:
+        text = sec.get("answer", "")
+    low = text.lower()
+    return (all(_has_money(text, m) for m in fact.money)
+            and (fact.date is None or any(d == fact.date for _, d, _ in find_dates(text)))
+            and (not fact.words or any(x.lower() in low for x in fact.words)))
+
+
+def missing_facts(text, facts):
+    sec = parse_sections(text)
+    return [f for f in facts if not fact_present(f, text, sec)]
+
+
+def append_facts(text, missing):
+    """Add a plain sentence for each missing fact: lead facts become the first WHY bullet, note facts go in NOTE,
+    others are added as WHY bullets. Built from engine values only."""
+    sec = parse_sections(text) or {"answer": text.strip(), "why": [], "do": [], "note": ""}
+    lead = [f.line for f in missing if f.where == "lead"]
+    rest = [f.line for f in missing if f.where in ("any", "answer")]
+    notes = [f.line for f in missing if f.where == "note"]
+    note = " ".join(x for x in [sec.get("note", "")] + notes if x)
+    return _format(sec["answer"], lead + sec["why"] + rest, sec["do"], note)
 
 
 def _strip_think(text, reasoning):
@@ -870,7 +1016,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
             yield "answer", cached
             return
     t0 = time.perf_counter()
-    timings, retries, notes = {}, {"plan_json": 0, "explain_rewrite": 0}, []
+    timings, retries, notes = {}, {"plan_json": 0, "explain_rewrite": 0, "facts_appended": 0}, []
     models = {"plan": config.NVIDIA_PLAN_MODEL, "explain": config.NVIDIA_EXPLAIN_MODEL}
     sub_names = [s.merchant for s in engine.subscriptions(ds)]
 
@@ -891,13 +1037,16 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
         plan = keyword_plan(question, sub_names) or Plan("off_topic", None, {}, None, [], "keywords")
     timings["plan_s"] = round(time.perf_counter() - t, 2)
 
+    facts_record = []
+
     def finish(text, verdict=None, label=None, pack=None, check=None, reasoning="", actions=(), fixes=(),
                ans_mode=None, source="none"):
         timings["total_s"] = round(time.perf_counter() - t0, 2)
         return Answer(question, text, verdict, label, asdict(plan), pack.to_dict() if pack else {"items": [],
                       "context": []}, asdict(check) if check else {}, reasoning, [asdict(a) for a in actions],
                       [{"kind": f.kind, "name": f.name} for f in fixes], ans_mode or mode, source, notes, timings,
-                      retries, models, scenario.describe(), time.time(), parse_sections(text) or {})
+                      retries, models, scenario.describe(), time.time(), parse_sections(text) or {},
+                      facts_record)
 
     if plan.tool is None:
         text = plan.clarifying_question or OFF_TOPIC
@@ -918,15 +1067,17 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
     # EXPLAIN + CHECK: Super, then Lightning (thinking on), then a template. One rewrite per model at most.
     yield "stage", STAGES["explain"]
     t = time.perf_counter()
-    messages = explain_messages(question, plan, result, pack, label)
-    text, reasoning, check, source, answered_by = "", "", None, "template", None
+    required = required_facts(plan, result, pack, ds, scenario)
+    messages = explain_messages(question, plan, result, pack, label, required)
+    text, reasoning, check, source, answered_by, missing = "", "", None, "template", None, []
     errors = []
     if mode == "replay":
         errors.append("no recorded answer")                     # replay never calls the models
     else:
         for model in explain_chain():
             try:
-                text, reasoning, check = yield from _explain_with(llm, model, messages, pack, retries)
+                text, reasoning, check, missing = yield from _explain_with(llm, model, messages, pack, retries,
+                                                                           required)
                 source, answered_by = "llm", model
                 break
             except Exception as exc:
@@ -934,6 +1085,14 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
                 yield "restart", ""
     if answered_by is None:
         text = template_answer(plan, result, pack, ds, scenario)
+        missing = missing_facts(text, required)
+    if missing:                                              # still missing after the rewrite: add them ourselves
+        text = append_facts(text, missing)
+        retries["facts_appended"] = len(missing)
+        if answered_by is not None:
+            yield "restart", ""
+            yield "text", text
+    if answered_by is None:
         check = check_answer(text, pack)
         notes.append("There's no recorded answer for this question, so this is a short summary built straight "
                      "from your numbers." if mode == "replay" else
@@ -944,9 +1103,12 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
         if errors:
             notes.append(f"{model_name(config.NVIDIA_EXPLAIN_MODEL)} wasn't available ({'; '.join(errors)}), so "
                          f"{model_name(answered_by)} wrote this answer.")
+        if missing:
+            check = check_answer(text, pack, require_format=True)
         if not check.ok:
             notes.append("Some numbers or dates in this answer couldn't be matched to your records: "
                          + "; ".join(check.problems))
+    facts_record = [{"key": f.key, "label": f.label, "appended": f in missing} for f in required]
     models["answered_by"] = answered_by or "template"
     models["explain_errors"] = errors
     timings["explain_s"] = round(time.perf_counter() - t, 2)

@@ -51,7 +51,7 @@ def _chipify(text, notes):
     def sub(m):
         nums = [notes[c] for c in re.split(r"\s*[,;]\s*", m.group(1)) if c in notes]
         return " " + " ".join(f":blue-badge[{n}]" for n in nums) if nums else ""
-    return re.sub(r"\s*" + CITE.pattern, sub, fmt.md(text))
+    return re.sub(r"\s*" + CITE.pattern, sub, fmt.md(fmt.strip_ids(text)))
 
 
 def _proof(item, a, key):
@@ -95,6 +95,12 @@ def _thinking(a):
             st.markdown("**Number check:** " + (
                 f"all {c['amounts']} dollar amounts and {c['dates']} dates match your records."
                 if c["ok"] else "these didn't match your records: " + fmt.md("; ".join(c["problems"]))))
+        facts = getattr(a, "facts", None) or []
+        if facts:
+            added = [f["label"] for f in facts if f["appended"]]
+            st.markdown(f"**Required facts:** {len(facts) - len(added)} of {len(facts)} written by the model"
+                        + (f"; Runway added the rest from your numbers ({fmt.md(', '.join(added))})." if added
+                           else "." ) + (f" One rewrite was needed." if a.retries.get("explain_rewrite") else ""))
         if a.reasoning:
             st.markdown("**Nemotron's reasoning**")
             with st.container(height=220):
@@ -148,7 +154,7 @@ def _html_cited(text, notes):
     def sub(m):
         nums = [notes[c] for c in re.split(r"\s*[,;]\s*", m.group(1)) if c in notes]
         return "".join(f'<sup class="rw-fn">{n}</sup>' for n in nums)
-    return re.sub(r"\s*" + CITE.pattern, sub, fmt.html(text))
+    return re.sub(r"\s*" + CITE.pattern, sub, fmt.html(fmt.strip_ids(text)))     # last guard: no record IDs
 
 
 def _structured(a, notes, key, latest):

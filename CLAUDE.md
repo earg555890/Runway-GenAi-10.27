@@ -94,7 +94,8 @@ This is part of the judging score, so keep it visible:
   - Never a bare negative balance: "$1,462 below zero" in red. (Chart axes may keep the minus sign.)
   - Dates as "Mon, Nov 9"; add the year only if it isn't 2026.
   - Bold only the single most important phrase in a block. Anything over 3 lines becomes short bullets.
-  - AI answers use ANSWER / WHY (2-3 bullets) / DO THIS (1-2 steps) / NOTE, under ~90 words; the checker matches rounded dollars and "below zero" against the exact values.
+  - AI answers use ANSWER / WHY (2-3 bullets) / DO THIS (1-2 steps) / NOTE, under ~110 words; the checker matches rounded dollars and "below zero" against the exact values.
+  - Required facts are enforced, not requested: `agent.required_facts` lists, per tool, the facts an answer must contain (exact engine value + citation). A missing fact or any record ID (HLD-01, CHK-0042...) fails the check and triggers the one rewrite; if the rewrite still misses a fact, Runway appends a plain line built from the engine values and records it (`Answer.facts`, `retries["facts_appended"]`). `eval_agent.py` scores against the same table and counts appended answers separately.
 - **Database naming (approved):** one Lightning database per source: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`. `RUNWAY_TEST` (5-row throwaway) still exists; drop it in the task that registers the real demo sources.
 - **Speed:** this laptop is ARM (Snapdragon), so the Intel/AMD images run under emulation.
   - Small local tables: about 1.5–4 s per query.
