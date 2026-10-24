@@ -25,16 +25,21 @@ def _event_name(e):
     return e.label if e.kind == "purchase" else SHORT.get(e.kind, fmt.event_name(e).capitalize())
 
 
+def _flow(e):
+    """An event in plain words for tooltips: "Card payment: $360 out"."""
+    return f"{_event_name(e)}: {fmt.dollars(e.amount)} {'in' if e.amount > 0 else 'out'}"
+
+
 def _days(base, current, changed):
     """One row per day: the balance, the 'before' balance, and every event of that day for the tooltip."""
     by_day = {}
     for e in current.events:
-        by_day.setdefault(e.date, []).append(f"{_event_name(e)} {fmt.money(e.amount)}")
+        by_day.setdefault(e.date, []).append(_flow(e))
     before = dict([(config.DEMO_TODAY, base.start_balance.value)] + base.daily)
     rows = []
     for d, b in [(config.DEMO_TODAY, current.start_balance.value)] + current.daily:
-        rows.append({"date": _ts(d), "balance": float(b), "when": fmt.day(d), "bal": fmt.money(b),
-                     "before": float(before[d]), "before_txt": fmt.money(before[d]) if changed else "",
+        rows.append({"date": _ts(d), "balance": float(b), "when": fmt.day(d), "bal": fmt.balance(b),
+                     "before": float(before[d]), "before_txt": fmt.balance(before[d]) if changed else "",
                      "events": "; ".join(by_day.get(d, [])) or "Everyday spending only"})
     return pd.DataFrame(rows)
 
@@ -71,45 +76,41 @@ def build(base, current, changed):
     layers.append(daily.transform_calculate(line=f"'{WITH}'").mark_line(
         interpolate="step-after", strokeWidth=3).encode(x, y, color=line_color))
 
-    # Today, the lowest point, and the end of the semester
+    # Today, the lowest point, and the end of the semester. The amounts are in the figures right above the chart,
+    # so the chart only names the points (no repeated numbers); the exact values are in the hover tooltip.
     start, low, end = current.start_balance.value, current.lowest, current.end_balance
     marks = pd.DataFrame([
-        {"date": _ts(config.DEMO_TODAY), "balance": float(start), "t": f"Today {fmt.money(start)}", "kind": "today"},
-        {"date": _ts(current.lowest_date.value), "balance": float(low.value),
-         "t": f"Lowest: {fmt.money(low.value)}, {fmt.day(current.lowest_date.value)}", "kind": "low"},
-        {"date": _ts(config.SEMESTER_END), "balance": float(end.value), "t": fmt.money(end.value), "kind": "end"},
+        {"date": _ts(config.DEMO_TODAY), "balance": float(start), "t": "Today", "kind": "today"},
+        {"date": _ts(current.lowest_date.value), "balance": float(low.value), "t": "Lowest point", "kind": "low"},
+        {"date": _ts(config.SEMESTER_END), "balance": float(end.value), "t": "", "kind": "end"},
     ])
     low_color = RED if low.value < 0 else "#16a34a"
+    early = current.lowest_date.value < config.DEMO_TODAY + timedelta(days=21)
     layers += [
         alt.Chart(marks[marks.kind != "low"]).mark_circle(size=110, opacity=1, stroke="white", strokeWidth=1.5,
                                                           color=BLUE).encode(x, y),
         alt.Chart(marks[marks.kind == "low"]).mark_circle(size=130, opacity=1, stroke="white", strokeWidth=1.5,
                                                           color=low_color).encode(x, y),
         alt.Chart(marks[marks.kind == "today"]).mark_text(align="left", dx=8, dy=-12, fontSize=13, fontWeight="bold",
-                                                         color=LABEL_BLUE)
-        .encode(x, y, text="t:N"),
-        alt.Chart(marks[marks.kind == "low"]).mark_text(align="center", dy=18, fontSize=13, fontWeight="bold",
-                                                       color=RED if low.value < 0 else "#16a34a").encode(x, y, text="t:N"),
-        alt.Chart(marks[marks.kind == "end"]).mark_text(align="left", dx=8, fontSize=13, fontWeight="bold",
-                                                       color=LABEL_BLUE)
-        .encode(x, y, text="t:N"),
+                                                         color=LABEL_BLUE).encode(x, y, text="t:N"),
+        alt.Chart(marks[marks.kind == "low"]).mark_text(align="left" if early else "right", dx=12 if early else -12,
+                                                       dy=-12 if early else 0, fontSize=13, fontWeight="bold",
+                                                       color=low_color).encode(x, y, text="t:N"),
     ]
 
     # The biggest events as labelled ticks along the bottom (staggered so neighbours don't collide)
     keyed = [e for e in current.events if e.kind in SHORT or e.kind == "purchase"]
     big = sorted(sorted(keyed, key=lambda e: abs(e.amount), reverse=True)[:TICKS], key=lambda e: e.date)
     if big:
-        ticks = pd.DataFrame([{"date": _ts(e.date), "y": floor, "t": _event_name(e), "row": i % 2,
-                               "tip": f"{_event_name(e)} {fmt.money(e.amount)}", "when": fmt.day(e.date)}
+        ticks = pd.DataFrame([{"date": _ts(e.date), "y": floor, "t": _event_name(e), "row": i % 3,
+                               "tip": _flow(e), "when": fmt.day(e.date)}
                               for i, e in enumerate(big)])
         tick_tip = [alt.Tooltip("when:N", title="Date"), alt.Tooltip("tip:N", title="What")]
-        layers += [
-            alt.Chart(ticks).mark_tick(thickness=2, size=14, color=LABEL).encode(x, alt.Y("y:Q"), tooltip=tick_tip),
-            alt.Chart(ticks[ticks.row == 0]).mark_text(dy=-14, fontSize=12, color=LABEL).encode(x, alt.Y("y:Q"), text="t:N",
-                                                                                   tooltip=tick_tip),
-            alt.Chart(ticks[ticks.row == 1]).mark_text(dy=-28, fontSize=12, color=LABEL).encode(x, alt.Y("y:Q"), text="t:N",
-                                                                                   tooltip=tick_tip),
-        ]
+        layers.append(alt.Chart(ticks).mark_tick(thickness=2, size=14, color=LABEL)
+                      .encode(x, alt.Y("y:Q"), tooltip=tick_tip))
+        for row in range(3):                    # three rows: neighbours stay readable on a phone too
+            layers.append(alt.Chart(ticks[ticks.row == row]).mark_text(dy=-14 - 14 * row, fontSize=12, color=LABEL)
+                          .encode(x, alt.Y("y:Q"), text="t:N", tooltip=tick_tip))
 
     # Hover anywhere: a guide line and that day's balance and events
     hover = alt.selection_point(fields=["date"], nearest=True, on="pointerover", empty=False, clear="pointerout")

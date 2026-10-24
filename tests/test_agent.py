@@ -12,10 +12,14 @@ import normalize
 FLIGHT_Q = "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?"
 FLIGHT_PLAN = '{"intent": "afford", "tool": "can_afford", "args": {"item": "flight home", "cost": 400, ' \
               '"date": "2026-11-10"}, "clarifying_question": null}'
-GOOD_FLIGHT = ("Yes, if you do 2 things [C1]. Send your verification form so your $1,850.00 refund arrives around "
-               "Thu Nov 5 [C6], and cancel Spotify to save $23.98 [C8]. Cancelling Apple Music saves $0.00 [C7] "
-               "because the card bill is paid after the semester. Your lowest point would be $5.81 on Mon Nov 2 "
-               "[C4][C5]. Next step: send the form today.")
+GOOD_FLIGHT = ("ANSWER: Yes, if you do 2 things first [C1].\n"
+               "WHY:\n"
+               "- Without changes, you'd be $1,862 below zero [C2].\n"
+               "- With them, your lowest point is $5.81 on Mon, Nov 2 [C4][C5].\n"
+               "DO THIS:\n"
+               "1. Send your verification form. Your $1,850 refund comes around Thu, Nov 5 [C6].\n"
+               "2. Cancel Spotify. That saves $23.98 this semester [C8].\n"
+               "NOTE: Cancelling Apple Music saves $0.00 [C7]. Its card bill is paid after the semester.")
 
 
 @pytest.fixture(scope="module")
@@ -96,7 +100,7 @@ def test_parse_plan_good_and_missing_date_assumption():
     p = agent.parse_plan({"intent": "afford", "tool": "can_afford", "args": {"item": "headphones", "cost": "$150"}},
                          SUBS)
     assert p.args["date"] == "2026-10-27"
-    assert p.assumptions == ["You didn't say when you'd buy it, so I assumed tomorrow, Tue Oct 27."]
+    assert p.assumptions == ["You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27."]
 
 
 @pytest.mark.parametrize("data,message", [
@@ -164,8 +168,8 @@ def test_can_afford_pack(ds):
 
 def test_runway_pack(ds):
     r, pack = pack_for("runway", {}, ds)
-    assert r.verdict == "runs_out" and agent.verdict_label(r) == "Money runs out Mon Nov 9"
-    assert {"$359.53", "Mon Nov 9", "2.0 weeks", "-$1,462.37"} <= values(pack)
+    assert r.verdict == "runs_out" and agent.verdict_label(r) == "Money runs out Mon, Nov 9"
+    assert {"$359.53", "Mon, Nov 9", "2.0 weeks", "-$1,462.37"} <= values(pack)
 
 
 def test_what_if_shift_pack(ds):
@@ -183,10 +187,10 @@ def test_leaks_refund_crunch_packs(ds):
     _, pack = pack_for("find_leaks", {}, ds)
     assert {"$22.98", "$23.98", "$0.00", "$35.00", "Spotify"} <= values(pack)
     _, pack = pack_for("refund_status", {}, ds)
-    assert {"$1,850.00", "$3,697.00", "Thu Nov 5"} <= values(pack)
+    assert {"$1,850.00", "$3,697.00", "Thu, Nov 5"} <= values(pack)
     assert any(it["kind"] == "source" and "REQ-01" in it["row_ids"] for it in pack.items)
     _, pack = pack_for("cash_crunches", {}, ds)
-    assert {"$200.00", "$114.70", "Fri Nov 20"} <= values(pack)
+    assert {"$200.00", "$114.70", "Fri, Nov 20"} <= values(pack)
 
 
 # --- CHECK -----------------------------------------------------------------------------------
@@ -207,7 +211,7 @@ def test_check_passes_with_format_variants(flight_pack):
 @pytest.mark.parametrize("text,problem", [
     ("You'd have $412.50 left [C4].", "$412.50"),
     ("Your refund arrives Fri Nov 6 [C6].", "Fri Nov 6"),
-    ("Your refund arrives Wed Nov 5 [C6].", "wrong weekday"),
+    ("Your refund arrives Wed, Nov 5 [C6].", "wrong weekday"),
     ("Your lowest point is $5.81 [C99].", "[C99]"),
     ("See [E42].", "[E42]"),
 ])
@@ -238,7 +242,8 @@ def test_explain_failure_uses_template(ds):
     llm = FakeLLM(plans=[FLIGHT_PLAN], explain_error=llm_client.LLMError("timeout"))
     _, a = run_all(FLIGHT_Q, llm, ds=ds)
     assert a.explain_source == "template" and a.mode == "fallback" and a.check["ok"]
-    assert a.text.startswith("Yes, if you do 2 things") and "$5.81" in a.text and "Apple Music" in a.text
+    assert a.text.startswith("ANSWER: Yes, if you do 2 things") and "$5.81" in a.text and "Apple Music" in a.text
+    assert a.sections["do"][0].startswith("Send your verification form") and len(a.sections["why"]) == 2
     assert any("The AI explanation isn't available right now" in n for n in a.notes)
 
 
@@ -263,7 +268,7 @@ def test_actions_email_and_checklist(ds):
     assert "2026-27 Verification Worksheet (Dependent)" in email["subject"] and "Fall 2026" in email["body"]
     assert "$1,850.00" in email["body"]
     checklist = next(x for x in a.actions if x["kind"] == "checklist")
-    assert "Cancel Spotify before Sat Nov 14." in checklist["items"]
+    assert "Cancel Spotify before Sat, Nov 14." in checklist["items"]
     assert a.fixes == [{"kind": "refund", "name": "refund released"}, {"kind": "cancel", "name": "Spotify"}]
 
 
@@ -304,7 +309,7 @@ def test_empty_answer_is_rewritten_then_falls_back(ds):
     assert a.text == GOOD_FLIGHT and a.retries["explain_rewrite"] == 1
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=["", " "])
     _, a = run_all(FLIGHT_Q, llm, ds=ds)
-    assert a.explain_source == "template" and a.text.startswith("Yes, if you do 2 things") and a.check["ok"]
+    assert a.explain_source == "template" and a.text.startswith("ANSWER: Yes, if you do 2 things") and a.check["ok"]
 
 
 def test_super_down_lightning_answers(ds, monkeypatch):
@@ -328,7 +333,7 @@ def test_all_models_down_template_records_errors(ds):
 
 def test_leaks_prompt_requires_monthly_total(ds):
     llm = FakeLLM(plans=['{"intent": "leaks", "tool": "find_leaks", "args": {}}'],
-                  answers=["You pay $22.98 a month [C3] for two music apps."])
+                  answers=["ANSWER: Two leaks.\nWHY:\n- You pay $22.98 a month [C3] for two music apps."])
     run_all("Where is my money leaking?", llm, ds=ds)
     prompt = llm.messages[0][1][1]["content"]
     assert "must mention: the combined monthly cost of the duplicate subscriptions, $22.98 a month [C3]" in prompt
@@ -358,6 +363,29 @@ def test_purchase_date_must_come_from_the_question(question, grounded):
 
 def test_thanksgiving_trip_date_from_planner_is_replaced(ds):
     llm = FakeLLM(plans=['{"intent": "afford", "tool": "can_afford", "args": {"item": "flight home", "cost": 400, '
-                         '"date": "2026-11-26"}}'], answers=["Not right now [C1]."])
+                         '"date": "2026-11-26"}}'], answers=["ANSWER: Not right now [C1].\nWHY:\n- Even with fixes you'd be short."])
     _, a = run_all("Can I afford a $400 flight home for Thanksgiving?", llm, ds=ds)
     assert a.plan["args"]["date"] == "2026-10-27" and a.verdict == "no" and a.plan["assumptions"]
+
+
+def test_check_accepts_rounded_dollars_and_below_zero(flight_pack):
+    ok = agent.check_answer("You'd be $1,862 below zero [C2]. Your $1,850 refund helps [C6]. Lowest $5.81 [C4].",
+                            flight_pack)
+    assert ok.ok, ok.problems
+    bad = agent.check_answer("You'd be $1,870 below zero [C2].", flight_pack)
+    assert not bad.ok and "$1,870 is not in the facts" in bad.problems
+    assert not agent.check_answer("You'd have $5.80 [C4].", flight_pack).ok     # cents must be exact
+
+
+def test_format_required_for_model_answers(ds):
+    llm = FakeLLM(plans=[FLIGHT_PLAN], answers=["Yes, if you send the form [C1].", GOOD_FLIGHT])
+    _, a = run_all(FLIGHT_Q, llm, ds=ds)
+    assert a.retries["explain_rewrite"] == 1 and a.text == GOOD_FLIGHT
+    assert a.sections["answer"] == "Yes, if you do 2 things first [C1]."
+    assert a.sections["note"].startswith("Cancelling Apple Music saves $0.00")
+
+
+def test_parse_sections_tolerates_markdown():
+    s = agent.parse_sections("**ANSWER:** Yes.\n**WHY:**\n* one\n* two\n**DO THIS:**\n1) go\nNOTE: n")
+    assert s == {"answer": "Yes.", "why": ["one", "two"], "do": ["go"], "note": "n"}
+    assert agent.parse_sections("Just a paragraph.") is None

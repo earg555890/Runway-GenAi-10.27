@@ -2,7 +2,7 @@
 import html as _html
 import re
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 import normalize as n
 from engine import fmt_money
@@ -27,7 +27,31 @@ def term_name(code):
 
 
 def money(x):
+    """Exact, with cents: for proof tables and Behind the scenes."""
     return fmt_money(x)
+
+
+def dollars(x):
+    """Headline amount, no sign: whole dollars from $100 up ("$1,850", "$360"); below $100 cents stay when
+    they matter ("$23.98", "$5.81") and drop when they are zero ("$35"); zero itself is "$0.00"."""
+    a = abs(Decimal(x))
+    if a == 0:
+        return "$0.00"                      # "saves $0.00" is the point, so it stays exact
+    if a >= 100:
+        return f"${a.quantize(Decimal('1'), rounding=ROUND_HALF_UP):,}"
+    if a == a.to_integral_value():
+        return f"${int(a)}"
+    return f"${a:,.2f}"
+
+
+def balance(x):
+    """A balance for students: never a bare minus sign. "$783", "$1,462 below zero"."""
+    return f"{dollars(x)} below zero" if Decimal(x) < 0 else dollars(x)
+
+
+def change(x):
+    """A change between two what-ifs, for small chips: "+$1,468", "-$400"."""
+    return ("+" if Decimal(x) > 0 else "-") + dollars(x)
 
 
 def md(s):
@@ -40,10 +64,10 @@ def html(s):
 
 
 def day(d):
-    """Mon Nov 9 (adds the year when it is not the demo year)."""
+    """Mon, Nov 9 (adds the year when it is not the demo year)."""
     if not d:
         return "never"
-    return f"{d:%a %b} {d.day}" + (f", {d.year}" if d.year != 2026 else "")
+    return f"{d:%a}, {d:%b} {d.day}" + (f", {d.year}" if d.year != 2026 else "")
 
 
 def weeks_words(v):

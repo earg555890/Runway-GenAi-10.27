@@ -39,3 +39,6 @@ scratch/
 
 # Zetaris query cache
 .cache/
+
+# Review screenshots (large; not committed)
+screenshots/

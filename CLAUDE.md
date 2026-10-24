@@ -85,7 +85,16 @@ This is part of the judging score, so keep it visible:
 - **Demo path (approved):** both.
   - At app startup, warm the Zetaris cache with every query the three demo questions need (`normalize.queries()` lists the engine's), so answers are fast. Evidence still shows `zetaris-cached` with the original timing.
   - A "Run live on Zetaris" button in the UI runs the federated query uncached, with a visible timer: the "this is Zetaris" moment (`ui/live_zetaris.py`).
-- **UI language:** plain words for students. Never show "scenario", "Computed", "C#", "evidence", "row ID", "backend", "ledger", "projection" or "delta" outside "Behind the scenes". Numbers go in sentences with their date ("Your money runs out Mon Nov 9, 2 weeks from today"). Always label the fee savings "estimated". Red only for below $0.
+- **UI language:** plain words for students. Never show "scenario", "Computed", "C#", "evidence", "row ID", "backend", "ledger", "projection" or "delta" outside "Behind the scenes". Numbers go in sentences with their date ("Your money runs out in 2 weeks, on Mon, Nov 9."). Always label the fee savings "estimated". Red only for below $0.
+- **Readability standard:**
+  - Grade 6-8 reading level. Sentences under 15 words. One idea per sentence.
+  - One main message and one main action per screen. Everything else smaller, lower, or one click away. Don't repeat a fact on the same screen.
+  - Body text 16 px or more, lines under ~70 characters, generous spacing, strong contrast in light and dark mode.
+  - Headline money in whole dollars from $100 up ("$1,850", "$783"); under $100 keep cents when they matter ("$5.81", "$23.98", "$0.00 saved"). Exact cents only in proof tables and Behind the scenes. Helpers: `wording.dollars`, `wording.balance`, `wording.change`.
+  - Never a bare negative balance: "$1,462 below zero" in red. (Chart axes may keep the minus sign.)
+  - Dates as "Mon, Nov 9"; add the year only if it isn't 2026.
+  - Bold only the single most important phrase in a block. Anything over 3 lines becomes short bullets.
+  - AI answers use ANSWER / WHY (2-3 bullets) / DO THIS (1-2 steps) / NOTE, under ~90 words; the checker matches rounded dollars and "below zero" against the exact values.
 - **Database naming (approved):** one Lightning database per source: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`. `RUNWAY_TEST` (5-row throwaway) still exists; drop it in the task that registers the real demo sources.
 - **Speed:** this laptop is ARM (Snapdragon), so the Intel/AMD images run under emulation.
   - Small local tables: about 1.5–4 s per query.

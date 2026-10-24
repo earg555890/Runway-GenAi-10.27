@@ -76,11 +76,13 @@ def run_once(ds, run_no):
         start = time.perf_counter()
         a = agent.ask(case.question, engine.Scenario(), ds=ds, mode="live")
         want = expected_verdict(case, ds)
-        amounts = {abs(v) for _, v in agent.find_amounts(a.text)}
+        found = agent.find_amounts(a.text)
+        amounts = {abs(v) for _, v in found}
+        rounded = {abs(v) for w, v in found if "." not in w}          # "$360" stands for $359.53 (readability rule)
         tool_ok = a.plan["tool"] == case.tool
         verdict_ok = a.verdict == want
         check_ok = bool(a.check.get("ok")) if case.tool else True
-        numbers_ok = all(Decimal(n) in amounts for n in case.numbers) and \
+        numbers_ok = all(Decimal(n) in amounts or agent._rounded(Decimal(n)) in rounded for n in case.numbers) and \
             all(wd.lower() in a.text.lower() for wd in case.words)
         nvidia_error = a.explain_source == "template" or a.plan["source"] == "keywords"
         model_answer = case.tool is None or a.explain_source == "llm"

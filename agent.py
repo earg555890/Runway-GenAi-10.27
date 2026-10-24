@@ -23,7 +23,7 @@ import re
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 import config
 import engine
@@ -123,6 +123,7 @@ class Answer:
     models: dict
     scenario: str
     created: float = 0.0
+    sections: dict = field(default_factory=dict)     # {"answer", "why": [...], "do": [...], "note"}
 
     def to_json(self):
         return json.dumps(asdict(self), default=str)
@@ -499,13 +500,45 @@ def allowed_values(pack):
     return money, dates
 
 
-def check_answer(text, pack):
+def _rounded(v):
+    return abs(v).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+
+SECTION_HEAD = re.compile(r"^\s*[*#_]*\s*(ANSWER|WHY|DO THIS|NOTE)\s*[*_]*\s*:\s*[*_]*\s*(.*)$", re.I)
+
+
+def parse_sections(text):
+    """ANSWER / WHY / DO THIS / NOTE sections of an answer, or None if ANSWER or WHY is missing."""
+    out, cur = {"answer": "", "why": [], "do": [], "note": ""}, None
+    keys = {"ANSWER": "answer", "WHY": "why", "DO THIS": "do", "NOTE": "note"}
+    for line in text.splitlines():
+        m = SECTION_HEAD.match(line)
+        if m:
+            cur, line = keys[m.group(1).upper()], m.group(2)
+        line = line.strip()
+        if not line or cur is None:
+            continue
+        if cur in ("why", "do"):
+            out[cur].append(re.sub(r"^(?:[-*•]|\d+[.)])\s*", "", line))
+        else:
+            out[cur] = (out[cur] + " " + line).strip()
+    return out if out["answer"] and out["why"] else None
+
+
+def check_answer(text, pack, require_format=False):
+    """Every dollar amount and date must come from the pack; every citation must exist. A whole-dollar amount
+    ("$1,462") matches a pack value that rounds to it ($1,462.37); signs are ignored, so "$1,462 below zero"
+    and "-$1,462.37" both match -$1,462.37."""
     money, dates = allowed_values(pack)
+    rounded = {_rounded(v) for v in money}
     ids = {it["id"] for it in pack.items}
     problems = [] if text.strip() else ["the answer is empty"]
+    if require_format and text.strip() and parse_sections(text) is None:
+        problems.append("the answer is not in the ANSWER / WHY / DO THIS format")
     amounts = find_amounts(text)
     for written, v in amounts:
-        if abs(v) not in money:
+        whole = "." not in written
+        if abs(v) not in money and not (whole and abs(v) in rounded):
             problems.append(f"{written.strip()} is not in the facts")
     found = find_dates(text)
     for written, d, wd in found:
@@ -522,19 +555,25 @@ def check_answer(text, pack):
 # EXPLAIN, template answers, verdicts
 # ---------------------------------------------------------------------------------------
 EXPLAIN_SYSTEM = (
-    "You are Runway, a friendly money coach for a stressed college student. Write in plain, warm English.\n"
+    "You are Runway, a friendly money coach for a stressed college student.\n"
+    "Write at a grade 6-8 reading level. Short sentences (under 15 words). One idea per sentence.\n"
+    "Reply in EXACTLY this format, under 90 words in total:\n"
+    "ANSWER: <one short sentence with the answer>\n"
+    "WHY:\n- <short reason>\n- <short reason>\n- <optional third reason>\n"
+    "DO THIS:\n1. <concrete next step>\n2. <optional second step>\n"
+    "NOTE: <optional: one line for an assumption or a timing insight>\n"
     "Rules:\n"
-    "- 60 to 150 words. Start with the answer in one sentence. Then the reasons.\n"
-    "- Use ONLY numbers and dates that appear in the facts below. Never calculate, round or invent a number "
-    "or date.\n"
-    "- Put a citation right after every number or date, like [C3] for a calculation or [E2] for a source record. "
-    "Only cite ids that exist in the facts.\n"
-    "- Write dates like \"Mon Nov 9\" and money like \"$1,850.00\".\n"
-    "- If the facts list an assumption, say it plainly.\n"
-    "- If cancelling a subscription is part of the answer and one of them saves $0.00, say why: its charges go "
-    "on the credit card and that bill is paid after the semester ends.\n"
-    "- No jargon: never say scenario, projection, ledger, evidence or computed.\n"
-    "- End with one concrete next step.")
+    "- Use ONLY numbers and dates from the facts below. Never calculate or invent a number or date.\n"
+    "- Money: from $100 up, round to whole dollars (\"$1,850\", \"$360\"). Under $100, keep the cents "
+    "(\"$23.98\", \"$5.81\").\n"
+    "- Never write a negative balance with a minus sign. Write \"$1,462 below zero\".\n"
+    "- Dates like \"Mon, Nov 9\".\n"
+    "- Put a citation after each number or date, like [C3] or [E2]. At most 2 citations per bullet. Only cite "
+    "ids that exist in the facts.\n"
+    "- If the facts list an assumption, put it in NOTE.\n"
+    "- If cancelling a subscription is part of the answer and one saves $0.00, explain why in NOTE: its charges "
+    "go on the credit card, and that bill is paid after the semester ends.\n"
+    "- No jargon: never say scenario, projection, ledger, evidence or computed. No bold, no headings.")
 
 
 def explain_messages(question, plan, result, pack, verdict_label):
@@ -546,14 +585,14 @@ def explain_messages(question, plan, result, pack, verdict_label):
     if musts:
         head += "\nYour answer must mention: " + "; ".join(musts) + "."
     return [{"role": "system", "content": EXPLAIN_SYSTEM},
-            {"role": "user", "content": f"{head}\n\n{facts}\n\nWrite the answer now."}]
+            {"role": "user", "content": f"{head}\n\n{facts}\n\nWrite the answer now, in the format."}]
 
 
 def plan_words(plan):
     a = plan.args
     if plan.tool == "can_afford":
         how = "debit card (checking)" if a["account"] == "checking" else "credit card"
-        return f"can you afford {a['item']} for {w.money(Decimal(a['cost']))} on " \
+        return f"can you afford {a['item']} for {w.dollars(Decimal(a['cost']))} on " \
                f"{w.day(date.fromisoformat(a['date']))}, paid by {how}"
     if plan.tool == "what_if":
         parts = [f"cancel {', '.join(a['cancel_subscriptions'])}"] if a["cancel_subscriptions"] else []
@@ -583,83 +622,93 @@ def verdict_label(result):
     return None
 
 
-def _fix_words(f, ds, scenario, pack):
+def _fix_step(f, ds, scenario, pack):
     if f.kind == "refund":
         rel = engine.refund_release_date(ds, scenario)
-        return (f"send your verification form to financial aid, so your {w.money(f.savings.value)} refund "
-                f"arrives around {w.day(rel)} {pack.cite(f.savings)}")
-    return f"cancel {f.name}, which saves {w.money(f.savings.value)} before the semester ends {pack.cite(f.savings)}"
+        return (f"Send your verification form to financial aid. Your {w.dollars(f.savings.value)} refund comes "
+                f"around {w.day(rel)} {pack.cite(f.savings)}.")
+    return f"Cancel {f.name}. That saves {w.dollars(f.savings.value)} this semester {pack.cite(f.savings)}."
+
+
+def _format(answer, why, do, note=""):
+    text = f"ANSWER: {answer}\nWHY:\n" + "\n".join(f"- {x}" for x in why)
+    if do:
+        text += "\nDO THIS:\n" + "\n".join(f"{i}. {x}" for i, x in enumerate(do, start=1))
+    return text + (f"\nNOTE: {note}" if note else "")
 
 
 def template_answer(plan, result, pack, ds, scenario):
-    """A plain answer built only from the pack, with citations. Used when EXPLAIN is unavailable."""
+    """A short answer in the ANSWER / WHY / DO THIS format, built only from the pack, with citations. Used
+    when no model is available."""
     c, f = pack.cite, result.facts
+    note = " ".join(plan.assumptions)
     if plan.tool == "can_afford":
-        r, p = f["result"], f["purchase"]
-        base = r.without_fixes
+        r = f["result"]
+        base, best = r.without_fixes, r.with_fixes
         if r.verdict == "yes":
-            text = (f"Yes, you can afford {p.label} {c(r.verdict_computed)}. Your lowest point would be "
-                    f"{w.money(base.lowest.value)} {c(base.lowest)} on {w.day(base.lowest_date.value)} "
-                    f"{c(base.lowest_date)}.")
-        elif r.verdict == "no":
-            text = (f"Not right now {c(r.verdict_computed)}. Even with every fix, your balance drops to "
-                    f"{w.money(r.with_fixes.lowest.value)} {c(r.with_fixes.lowest)} on "
-                    f"{w.day(r.with_fixes.lowest_date.value)} {c(r.with_fixes.lowest_date)}.")
-        else:
-            steps = "; and ".join(_fix_words(x, ds, scenario, pack) for x in r.fixes)
-            text = (f"Yes, if you do {w.things(len(r.fixes))} {c(r.verdict_computed)}: {steps}. Then your lowest "
-                    f"point would be {w.money(r.with_fixes.lowest.value)} {c(r.with_fixes.lowest)} on "
-                    f"{w.day(r.with_fixes.lowest_date.value)} {c(r.with_fixes.lowest_date)}. Without them, you'd "
-                    f"drop to {w.money(base.lowest.value)} {c(base.lowest)}.")
-            for z in result.zero_fixes:
-                text += (f" Cancelling {z.name} won't help: it's billed to your credit card, and that bill is paid "
-                         f"after the semester, so it saves {w.money(z.savings.value)} {c(z.savings)} before then.")
-        return text + " Next step: " + ("make those changes today." if r.verdict == "yes_if" else
-                                        "check again if anything changes.")
+            return _format(f"Yes, you can afford it {c(r.verdict_computed)}.",
+                           [f"Your lowest point would be {w.balance(base.lowest.value)} {c(base.lowest)}.",
+                            f"That's on {w.day(base.lowest_date.value)} {c(base.lowest_date)}."],
+                           ["Check again if your plans change."], note)
+        if r.verdict == "no":
+            return _format(f"Not right now {c(r.verdict_computed)}.",
+                           [f"Even with every fix, you'd be {w.balance(best.lowest.value)} {c(best.lowest)}.",
+                            f"That's on {w.day(best.lowest_date.value)} {c(best.lowest_date)}."],
+                           ["Try a later date, after your refund arrives."], note)
+        zero = [z for z in result.zero_fixes]
+        if zero:
+            note = (note + " " if note else "") + (
+                f"Cancelling {zero[0].name} saves {w.money(zero[0].savings.value)} {c(zero[0].savings)} this "
+                "semester. Its card bill is paid after the semester ends.")
+        return _format(f"Yes, if you do {w.things(len(r.fixes))} first {c(r.verdict_computed)}.",
+                       [f"Without changes, you'd be {w.balance(base.lowest.value)} {c(base.lowest)}.",
+                        f"With them, your lowest point is {w.balance(best.lowest.value)} {c(best.lowest)} on "
+                        f"{w.day(best.lowest_date.value)}."],
+                       [_fix_step(x, ds, scenario, pack) for x in r.fixes], note)
     if plan.tool in ("runway", "what_if"):
         p, r = f["projection"], f["reason"]
         if p.lasts_through_semester:
-            text = (f"You're covered through {w.day(config.SEMESTER_END)}. Your lowest point is "
-                    f"{w.money(p.lowest.value)} {c(p.lowest)} on {w.day(p.lowest_date.value)} {c(p.lowest_date)}.")
+            answer = f"You're covered all semester {c(p.first_below_zero)}."
+            why = [f"Your lowest point is {w.balance(p.lowest.value)} {c(p.lowest)}.",
+                   f"That's on {w.day(p.lowest_date.value)} {c(p.lowest_date)}."]
         else:
-            text = (f"Your money runs out {w.day(p.first_below_zero.value)} {c(p.first_below_zero)}, "
-                    f"{w.weeks_words(p.runway_weeks.value)} from today {c(p.runway_weeks)}.")
-            if r.event:
-                text += (f" The {w.event_name(r.event)} of {w.money(-r.event.amount)} {c(r.event.computed)} "
-                         f"that week is the biggest bill.")
-        for _, pay in f.get("shift_pay", []):
-            text += f" The extra shift adds {w.money(pay.value)} {c(pay)} to your pay."
-        return text + " Next step: look at the ways to fix it in My semester."
+            answer = (f"Your money runs out on {w.day(p.first_below_zero.value)} {c(p.first_below_zero)}, in "
+                      f"{w.weeks_words(p.runway_weeks.value)} {c(p.runway_weeks)}.")
+            why = [f"Your {w.event_name(r.event)} of {w.dollars(r.event.amount)} is due that week "
+                   f"{c(r.event.computed)}."] if r.event else ["Everyday spending slowly adds up."]
+        why += [f"The extra shift adds {w.dollars(pay.value)} to your pay {c(pay)}." for _, pay in f.get("shift_pay", [])]
+        return _format(answer, why, ["Look at the ways to fix it in My semester."], note)
     if plan.tool == "find_leaks":
-        parts = []
+        why, do = [], []
         for leak in f["leaks"]:
             if leak.kind == "duplicate_subscriptions":
                 comb = next(x for x in leak.computed if x.label.startswith("combined"))
                 pick = next(x for x in leak.computed if x.label.startswith("which"))
-                parts.append(f"You pay {w.money(comb.value)} a month {c(comb)} for two music apps; cancelling "
-                             f"{pick.value} {c(pick)} helps most, saving {w.money(leak.savings.value)} "
-                             f"{c(leak.savings)} this semester.")
+                why.append(f"You pay {w.dollars(comb.value)} a month for two music apps {c(comb)}.")
+                do.append(f"Cancel {pick.value}. That saves {w.dollars(leak.savings.value)} this semester "
+                          f"{c(leak.savings)}.")
             else:
                 fee = next(x for x in leak.computed if x.label.startswith("fee "))
-                parts.append(f"Rent caused a {w.money(fee.value)} overdraft fee {c(fee)}; staying above $0 could "
-                             f"save about {w.money(leak.savings.value)} {c(leak.savings)} more (estimated).")
-        return " ".join(parts) + " Next step: cancel the subscription you use less."
+                why.append(f"Rent caused a {w.dollars(fee.value)} overdraft fee {c(fee)}.")
+        return _format("Two things are leaking money.", why, do or ["Keep an eye on your fees."],
+                       "Fee savings are estimated.")
     if plan.tool == "refund_status":
-        fi = f["finding"]
-        k = fi.computed
-        return (f"Your {w.money(k['refund_amount'].value)} refund {c(k['refund_amount'])} is on hold because "
-                f"financial aid is waiting for your verification form. It's released "
-                f"{k['release_rule_business_days'].value} business days {c(k['release_rule_business_days'])} after "
-                f"the hold clears: around {w.day(k['release_date'].value)} {c(k['release_date'])} if you send it "
-                f"{w.day(scenario.submit_date)}. Next step: send the form today.")
+        k = f["finding"].computed
+        return _format(f"Your {w.dollars(k['refund_amount'].value)} refund is on hold {c(k['refund_amount'])}.",
+                       ["Financial aid is waiting for your verification form.",
+                        f"The refund comes {k['release_rule_business_days'].value} business days after that "
+                        f"{c(k['release_rule_business_days'])}."],
+                       [f"Send the form. Your refund comes around {w.day(k['release_date'].value)} "
+                        f"{c(k['release_date'])}."], note)
     if plan.tool == "cash_crunches":
-        texts = []
+        why = []
         for fi in f["findings"]:
             k = fi.computed
-            texts.append(f"A {w.money(k['installment'].value)} {c(k['installment'])} tuition payment is due "
-                         f"{w.day(k['installment_due'].value)} {c(k['installment_due'])}, right after a "
-                         f"{w.money(k['paycheck_net'].value)} {c(k['paycheck_net'])} paycheck.")
-        return (" ".join(texts) or "No tight weeks ahead.") + " Next step: set that money aside now."
+            why += [f"A {w.dollars(k['installment'].value)} tuition payment is due {w.day(k['installment_due'].value)} "
+                    f"{c(k['installment'])}.",
+                    f"Your paycheck before it is only {w.dollars(k['paycheck_net'].value)} {c(k['paycheck_net'])}."]
+        return _format("One week in November is tight." if why else "No tight weeks ahead.",
+                       why or ["Your bills and paychecks line up."], ["Set that money aside now."], note)
     return OFF_TOPIC
 
 
@@ -690,15 +739,16 @@ def _explain_with(llm, model, messages, pack, retries):
             if kind == "text":
                 yield "text", chunk
         text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
-        check = check_answer(text, pack)
+        check = check_answer(text, pack, require_format=True)
         if check.ok or attempt == 1:
             break
         retries["explain_rewrite"] = retries.get("explain_rewrite", 0) + 1
         yield "restart", "Double-checking the numbers..."
         messages = messages + [
             {"role": "assistant", "content": text},
-            {"role": "user", "content": "These are not in the facts: " + "; ".join(check.problems) +
-             ". Rewrite the answer using only numbers, dates and ids from the facts."}]
+            {"role": "user", "content": "Problems: " + "; ".join(check.problems) +
+             ". Rewrite the answer in the ANSWER / WHY / DO THIS format, using only numbers, dates and ids from "
+             "the facts."}]
     if not text:
         raise llm_client.LLMError("the model returned an empty answer twice")
     return text, reasoning, check
@@ -707,11 +757,19 @@ def _explain_with(llm, model, messages, pack, retries):
 def must_mention(plan, result, pack):
     """Facts the answer has to include, per tool (e.g. the monthly total of duplicate subscriptions)."""
     out = []
+    if plan.tool in ("runway", "what_if"):
+        p, r = result.facts["projection"], result.facts["reason"]
+        if r.event and not p.lasts_through_semester:
+            out.append(f"the reason: the {w.event_name(r.event)} of {w.dollars(r.event.amount)} on "
+                       f"{w.day(r.event.date)} {pack.cite(r.event.computed)}, when you'll have "
+                       f"{w.balance(r.balance_before)}")
+        out.append("as the next step, the biggest fix from the facts (for example sending the verification form)"
+                   if not p.lasts_through_semester else "how close the lowest point is")
     if plan.tool == "find_leaks":
         for leak in result.facts["leaks"]:
             for c in leak.computed:
                 if c.label.startswith("combined monthly cost"):
-                    out.append(f"the combined monthly cost of the duplicate subscriptions, {w.money(c.value)} a month "
+                    out.append(f"the combined monthly cost of the duplicate subscriptions, {w.dollars(c.value)} a month "
                                f"{pack.cite(c)}")
     return out
 
@@ -839,7 +897,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
         return Answer(question, text, verdict, label, asdict(plan), pack.to_dict() if pack else {"items": [],
                       "context": []}, asdict(check) if check else {}, reasoning, [asdict(a) for a in actions],
                       [{"kind": f.kind, "name": f.name} for f in fixes], ans_mode or mode, source, notes, timings,
-                      retries, models, scenario.describe(), time.time())
+                      retries, models, scenario.describe(), time.time(), parse_sections(text) or {})
 
     if plan.tool is None:
         text = plan.clarifying_question or OFF_TOPIC

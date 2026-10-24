@@ -3,51 +3,49 @@ import streamlit as st
 
 import config
 import engine
-from ui import data, fmt, state
+from ui import data, fmt
 
 CLOSE_CALL = 50     # dollars: "That's cutting it close." below this lowest point
+SHORT_NAMES = {"rent": "rent", "card_autopay": "card payment", "installment": "tuition payment",
+               "recurring_bill": "bill", "subscription": "subscription"}
 
 
 def header(ds, note=None):
     left, right = st.columns([3, 2], vertical_alignment="bottom")
-    left.markdown('<p class="rw-brand">Runway</p><p class="rw-hello">Hi Maya. See how long your money lasts this '
-                  'semester, and why.</p>', unsafe_allow_html=True)
-    with right.container(horizontal=True, horizontal_alignment="right", gap="small"):
+    left.markdown('<p class="rw-brand">Runway</p><p class="rw-hello">Hi Maya. Here is how long your money lasts '
+                  'this semester.</p>', unsafe_allow_html=True)
+    with right.container(horizontal=True, horizontal_alignment="right", gap="small", key="badges"):
         st.badge(data.backend_label(ds), color="gray")
         st.badge("Reasoning by NVIDIA Nemotron", color="green")
-        st.badge(f"Today: {fmt.day(config.DEMO_TODAY)}, {config.DEMO_TODAY.year}", color="gray")
+        st.badge(f"Today: {fmt.day(config.DEMO_TODAY)}", color="gray")
     if note:
         st.info(fmt.md(note))
 
 
+def _thing(e):
+    return e.label if e.kind == "purchase" else SHORT_NAMES.get(e.kind, fmt.event_name(e))
+
+
 def headline(p):
-    """(big sentence, reason sentence, good?) for a projection."""
+    """(big sentence, one short reason, good?) for a projection. The lowest point and the end balance are left
+    to the big-number area, so they are not repeated here."""
     r = engine.main_reason(p)
     if p.lasts_through_semester:
-        big = (f"You're covered through the end of the semester. Lowest point: {fmt.money(p.lowest.value)} "
-               f"on {fmt.day(p.lowest_date.value)}.")
-        why = (f"Your lowest point comes right after your {fmt.event_name(r.event)} of {fmt.money(-r.event.amount)} "
-               f"on {fmt.day(r.event.date)}." if r.event else "")
-        if p.lowest.value < CLOSE_CALL:
-            why += " That's cutting it close."
-        return big, why.strip(), True
+        why = f"It gets closest after {_thing(r.event)} on {fmt.day(r.event.date)}." if r.event else ""
+        return "You're covered all semester.", why, True
     when = p.first_below_zero.value
-    big = f"Your money runs out {fmt.day(when)}, {fmt.weeks_words(p.runway_weeks.value)} from today."
+    big = f"Your money runs out in {fmt.weeks_words(p.runway_weeks.value)}, on {fmt.day(when)}."
     if r.event and r.event.date == when:
-        why = (f"Your {fmt.event_name(r.event)} of {fmt.money(-r.event.amount)} that day is more than you'll have "
-               f"({fmt.money(r.balance_before)}).")
+        why = (f"A {fmt.dollars(r.event.amount)} {_thing(r.event)} is due that day. "
+               f"You'll only have {fmt.balance(r.balance_before)}.")
     elif r.event:
-        why = (f"After your {fmt.event_name(r.event)} of {fmt.money(-r.event.amount)} on {fmt.day(r.event.date)}, "
-               "everyday spending takes you below $0.")
+        why = f"After {fmt.dollars(r.event.amount)} {_thing(r.event)} on {fmt.day(r.event.date)}, you slip below zero."
     else:
-        why = "Everyday spending slowly takes you below $0."
+        why = "Everyday spending slowly takes you below zero."
     return big, why, False
 
 
 def status(p):
     big, why, good = headline(p)
-    plan = state.summary(p.scenario)
     st.markdown(f'<div class="rw-status {"rw-good" if good else "rw-bad"}"><div class="rw-big">{fmt.html(big)}</div>'
-                + (f'<div class="rw-why">{fmt.html(why)}</div>' if why else "")
-                + (f'<div class="rw-plan">With your what-ifs: {fmt.html(plan)}.</div>' if plan else "")
-                + "</div>", unsafe_allow_html=True)
+                + (f'<div class="rw-why">{fmt.html(why)}</div>' if why else "") + "</div>", unsafe_allow_html=True)
