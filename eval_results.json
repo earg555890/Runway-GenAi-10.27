@@ -24,13 +24,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 1.44,
-        "execute_s": 0.01,
-        "explain_s": 11.66,
-        "total_s": 13.11
+        "plan_s": 0.63,
+        "execute_s": 0.018,
+        "explain_s": 14.51,
+        "total_s": 15.15
       },
-      "wall_s": 13.1,
-      "answer": "Yes, you can afford the $400.00 flight on Tue Nov 10 if you submit the refund form by Tue Oct 27 and cancel Spotify [C1]. Without those fixes, your checking drops to -$1,862.37 on Thu Dec 17 [C2]. With them, your lowest balance is $5.81 on Mon Nov 2 [C4]. The refund adds $1,850.00 to checking by Thu Nov 5 [C6]. Cancelling Spotify saves $23.98 by Fri Dec 18 [C8]. Apple Music saves $0.00 because its charges go on your credit card and that bill is paid after the semester ends [C7]. Next step: submit the missing financial aid form today so your $1,850.00 refund releases on Thu Nov 5 [C6].",
+      "wall_s": 15.2,
+      "answer": "ANSWER: Yes, if you release your refund and cancel Spotify.\nWHY:\n- Without fixes your checking drops to $1,862 below zero on Thu, Dec 17 [C2].\n- With fixes your lowest balance is $5.81 on Mon, Nov 2 [C4].\nDO THIS:\n1. Submit the aid form by Tue, Oct 27 to release the $1,850 refund [C6].\n2. Cancel Spotify to save $23.98 before the semester ends [C8].\nNOTE: Apple Music saves $0.00; its card bill is paid after the semester ends [C7].",
       "notes": []
     },
     {
@@ -57,13 +57,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.69,
-        "execute_s": 0.003,
-        "explain_s": 32.58,
-        "total_s": 33.28
+        "plan_s": 0.59,
+        "execute_s": 0.008,
+        "explain_s": 30.15,
+        "total_s": 30.75
       },
-      "wall_s": 33.3,
-      "answer": "Your money lasts 2.0 weeks, running out on Mon Nov 9 [C5][C4]. You start with $783.38 in checking on Mon Oct 26 [E1]. Rent of $725.00 is due Sun Nov 1 [C11], and your next paycheck of $401.45 does not arrive until Tue Nov 3 [C12]. Then your card autopay of $359.53 hits checking on Mon Nov 9 [C1], which is the first day your balance goes negative [C4]. This assumes nothing changes.\n\nNext step: Move your card autopay date or add money to checking before Mon Nov 9.",
+      "wall_s": 30.8,
+      "answer": "ANSWER: Your money runs out Mon, Nov 9 [C4].\nWHY:\n- The card bill of $360 [C1] is due Mon, Nov 9 [C1].\n- You will have $307 [C7] left that day.\nDO THIS:\n1. Send the verification form.\nNOTE: Nothing changes. Today is Mon, Oct 26, 2026 [E1].",
       "notes": []
     },
     {
@@ -90,13 +90,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.49,
-        "execute_s": 0.002,
-        "explain_s": 14.68,
-        "total_s": 15.17
+        "plan_s": 0.46,
+        "execute_s": 0.006,
+        "explain_s": 18.54,
+        "total_s": 19.0
       },
-      "wall_s": 15.2,
-      "answer": "Your money is leaking from two music subscriptions and an overdraft fee. You pay $22.98 a month for Apple Music and Spotify together [C3]. Apple Music costs $10.99 and hits your credit card on the 22nd [C1][C4], but cancelling it saves your checking $0.00 before Fri Dec 18 because that card bill is paid after the semester ends [C6]. Spotify costs $11.99 and hits checking on the 14th [C2][C5]; cancelling it saves $23.98 by Fri Dec 18 [C7]. You also paid a $35.00 overdraft fee on Thu Oct 1 when rent of $725.00 dropped your balance to -$6.92 [C9][C11][C12]. With nothing changing, one more $35.00 fee could hit on Mon Nov 9 [C15]. Cancel Spotify now to stop the checking drain.",
+      "wall_s": 19.0,
+      "answer": "ANSWER: You lose $22.98 a month on music [C3] and $35.00 on a fee [C9].\nWHY:\n- Spotify costs $11.99 a month from checking [C2].\n- Apple Music costs $10.99 a month on your card [C1].\n- Rent overdrew checking on Thu, Oct 1 [E2].\nDO THIS:\n1. Cancel Spotify to save $23.98 by Fri, Dec 18 [C7].\n2. Keep checking above $0 before Mon, Nov 9 [C15].\nNOTE: Cancelling Apple Music saves $0.00 now because its card charges are paid after the semester ends.",
       "notes": []
     },
     {
@@ -112,30 +112,25 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
-      "answered_by": "template",
-      "explain_errors": [
-        "Nemotron Super: InternalServerError",
-        "Nemotron Lightning: LLMError"
-      ],
-      "nvidia_error": true,
+      "numbers_ok": false,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "nvidia_error": false,
       "passed": false,
-      "mode": "fallback",
+      "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1
+        "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.66,
-        "execute_s": 0.006,
-        "explain_s": 155.02,
-        "total_s": 155.69
+        "plan_s": 0.89,
+        "execute_s": 0.007,
+        "explain_s": 14.16,
+        "total_s": 15.05
       },
-      "wall_s": 155.7,
-      "answer": "Your money runs out Mon Nov 9 [C7], 2 weeks from today [C8]. The credit card payment of $359.53 [C4] that week is the biggest bill. The extra shift adds $71.69 [C14] to your pay. Next step: look at the ways to fix it in My semester.",
-      "notes": [
-        "The AI explanation isn't available right now (Nemotron Super: InternalServerError; Nemotron Lightning: LLMError), so this is a short summary built straight from your numbers."
-      ]
+      "wall_s": 15.1,
+      "answer": "ANSWER: Money runs out Mon, Nov 9 [C7].\nWHY:\n- Card autopay is $360 on Mon, Nov 9 [C4].\n- You will have $307 that day [C10].\nDO THIS:\n1. Send the verification form.\nNOTE: Pay arrives Wed, Nov 18 [C24], after the card bill.",
+      "notes": []
     },
     {
       "run": 1,
@@ -150,25 +145,29 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
-      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
-      "explain_errors": [],
+      "numbers_ok": false,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "explain_errors": [
+        "Nemotron Super: InternalServerError"
+      ],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 0
+        "explain_rewrite": 1
       },
       "timings": {
-        "plan_s": 0.62,
-        "execute_s": 0.018,
-        "explain_s": 11.34,
-        "total_s": 11.98
+        "plan_s": 0.87,
+        "execute_s": 0.008,
+        "explain_s": 334.47,
+        "total_s": 335.35
       },
-      "wall_s": 12.0,
-      "answer": "Not right now. I assumed you would buy the headphones tomorrow, Tue Oct 27, for $150.00 from checking [C12]. Your checking balance is $783.38 on Mon Oct 26 [C9], but without changes the lowest balance drops to -$1,612.37 on Thu Dec 17 [C2], [C3]. Even if you release the held refund of $1,850.00 [C6] and cancel Spotify to save $23.98 [C8], the balance still falls to -$144.19 on Mon Nov 2 [C4], [C5]. Cancelling Apple Music saves $0.00 because its charges go on the credit card and that bill is paid after the semester ends [C7]. Next step: wait to buy the headphones until after you submit the refund form and see your checking balance rise above zero.",
-      "notes": []
+      "wall_s": 335.4,
+      "answer": "ANSWER: Not right now. [C1]\n\nWHY:\n- Balance reaches $1,612 below zero by Thu, Dec 17 without fixes [C3].\n- Even with refund and Spotify cancel, balance is $144 below zero on Mon, Nov 2 [C5].\n- Current checking $783 on Mon, Oct 26 cannot cover headphones after bills [E1].\n\nDO THIS:\n1. Delay headphone purchase until after Thu, Nov 5 refund deposit.\n2. Cancel Spotify to save $23.98 before semester ends.\n\nNOTE: Apple Music charges card; cancelling saves checking $0.00 before semester ends [C7].",
+      "notes": [
+        "Nemotron Super wasn't available (Nemotron Super: InternalServerError), so Nemotron Lightning wrote this answer."
+      ]
     },
     {
       "run": 1,
@@ -194,13 +193,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.98,
-        "execute_s": 0.007,
-        "explain_s": 10.01,
-        "total_s": 11.0
+        "plan_s": 1.18,
+        "execute_s": 0.006,
+        "explain_s": 20.9,
+        "total_s": 22.09
       },
-      "wall_s": 11.0,
-      "answer": "Yes, you can buy the $120.00 concert ticket on Fri Nov 20 with your credit card if you submit the missing financial aid form on Tue Oct 27 to release your held refund [C1]. Without that fix, your checking drops to -$1,462.37 on Thu Dec 17 [C2]. With the refund released, your lowest checking balance is $5.81 on Mon Nov 2 [C4]. The $1,850.00 refund hits checking by direct deposit on Thu Nov 5 [C6]. Cancelling Apple Music now saves $0.00 before the semester ends because its charges go on your credit card and that bill is paid after Fri Dec 18 [C7].\n\nNext step: Submit the Verification Worksheet to the financial aid office on Tue Oct 27.",
+      "wall_s": 22.1,
+      "answer": "ANSWER: Yes, if you submit the missing form to release your held refund.\nWHY:\n- Without the refund, checking drops to $1,462 below zero on Thu, Dec 17 [C2].\n- With the refund released, checking stays at $5.81 on Mon, Nov 2 [C4].\n- Refund is $1,850 and releases 7 business days after you submit the form [C6].\nDO THIS:\n1. Submit the financial aid verification form on Tue, Oct 27 [C6].\nNOTE: Apple Music saves $0.00 because its card bill is paid after semester ends [C7].",
       "notes": []
     },
     {
@@ -227,10 +226,10 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.44,
-        "total_s": 0.44
+        "plan_s": 1.61,
+        "total_s": 1.61
       },
-      "wall_s": 0.4,
+      "wall_s": 1.6,
       "answer": "I can help with your money this semester: whether you can afford something, how long your money will last, where it's leaking, your refund, or what changes would help. Try asking one of those!",
       "notes": []
     },
@@ -258,13 +257,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.34,
-        "execute_s": 0.003,
-        "explain_s": 20.72,
-        "total_s": 21.06
+        "plan_s": 0.72,
+        "execute_s": 0.009,
+        "explain_s": 22.43,
+        "total_s": 23.16
       },
-      "wall_s": 21.1,
-      "answer": "No, you are not ok. Your checking drops below $0 on Mon Nov 9 [C4], just 2.0 weeks from today [C5]. You start with $783.38 in checking [C8], but rent of $725.00 is due Sun Nov 1 [C11] and your card autopay of $359.53 hits on Mon Nov 9 [C1]. Your next paycheck of $401.45 does not arrive until Tue Nov 3 [C12], after the money is already gone. Without changes, your checking bottoms out at -$1,462.37 on Thu Dec 17 [C2][C3].\n\nNext step: Move your card autopay date or pay the $359.53 card bill manually before Mon Nov 9 so it does not overdraw your checking [C1].",
+      "wall_s": 23.2,
+      "answer": "ANSWER: No, your money runs out Mon, Nov 9 [C4].\nWHY:\n- You will have $307 on Sun, Nov 8 [C7].\n- The card payment of $360 hits Mon, Nov 9 [C1].\n- That pushes checking below zero.\nDO THIS:\n1. Send the verification form.\nNOTE: This assumes nothing changes.",
       "notes": []
     },
     {
@@ -280,24 +279,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.34,
-        "execute_s": 0.002,
-        "explain_s": 11.99,
-        "total_s": 12.33
+        "plan_s": 1.83,
+        "execute_s": 0.003,
+        "explain_s": 18.63,
+        "total_s": 20.46
       },
-      "wall_s": 12.3,
-      "answer": "Your refund of $1,850.00 is on hold because your financial aid verification is incomplete [C4][C5]. Hold HLD-01 started on Thu Sep 10 and blocks credit balance refunds until all holds clear [C4][E4]. The hold exists because the 2026-27 Verification Worksheet (Dependent) was not received [C3][E2]. Until that missing form is turned in, your held aid of $3,697.00 cannot pay out and your refund stays blocked [C3][E1]. If you submit the form on Tue Oct 27, the refund should arrive within 7 business days by Thu Nov 5 [C7].\n\nNext step: Submit the missing Verification Worksheet to the financial aid office as soon as possible.",
+      "wall_s": 20.5,
+      "answer": "ANSWER: Your refund is on hold because financial aid verification is incomplete.\nWHY:\n- Hold HLD-01 blocks credit balance refunds [C5].\n- The Verification Worksheet (Dependent) was not received [E2].\n- Aid of $3,697 is held for verification [C3].\nDO THIS:\n1. Submit the Verification Worksheet (Dependent) to the financial aid office.\nNOTE: Submit by Tue, Oct 27 for refund by Thu, Nov 5 [C7].",
       "notes": []
     },
     {
@@ -324,13 +323,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.49,
-        "execute_s": 0.002,
-        "explain_s": 12.91,
-        "total_s": 13.4
+        "plan_s": 6.85,
+        "execute_s": 0.003,
+        "explain_s": 17.82,
+        "total_s": 24.67
       },
-      "wall_s": 13.4,
-      "answer": "Yes, the week of Wed Nov 18 to Fri Nov 20 looks really tight.\n\nThe paycheck on Wed Nov 18 is only $114.70 net because the student worked just 8.0 hours in that pay period [C8][C4]. A normal pay period brings in $458.80 net [C9]. Then on Fri Nov 20, a $200.00 payment-plan installment is due [C1][E1]. Since nothing changes in the current what-ifs, this small paycheck arrives just before the large bill, leaving very little money that week.\n\nNext step: Look for extra shifts to work before Fri Nov 20 to help cover the $200.00 installment.",
+      "wall_s": 24.7,
+      "answer": "ANSWER: Yes, money gets tight around Fri, Nov 20.\nWHY:\n- A $200 payment is due Fri, Nov 20 [C1].\n- The paycheck that week is only $114.70 [C8].\n- A normal paycheck is $458.80 [C9].\nDO THIS:\n1. Check your bursar account before Fri, Nov 20.\n2. Plan to cover the $200 with savings or extra work.\nNOTE: The plan assumes nothing changes.",
       "notes": []
     }
   ],
@@ -348,24 +347,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.86,
-        "execute_s": 0.018,
-        "explain_s": 32.66,
-        "total_s": 33.54
+        "plan_s": 1.17,
+        "execute_s": 0.022,
+        "explain_s": 16.34,
+        "total_s": 17.53
       },
-      "wall_s": 33.6,
-      "answer": "Yes, you can afford the $400.00 flight on Tue Nov 10 if you submit the missing form and cancel Spotify [C1]. This assumes nothing else changes.\n\nWithout those fixes, your checking falls to -$1,862.37 on Thu Dec 17 [C2]. Submitting the form releases your $1,850.00 refund by Thu Nov 5 [C6]. Cancelling Spotify saves $23.98 before the semester ends [C8]. With both fixes, your lowest balance is $5.81 on Mon Nov 2 [C4]. Apple Music saves $0.00 because its charges go on your credit card and that bill is paid after the semester ends [C7].\n\nNext step: Submit the Verification Worksheet to the financial aid office today.",
+      "wall_s": 17.5,
+      "answer": "ANSWER: Yes, if you submit the form and cancel Spotify.\nWHY:\n- Without fixes your checking drops to $1,862 below zero on Thu, Dec 17 [C2].\n- With fixes your lowest balance is $5.81 on Mon, Nov 2 [C4].\n- The refund adds $1,850 to checking by Thu, Nov 5 [C6].\nDO THIS:\n1. Submit the verification form on Tue, Oct 27 [C6].\n2. Cancel Spotify before Sat, Nov 14 [C8].\nNOTE: Apple Music saves $0.00 because its charges hit your card and are paid after the semester ends [C7].",
       "notes": []
     },
     {
@@ -392,13 +391,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.42,
-        "execute_s": 0.005,
-        "explain_s": 19.63,
-        "total_s": 20.05
+        "plan_s": 0.72,
+        "execute_s": 0.008,
+        "explain_s": 15.84,
+        "total_s": 16.57
       },
-      "wall_s": 20.1,
-      "answer": "Your money runs out on Mon Nov 9, which is 2.0 weeks from Mon Oct 26 [C4][C5][C8]. This assumes nothing changes. Your checking balance is $783.38 on Mon Oct 26 [C8]. On Sun Nov 8, it falls to $307.20 [C7]. The next day, Mon Nov 9, your card autopay of $359.53 hits checking and pushes the balance below $0 [C1][C4]. After that, you would be overdrawn before your next paycheck.\n\nNext step: Check your checking account on Sun Nov 8 to confirm the balance before the autopay.",
+      "wall_s": 16.6,
+      "answer": "ANSWER: Your money runs out Mon, Nov 9 [C4].\nWHY:\n- You will have $307 on Sun, Nov 8 [C7].\n- The credit card payment of $360 is due Mon, Nov 9 [C1].\n- That pushes checking below zero.\nDO THIS:\n1. Send the verification form.\nNOTE: Nothing changes in this plan.",
       "notes": []
     },
     {
@@ -425,13 +424,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.72,
-        "execute_s": 0.006,
-        "explain_s": 26.58,
-        "total_s": 27.31
+        "plan_s": 0.53,
+        "execute_s": 0.005,
+        "explain_s": 12.15,
+        "total_s": 12.69
       },
-      "wall_s": 27.3,
-      "answer": "Your money is leaking from music subscriptions and an overdraft fee. You pay $22.98 a month for Apple Music and Spotify together [C3]. Spotify hits your checking on the 14th [C5] and cancelling it saves $23.98 before the semester ends [C7]. Apple Music goes on your credit card and that bill is paid after the semester ends, so cancelling it saves checking $0.00 right now [C6]. You also paid a $35.00 overdraft fee on Thu Oct 1 [C9] when rent of $725.00 [C11] dropped your balance to -$6.92 [C12]. With nothing changing, your balance dips below zero again on Mon Nov 9, risking another $35.00 fee [C15]. Cancel Spotify now to stop the checking drain.",
+      "wall_s": 12.7,
+      "answer": "ANSWER: Your money leaks from two music subscriptions and one overdraft fee.\nWHY:\n- Apple Music and Spotify cost $22.98 a month [C3].\n- An overdraft fee cost $35.00 on Thu, Oct 1 [C9].\nDO THIS:\n1. Cancel Spotify to save $23.98 by Fri, Dec 18 [C7].\n2. Keep checking above zero before rent hits on the 1st [C13].\nNOTE: Cancelling Apple Music saves $0.00 this semester because card bills pay after Fri, Dec 18 [C6].",
       "notes": []
     },
     {
@@ -447,24 +446,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 1.77,
-        "execute_s": 0.004,
-        "explain_s": 31.54,
-        "total_s": 33.31
+        "plan_s": 0.73,
+        "execute_s": 0.007,
+        "explain_s": 12.76,
+        "total_s": 13.5
       },
-      "wall_s": 33.3,
-      "answer": "Picking up the extra 5 hour shift on Sat Nov 7 [C14] adds $71.69 [C14] to your paycheck, but your checking still drops below $0 on Mon Nov 9. [C7]\n\nYour lowest checking balance through Fri Dec 18 [C5] improves by $71.69 [C1] to -$1,390.68 [C5] on Thu Dec 17. [C6] Your balance on Fri Dec 18 [C9] is -$1,340.84. [C9] Your runway stays 2.0 weeks [C3][C8], the same as doing nothing. The card bill of $359.53 [C4] is due Mon Nov 9 [C4][C7], which is when checking first goes below $0. [C7]\n\nNext step: Move the card autopay to a date after your next paycheck lands on Wed Nov 18. [C24]",
+      "wall_s": 13.5,
+      "answer": "ANSWER: Money runs out Mon, Nov 9 [C7].\nWHY:\n- Card payment of $360 hits Mon, Nov 9 [C4].\n- You will have $307 that day [C10].\nDO THIS:\n1. Send the verification form.\nNOTE: Extra pay arrives Wed, Nov 18 [C24], too late.",
       "notes": []
     },
     {
@@ -491,13 +490,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.81,
-        "execute_s": 0.012,
-        "explain_s": 43.54,
-        "total_s": 44.36
+        "plan_s": 1.34,
+        "execute_s": 0.006,
+        "explain_s": 19.91,
+        "total_s": 21.26
       },
-      "wall_s": 44.4,
-      "answer": "Not right now. I assumed you would buy the headphones tomorrow, Tue Oct 27, with your debit card from checking. Even if you submit the missing financial aid form to release your $1,850.00 refund [C6] and cancel Spotify [C8], your checking balance would still drop to -$144.19 on Mon Nov 2 [C4]. Without those fixes, it falls to -$1,612.37 on Thu Dec 17 [C2]. Cancelling Apple Music saves $0.00 before the semester ends because its charges go on your credit card and that bill is paid after Fri Dec 18 [C7]. Your checking starts at $783.38 on Mon Oct 26 [C9], but rent of $725.00 is due Sun Nov 1 [C13] and Tue Dec 1 [C20], with paychecks of $401.45 on Tue Nov 3 [C14], $114.70 on Wed Nov 18 [C18], and $57.35 on Thu Dec 3 [C21]. Submit the missing financial aid form on Tue Oct 27 before buying anything else.",
+      "wall_s": 21.3,
+      "answer": "ANSWER: Not right now. [C1]\nWHY:\n- Lowest checking balance is $1,612 below zero on Thu, Dec 17. [C2] [C3]\n- Even with fixes, balance is $144 below zero on Mon, Nov 2. [C4] [C5]\nDO THIS:\n1. Wait to buy headphones until after the refund arrives.\n2. Cancel Spotify to save $23.98 by Dec 18 [C8].\nNOTE: I assumed you buy on Tue, Oct 27.",
       "notes": []
     },
     {
@@ -524,13 +523,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.76,
-        "execute_s": 0.021,
-        "explain_s": 28.18,
-        "total_s": 28.96
+        "plan_s": 0.96,
+        "execute_s": 0.013,
+        "explain_s": 70.28,
+        "total_s": 71.26
       },
-      "wall_s": 29.0,
-      "answer": "Yes, you can buy the $120.00 concert ticket on Fri Nov 20 with your credit card if you submit the missing financial aid form on Tue Oct 27 [C1]. This assumes nothing else changes. Without that fix, your checking drops to -$1,462.37 on Thu Dec 17 [C2]. With the refund released, your lowest balance is $5.81 on Mon Nov 2 [C4]. The $1,850.00 refund hits checking by direct deposit on Thu Nov 5 after you submit the form [C6]. Cancelling Apple Music saves $0.00 before the semester ends because its charges go on the credit card and that bill is paid after Fri Dec 18 [C7].\n\nNext step: Submit the Verification Worksheet to the financial aid office on Tue Oct 27 [C6].",
+      "wall_s": 71.3,
+      "answer": "ANSWER: Yes, if you submit the missing refund form by Tue, Oct 27. [C6]\n\nWHY:\n- Without the refund, your lowest balance is $1,462 below zero on Thu, Dec 17. [C2][C3]\n- With the refund, your lowest balance is $5.81 on Mon, Nov 2. [C4][C5]\n\nDO THIS:\n1. Submit the financial aid verification form on Tue, Oct 27. [C6][E5]\n2. Put the $120 ticket on your card on Fri, Nov 20. [C1]\n\nNOTE: Cancelling Apple Music saves $0.00 because its card bill is paid after semester ends. [C7]",
       "notes": []
     },
     {
@@ -557,10 +556,10 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.77,
-        "total_s": 0.77
+        "plan_s": 0.55,
+        "total_s": 0.55
       },
-      "wall_s": 0.8,
+      "wall_s": 0.5,
       "answer": "I can help with your money this semester: whether you can afford something, how long your money will last, where it's leaking, your refund, or what changes would help. Try asking one of those!",
       "notes": []
     },
@@ -589,12 +588,12 @@
       },
       "timings": {
         "plan_s": 0.51,
-        "execute_s": 0.002,
-        "explain_s": 35.98,
-        "total_s": 36.49
+        "execute_s": 0.006,
+        "explain_s": 10.92,
+        "total_s": 11.43
       },
-      "wall_s": 36.5,
-      "answer": "I\u2019m sorry, but no, you are not ok, assuming nothing changes. Your checking balance drops below zero on Mon Nov 9 [C4], giving you 2.0 weeks of runway from Mon Oct 26 [C5]. That happens because your card bill of $359.53 is autopaid from checking on Mon Nov 9 [C1], and rent of $725.00 was due Sun Nov 1 [C11]. Your balance starts at $783.38 on Mon Oct 26 [C8], and even with a paycheck of $401.45 on Tue Nov 3 [C12], the big bills push the account negative before the next paycheck arrives. The lowest point through the semester is -$1,462.37 on Thu Dec 17 [C2].\n\nNext step: Add money to checking before Mon Nov 9 [C4].",
+      "wall_s": 11.4,
+      "answer": "ANSWER: No, money runs out Mon, Nov 9 [C4].\nWHY:\n- Card payment of $360 [C1] hits Mon, Nov 9 [C1].\n- You will have $307 [C7] that day.\nDO THIS:\n1. Send the verification form.\nNOTE: Nothing changes in this plan.",
       "notes": []
     },
     {
@@ -610,24 +609,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.67,
-        "execute_s": 0.003,
-        "explain_s": 10.1,
-        "total_s": 10.78
+        "plan_s": 0.54,
+        "execute_s": 0.004,
+        "explain_s": 13.01,
+        "total_s": 13.55
       },
-      "wall_s": 10.8,
-      "answer": "Your refund of $1,850.00 is on hold because your financial aid verification is incomplete [C4]. Hold HLD-01 started on Thu Sep 10 and blocks credit balance refunds until verification documents are received [C5]. The Verification Worksheet (Dependent) has not been received, and your Pell Grant of $3,697.00 is held for the same reason [E2][C3]. Once the hold clears, your refund will be released within 7 business days [C6]. If you submit the missing form on Tue Oct 27, the refund should arrive by Thu Nov 5 [C7].\n\nNext step: Submit the Verification Worksheet (Dependent) to the financial aid office as soon as possible.",
+      "wall_s": 13.6,
+      "answer": "ANSWER: Your refund is on hold because a financial aid verification hold is active.\nWHY:\n- Hold HLD-01 blocks credit balance refunds [C5].\n- It started Thu, Sep 10 [C5].\n- Required verification documents were not received [E2].\nDO THIS:\n1. Submit the Verification Worksheet to the financial aid office.\nNOTE: Submit by Tue, Oct 27 [C7] to get the refund by Thu, Nov 5 [C7].",
       "notes": []
     },
     {
@@ -654,13 +653,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.45,
+        "plan_s": 0.5,
         "execute_s": 0.003,
-        "explain_s": 15.74,
-        "total_s": 16.19
+        "explain_s": 18.57,
+        "total_s": 19.07
       },
-      "wall_s": 16.2,
-      "answer": "Yes, the week ending Fri Nov 20 will be tight [C2]. The $200.00 payment-plan installment is due that day [C1][E1], but the paycheck landing Wed Nov 18 is only $114.70 [C3][C8]. That check covers just 8.0 hours of work [C4], far less than a normal 32.0-hour pay period [C5], because fewer shifts are scheduled. With nothing changing, cash will run low before Thanksgiving.\n\nNext step: Look for extra shifts at State University Dining Services before Fri Nov 20 to boost that paycheck.",
+      "wall_s": 19.1,
+      "answer": "ANSWER: Yes, money gets tight the week of Nov 18 to Nov 20.\nWHY:\n- Paycheck is only $115 on Wed, Nov 18 [C8]\n- Payment plan installment of $200 is due Fri, Nov 20 [C1]\n- Normal paycheck is $459, so this week pays much less [C9]\nDO THIS:\n1. Check your account balance before Fri, Nov 20.\n2. Plan to cover the $200 payment with that small paycheck.\nNOTE: The student said nothing changes in their what-ifs.",
       "notes": []
     }
   ],
@@ -678,24 +677,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.91,
-        "execute_s": 0.018,
-        "explain_s": 28.49,
-        "total_s": 29.41
+        "plan_s": 2.48,
+        "execute_s": 0.02,
+        "explain_s": 23.55,
+        "total_s": 26.04
       },
-      "wall_s": 29.4,
-      "answer": "Yes, you can afford the $400.00 flight on Tue Nov 10 if you submit the missing form and cancel Spotify. [C1] Without those fixes, your checking drops to -$1,862.37 on Thu Dec 17. [C2] Submitting the form on Tue Oct 27 releases the $1,850.00 refund by Thu Nov 5. [C6] Cancelling Spotify saves $23.98 before the semester ends. [C8] That leaves a low of $5.81 on Mon Nov 2. [C4] Apple Music saves $0.00 because its charges go on your credit card and that bill is paid after the semester ends. [C7]\n\nNext step: Submit the Financial Aid Verification Worksheet to the financial aid office on Tue Oct 27. [C6]",
+      "wall_s": 26.1,
+      "answer": "ANSWER: Yes, if you submit the refund form and cancel Spotify.\nWHY:\n- Without fixes checking drops to $1,862 below zero on Thu, Dec 17 [C2]\n- With fixes lowest balance is $5.81 on Mon, Nov 2 [C4]\n- Refund adds $1,850 by Thu, Nov 5 [C6]\nDO THIS:\n1. Submit the refund form on Tue, Oct 27 [C6]\n2. Cancel Spotify before Sat, Nov 14 [C8]\nNOTE: Apple Music saves $0.00; its charges hit your credit card and are paid after the semester ends [C7]",
       "notes": []
     },
     {
@@ -722,13 +721,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.45,
-        "execute_s": 0.005,
-        "explain_s": 15.38,
-        "total_s": 15.84
+        "plan_s": 0.72,
+        "execute_s": 0.008,
+        "explain_s": 24.2,
+        "total_s": 24.92
       },
-      "wall_s": 15.8,
-      "answer": "Your money runs out on Mon Nov 9 [C4], which is 2.0 weeks away [C5].\n\nHere is why. You have $783.38 in checking today, Mon Oct 26 [C8]. Rent of $725.00 is due Sun Nov 1 [C11]. A paycheck of $401.45 lands Tue Nov 3 [C12]. Venmo takes $55.00 on Thu Nov 5 [C13]. Your credit card autopay of $359.53 hits Mon Nov 9 [C1], pushing your balance below zero [C4]. The day before, Sun Nov 8, your balance is $307.20 [C7]. This assumes nothing changes.\n\nNext step: Add money to checking or move your card autopay before Mon Nov 9.",
+      "wall_s": 24.9,
+      "answer": "ANSWER: Your money runs out Mon, Nov 9 [C4].\nWHY:\n- You have $307 on Sun, Nov 8 [C7].\n- The card payment of $360 hits Mon, Nov 9 [C1].\n- That drops checking below zero [C4].\nDO THIS:\n1. Add funds before the $360 payment Mon, Nov 9 [C1].\n2. Confirm the card autopay date Mon, Nov 9 [C1].\nNOTE: This assumes nothing changes.",
       "notes": []
     },
     {
@@ -752,16 +751,16 @@
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 0
+        "explain_rewrite": 1
       },
       "timings": {
-        "plan_s": 0.48,
-        "execute_s": 0.008,
-        "explain_s": 12.2,
-        "total_s": 12.69
+        "plan_s": 0.53,
+        "execute_s": 0.007,
+        "explain_s": 30.75,
+        "total_s": 31.29
       },
-      "wall_s": 12.7,
-      "answer": "Your money is leaking from duplicate music subscriptions and an overdraft fee.\n\nYou pay $22.98 a month for Apple Music and Spotify together [C3]. Cancelling Spotify saves $23.98 by Fri Dec 18 [C7]. Cancelling Apple Music saves $0.00 before the semester ends because its charges go on the credit card and that bill is paid after the semester ends [C6]. You also paid a $35.00 overdraft fee on Thu Oct 1 when rent of $725.00 pushed your checking to -$6.92 [C9][C11][C12]. If nothing changes, another $35.00 fee could hit on Mon Nov 9 [C15].\n\nCancel Spotify today.",
+      "wall_s": 31.3,
+      "answer": "ANSWER: Your money leaks from two music subs and one overdraft fee.\nWHY:\n- You pay $22.98 a month for Apple Music and Spotify [C3].\n- Spotify costs $11.99 a month from checking [C2].\n- An overdraft fee cost $35.00 on Thu, Oct 1 [C9].\nDO THIS:\n1. Cancel Spotify to save $23.98 by Fri, Dec 18 [C7].\n2. Watch your balance before rent on day 1 [C13].\nNOTE: Apple Music saves $0.00 because its card bill is paid after the semester ends [C6].",
       "notes": []
     },
     {
@@ -777,24 +776,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.79,
-        "execute_s": 0.012,
-        "explain_s": 64.11,
-        "total_s": 64.91
+        "plan_s": 1.1,
+        "execute_s": 0.01,
+        "explain_s": 9.86,
+        "total_s": 10.98
       },
-      "wall_s": 64.9,
-      "answer": "Picking up the 5 hour shift [C14] on Sat Nov 7 [C4] means your checking still drops below $0 [C7] on Mon Nov 9 [C7]. Your runway stays 2.0 weeks [C8]. The extra shift adds $71.69 [C14] to your paycheck on Wed Nov 18 [C14], but your lowest balance through the semester is still -$1,390.68 [C5] on Thu Dec 17 [C6], and you end Fri Dec 18 [C9] at -$1,340.84 [C9]. The shift does not move the first negative balance date because the card autopay of $359.53 [C4] hits Mon Nov 9 [C4], right after your balance is $307.20 [C10] on Sun Nov 8 [C10].\n\nNext step: Check your checking balance before Mon Nov 9 [C7] to see if you can cover the autopay.",
+      "wall_s": 11.0,
+      "answer": "ANSWER: Money runs out Mon, Nov 9 [C7].\nWHY:\n- Your card bill is $360 on Mon, Nov 9 [C4].\n- You will have $307 that day [C10].\nDO THIS:\n1. Send the verification form.\n2. Add more work shifts if you can.\nNOTE: Runway stays 2.0 weeks [C8].",
       "notes": []
     },
     {
@@ -821,13 +820,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.58,
-        "execute_s": 0.023,
-        "explain_s": 36.09,
-        "total_s": 36.7
+        "plan_s": 0.64,
+        "execute_s": 0.021,
+        "explain_s": 10.89,
+        "total_s": 11.55
       },
-      "wall_s": 36.7,
-      "answer": "Not right now. I assumed you would buy them tomorrow, Tue Oct 27, with your debit card from checking [C12]. Your checking balance is $783.38 on Mon Oct 26 [C9]. Without fixes, the lowest balance through the semester is -$1,612.37 on Thu Dec 17 [C2]. Even if you release the refund and cancel Spotify, the lowest balance is still -$144.19 on Mon Nov 2 [C4], below $0.00. Cancelling Apple Music saves $0.00 before the semester ends because its charges go on the credit card and that bill is paid after the semester ends [C7]. Cancelling Spotify saves $23.98 by Fri Dec 18 [C8], and releasing the refund adds $1,850.00 by Thu Nov 5 [C6], but it still is not enough. Next step: Submit the missing Financial Aid Verification Worksheet to clear the hold and release the refund.",
+      "wall_s": 11.6,
+      "answer": "ANSWER: No, you cannot afford $150 headphones on Tue, Oct 27.\nWHY:\n- Your checking balance is $783 on Mon, Oct 26 [C9].\n- The lowest balance falls to $1,612 below zero on Thu, Dec 17 [C2].\n- Even with fixes, the balance is $144 below zero on Mon, Nov 2 [C4].\nDO THIS:\n1. Wait to buy headphones until your balance is above zero.\n2. Submit the refund form on Tue, Oct 27 to release $1,850 [C6].\nNOTE: You assumed the purchase happens tomorrow, Tue, Oct 27.",
       "notes": []
     },
     {
@@ -854,13 +853,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.71,
-        "execute_s": 0.018,
-        "explain_s": 14.39,
-        "total_s": 15.12
+        "plan_s": 1.06,
+        "execute_s": 0.013,
+        "explain_s": 22.31,
+        "total_s": 23.38
       },
-      "wall_s": 15.1,
-      "answer": "Yes, you can buy the $120.00 concert ticket on Fri Nov 20 with your credit card if you submit the missing financial aid form on Tue Oct 27 to release your held refund [C1]. This assumes nothing else changes. Without that refund, your checking drops to -$1,462.37 on Thu Dec 17 [C2]. With the refund released, your lowest checking balance is $5.81 on Mon Nov 2 [C4]. The $1,850.00 refund arrives by direct deposit to checking on Thu Nov 5 after you submit the form [C6]. Cancelling Apple Music saves $0.00 before the semester ends because its charges go on your credit card and that bill is paid after the semester ends [C7].\n\nNext step: Submit the missing Verification Worksheet to the financial aid office on Tue Oct 27.",
+      "wall_s": 23.4,
+      "answer": "ANSWER: Yes, if you submit the form to release your refund.\nWHY:\n- Without the refund, checking hits $1,462 below zero on Thu, Dec 17. [C2]\n- With the refund, checking stays at $5.81 on Mon, Nov 2. [C4]\n- The refund adds $1,850 by Thu, Nov 5. [C6]\nDO THIS:\n1. Submit the missing financial aid form on Tue, Oct 27. [E5]\n2. Buy the $120 ticket on Fri, Nov 20.\nNOTE: The refund releases 7 business days after you submit the form. [C6]",
       "notes": []
     },
     {
@@ -887,8 +886,8 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.54,
-        "total_s": 0.54
+        "plan_s": 0.5,
+        "total_s": 0.5
       },
       "wall_s": 0.5,
       "answer": "I can help with your money this semester: whether you can afford something, how long your money will last, where it's leaking, your refund, or what changes would help. Try asking one of those!",
@@ -918,13 +917,13 @@
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.32,
+        "plan_s": 0.41,
         "execute_s": 0.007,
-        "explain_s": 14.26,
-        "total_s": 14.58
+        "explain_s": 58.54,
+        "total_s": 58.96
       },
-      "wall_s": 14.6,
-      "answer": "No, you are not ok; your money runs out on Mon Nov 9 [C4].\n\nHere is why. Today is Mon Oct 26 and your checking balance is $783.38 [C8]. Rent of $725.00 is due Sun Nov 1 [C11]. Your credit card autopay of $359.53 comes out of checking on Mon Nov 9 [C1]. Checking first drops below $0 on Mon Nov 9 [C4], giving you 2.0 weeks of runway [C5]. If nothing changes, your lowest balance reaches -$1,462.37 on Thu Dec 17 [C2], [C3]. The assumption is that nothing changes.\n\nNext step: Add money to checking or move your credit card autopay before Mon Nov 9.",
+      "wall_s": 59.0,
+      "answer": "ANSWER: No, money runs out Mon, Nov 9 [C4].\nWHY:\n- You have $307 on Sun, Nov 8 [C7].\n- The card payment of $360 is due Mon, Nov 9 [C1].\n- That drops checking below zero.\nDO THIS:\n1. Send the verification form.\n2. Pay rent by Sun, Nov 1 [E7].\nNOTE: The plan assumes nothing changes.",
       "notes": []
     },
     {
@@ -940,24 +939,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.44,
-        "execute_s": 0.002,
-        "explain_s": 18.9,
-        "total_s": 19.34
+        "plan_s": 0.43,
+        "execute_s": 0.003,
+        "explain_s": 11.88,
+        "total_s": 12.31
       },
-      "wall_s": 19.3,
-      "answer": "Your refund of $1,850.00 is on hold because financial aid verification is incomplete [C4][C5]. Hold HLD-01 started Thu Sep 10 and blocks credit balance refunds [C5]. Your aid of $3,697.00 is held because you are selected for verification and required documents have not been received [C3][E2]. The Verification Worksheet (Dependent) was not received as of Thu Sep 10 [E2]. If you submit the missing form, your refund should arrive within 7 business days, by Thu Nov 5 [C6][C7].\n\nSubmit the Verification Worksheet (Dependent) to the financial aid office as soon as possible.",
+      "wall_s": 12.3,
+      "answer": "ANSWER: Your refund is on hold because financial aid verification is incomplete.\nWHY:\n- Hold HLD-01 blocks credit balance refunds [C5].\n- The Verification Worksheet (Dependent) was not received [E2].\n- Aid of $3,697 is held until documents arrive [C3].\nDO THIS:\n1. Submit the Verification Worksheet (Dependent) to the financial aid office.\n2. Ask when the hold will clear.\nNOTE: Refund may arrive within 7 business days after holds clear [C6].",
       "notes": []
     },
     {
@@ -973,24 +972,24 @@
       "verdict_ok": true,
       "check_ok": true,
       "problems": [],
-      "numbers_ok": true,
+      "numbers_ok": false,
       "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
       "explain_errors": [],
       "nvidia_error": false,
-      "passed": true,
+      "passed": false,
       "mode": "live",
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 0
       },
       "timings": {
-        "plan_s": 0.58,
-        "execute_s": 0.004,
-        "explain_s": 26.15,
-        "total_s": 26.73
+        "plan_s": 0.37,
+        "execute_s": 0.003,
+        "explain_s": 27.32,
+        "total_s": 27.69
       },
-      "wall_s": 26.7,
-      "answer": "Yes, the week with Wed Nov 18 [C3] looks tight. Your paycheck that Wednesday is only $114.70 net [C8], far below a normal pay period of $458.80 [C9], because you worked just 8.0 hours [C4] instead of 32.0 hours [C5]. Then $200.00 is due Fri Nov 20 [C1][E1] for your payment plan, right after that small check. The assumption is nothing changes. Next step: check your bursar account now to confirm the installment and see if you can adjust the timing.",
+      "wall_s": 27.7,
+      "answer": "ANSWER: Yes, money gets tight around Fri, Nov 20.\nWHY:\n- A $200 payment is due Fri, Nov 20 [C1][C2]\n- The paycheck that week is small, paid Wed, Nov 18 [C3][C8]\n- That pay period had only 8.0 hours [C4]\nDO THIS:\n1. Check your account before Fri, Nov 20\n2. Plan to cover the $200 payment [C1]\nNOTE: Nothing changes; today is Mon, Oct 26, 2026.",
       "notes": []
     }
   ]
