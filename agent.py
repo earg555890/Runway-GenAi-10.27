@@ -281,7 +281,7 @@ def validate_call(tool, args, sub_names):
             if not (clean["query"] or clean["min_amount"] or clean["max_amount"]):
                 raise ValueError("find_transactions needs a query (merchant or keyword) or an amount range")
     elif tool == "upcoming_bills":
-        start = _semester_date(args["start"], "start") if args.get("start") else tomorrow
+        start = max(_any_date(args["start"], "start"), tomorrow) if args.get("start") else tomorrow   # "from today"
         end = _semester_date(args["end"], "end") if args.get("end") else min(start + timedelta(days=6),
                                                                            config.SEMESTER_END)
         if end < start:
@@ -361,29 +361,39 @@ def plan_messages(question, scenario, sub_names, history=()):
         '{"resolved_question": "the full question you are answering, follow-ups written out", '
         '"intent": one of ' + json.dumps(list(INTENTS)) + ', '
         '"calls": [{"tool": a tool name, "args": {...}}], "clarifying_question": null}\n'
-        "Rules: use exactly ONE call unless the question asks for several things or a whole plan. Never add a "
-        f"call the student didn't ask about. Up to {MAX_CALLS} calls only for broad requests. Dates are YYYY-MM-DD. "
+        "Rules: use ONE call for a specific question. Never add a call the student didn't ask about. A broad "
+        "request for help or a plan (\"help me get through the semester\", \"what should I do?\", \"make me a plan\") "
+        f"uses runway, money_ideas and find_leaks ({MAX_CALLS} calls). Dates are YYYY-MM-DD. "
         "A purchase date is when the money is spent, not when a trip happens (\"a flight home for Thanksgiving\" "
         "gives NO purchase date); if the student gives none, leave \"date\" out. \"This month\" is October 2026; "
         "\"next week\" is the 7 days after today. Questions not about money get \"intent\": \"off_topic\" and no "
         "calls. resolved_question: the student's question written out in full, in their words (for a follow-up, "
         "fill in what it refers to); nothing else.\n"
+        "Vague worries (\"am I ok?\", \"money is stressing me out\") use runway.\n"
         "Examples (question -> calls):\n"
-        "- How long will my money last? / Am I ok? / When do I run out? -> runway\n"
-        "- What's my balance right now? / What's pending? -> accounts_today\n"
-        "- Can I afford a $60 jacket on Nov 20? -> can_afford {item: jacket, cost: 60, date: 2026-11-20}\n"
-        "- What if I cancel Spotify? -> what_if {cancel_subscriptions: [Spotify]}\n"
-        "- How much did I spend on food in October? -> spending_summary {start: 2026-10-01, end: 2026-10-31}\n"
-        "- How much did I spend at Kroger? -> find_transactions {query: Kroger}\n"
-        "- What bills are due next week? -> upcoming_bills\n"
-        "- How many hours did I work in October? -> work_summary {start: 2026-10-01, end: 2026-10-31}\n"
-        "- What will my balance be on Thanksgiving? -> balance_on {date: 2026-11-26}\n"
-        "- What can I do to get money before I run out? -> money_ideas\n"
-        "- Where is my money going to waste? -> find_leaks\n"
-        "- Help me get through the semester -> runway, money_ideas, find_leaks\n"
-        "- What is a credit score? / What is FAFSA verification? -> general_info\n"
-        "- After \"Can I afford a $400 flight if I book it Nov 10?\", \"what about Nov 17 instead?\" -> "
-        "can_afford {item: flight home, cost: 400, date: 2026-11-17}")
+        '- How long will my money last? / Am I ok? / Money stuff is stressing me out -> [{"tool": "runway"}]\n'
+        '- What\'s my balance right now? / What\'s pending? -> [{"tool": "accounts_today"}]\n'
+        '- Can I afford a $60 jacket on Nov 20? -> [{"tool": "can_afford", "args": {"item": "jacket", "cost": 60, '
+        '"date": "2026-11-20"}}]\n'
+        '- What if I cancel Spotify? -> [{"tool": "what_if", "args": {"cancel_subscriptions": ["Spotify"]}}]\n'
+        '- What if I pick up a 4 hour shift on Nov 12? -> [{"tool": "what_if", "args": {"extra_shifts": '
+        '[{"date": "2026-11-12", "hours": 4}]}}]\n'
+        '- How much did I spend on food in October? -> [{"tool": "spending_summary", "args": {"start": '
+        '"2026-10-01", "end": "2026-10-31"}}]\n'
+        '- How much did I spend at Kroger? -> [{"tool": "find_transactions", "args": {"query": "Kroger"}}]\n'
+        '- What bills are due next week? -> [{"tool": "upcoming_bills"}]\n'
+        '- Is there a week where money gets tight? -> [{"tool": "cash_crunches"}]\n'
+        '- How many hours did I work in October? -> [{"tool": "work_summary", "args": {"start": "2026-10-01", '
+        '"end": "2026-10-31"}}]\n'
+        '- What will my balance be on Thanksgiving? -> [{"tool": "balance_on", "args": {"date": "2026-11-26"}}]\n'
+        '- What can I do to get money before I run out? -> [{"tool": "money_ideas"}]\n'
+        '- Where is my money leaking? -> [{"tool": "find_leaks"}]\n'
+        '- Help me get through the semester -> [{"tool": "runway"}, {"tool": "money_ideas"}, {"tool": '
+        '"find_leaks"}]\n'
+        '- What is a credit score? / What is FAFSA verification? -> [{"tool": "general_info", "args": {"topic": '
+        '"credit score"}}]\n'
+        '- After "Can I afford a $400 flight if I book it Nov 10?", "what about Nov 17 instead?" -> '
+        '[{"tool": "can_afford", "args": {"item": "flight home", "cost": 400, "date": "2026-11-17"}}]')
     return [{"role": "system", "content": system}, {"role": "user", "content": question}]
 
 
@@ -428,6 +438,14 @@ def keyword_plan(question, sub_names):
             return None
     elif "get through" in q or "help me" in q and "semester" in q:
         p = Plan("runway", "runway", {}, calls=[{"tool": t, "args": {}} for t in ("runway", "money_ideas", "find_leaks")])
+    elif "shift" in q and re.search(r"(\d+(?:\.\d)?)[\s-]*h(?:ou)?r", q) and _MDAY.search(question):
+        m, hours = _MDAY.search(question), re.search(r"(\d+(?:\.\d)?)[\s-]*h(?:ou)?r", q).group(1)
+        day = date(2026, _MONTHS[m.group(1).lower()[:3]], int(m.group(2))).isoformat()
+        try:
+            p = Plan("what_if", "what_if", validate_call("what_if", {"extra_shifts": [{"date": day, "hours": hours}]},
+                                                         sub_names)[0])
+        except ValueError:
+            return None
     elif any(k in q for k in ("make money", "get money", "earn", "more money")):
         p = Plan("money_ideas", "money_ideas", {})
     elif any(k in q for k in ("how long", "last", "run out", "runway", "am i ok", "okay")):
@@ -869,11 +887,19 @@ def invented_budget_problems(text):
             if BUDGET_RE.search(x)]
 
 
+DANGLING = {"to", "the", "a", "an", "and", "or", "of", "for", "your", "on", "at", "with", "by", "from", "in", "is",
+            "are", "was", "be", "will", "save", "saves", "that", "this", "it", "if", "because", "but", "so", "than",
+            "about", "into", "when", "you", "until", "before", "after", "$"}
+
+
 def cutoff_problems(text, finish_reason=None):
+    """Cut off: the model hit its token limit, or the answer ends on a word no sentence ends with ("...to save").
+    A list item without a final period is fine."""
     if finish_reason == "length":
         return ["the answer was cut off (it ran out of room); write a shorter answer"]
     tail = strip_citations(text).rstrip()
-    if tail and tail[-1] not in ".!?)\"'”’":
+    words = re.findall(r"[a-z$]+", tail.lower()[-40:])
+    if tail and tail[-1] not in ".!?)\"'”’]" and words and words[-1] in DANGLING:
         return ["the answer stops mid-sentence"]
     return []
 
@@ -942,7 +968,7 @@ EXPLAIN_SYSTEM = (
     "- DO THIS steps use only amounts from the facts. Never invent a budget, a limit or a target amount.\n"
     "- Only say what the facts support. Don't guess about holds, rules or deadlines.\n"
     "- Include EVERY fact listed under \"Your answer must include all of these\", with its number, date and "
-    "citation, in the place it asks for.\n"
+    "citation, in the place it asks for. The easy way: copy each of those lines as written.\n"
     "- Never write record IDs such as HLD-01, CHK-0042 or RFD-01. Cite with [C#] or [E#] only.\n"
     "- No jargon: never say scenario, projection, ledger, evidence or computed. No bold, no headings.")
 
@@ -1237,11 +1263,11 @@ class Fact:
     money: tuple = ()            # amounts that must appear (rounded whole dollars accepted)
     date: date | tuple | None = None   # a date (or a tuple of dates) that must appear
     words: tuple = ()            # at least one of these words must appear (case-insensitive)
-    where: str = "any"           # "any", "lead" (ANSWER or the first WHY bullet), "note", "answer"
+    where: str = "any"           # "any", "lead" (ANSWER or the first WHY bullet), "note", "answer", "why"
 
     def prompt(self):
         place = {"lead": " (put this FIRST: in ANSWER or the first WHY bullet)", "note": " (in NOTE)",
-                 "answer": " (in ANSWER)"}.get(self.where, "")
+                 "answer": " (in ANSWER)", "why": " (as a WHY bullet)"}.get(self.where, "")
         return f"- {self.label}: {self.line}{place}"
 
 
@@ -1497,7 +1523,7 @@ def _core_facts(tool, result, pack, ds, scenario):
         out.append(Fact("lowest", f"the lowest point {what}".strip(),
                         f"Your lowest point would be {w.balance(best.lowest.value)} {c(best.lowest)} on "
                         f"{w.day(best.lowest_date.value)}.", money=(best.lowest.value,),
-                        date=best.lowest_date.value))
+                        date=best.lowest_date.value, where="why"))
     elif tool in ("runway", "what_if"):
         p, r = f["projection"], f["reason"]
         if tool == "what_if":
@@ -1613,7 +1639,7 @@ def append_facts(text, missing):
     moved = [f for f in missing if f.where in ("lead", "note")]            # stated, but in the wrong place: move it
     sec["why"] = [b for b in sec["why"] if not any(fact_present(f, b, {}) for f in moved)]
     lead = [f.line for f in missing if f.where == "lead"]
-    rest = [f.line for f in missing if f.where in ("any", "answer")]
+    rest = [f.line for f in missing if f.where in ("any", "answer", "why")]
     notes = [f.line for f in missing if f.where == "note"]
     note = " ".join(x for x in [sec.get("note", "")] + notes if x)
     return _format(sec["answer"], lead + sec["why"] + rest, sec["do"], note)

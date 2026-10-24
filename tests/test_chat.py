@@ -92,8 +92,10 @@ def test_money_ideas_answer_has_amounts_and_dates(ds):
 def test_spending_and_bills_validate_dates():
     with pytest.raises(ValueError, match="past transactions"):
         agent.validate_call("spending_summary", {"start": "2026-11-01"}, SUBS)
+    assert agent.validate_call("upcoming_bills", {"start": "2026-10-26", "end": "2026-11-02"}, SUBS)[0]["start"] == \
+        "2026-10-27"                                                              # "from today": bills start tomorrow
     with pytest.raises(ValueError, match="outside"):
-        agent.validate_call("upcoming_bills", {"start": "2026-10-01"}, SUBS)
+        agent.validate_call("upcoming_bills", {"start": "2027-01-10"}, SUBS)
     with pytest.raises(ValueError, match="needs a query"):
         agent.validate_call("find_transactions", {}, SUBS)
     assert agent.validate_call("upcoming_bills", {}, SUBS)[0] == {"start": "2026-10-27", "end": "2026-11-02"}
