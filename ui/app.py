@@ -29,7 +29,7 @@ if changed:
 
 top.header(ds, note)
 top.status(current)
-ask.render()
+ask.render(ds, scenario)
 
 tab1, tab2, tab3 = st.tabs(["My semester", "Can I afford it?", "What we found"])
 with tab1:

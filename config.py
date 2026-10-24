@@ -69,6 +69,11 @@ ZETARIS_CACHE_DIR = PROJECT_ROOT / ".cache" / "zetaris"
 ZETARIS_CONTAINER = get("ZETARIS_CONTAINER") or "zetaris-driver-1"
 ZETARIS_DATA_ROOT = get("ZETARIS_DATA_ROOT") or "/home/zetaris/customer-data/shared/runway"
 
+# Ask Runway answers (agent.py): live = always call the models; cached = reuse a saved answer for the
+# same question and what-ifs if there is one; replay = only saved answers, typed out (demo recording).
+ANSWER_MODE = (get("ANSWER_MODE") or "cached").lower()
+ANSWER_CACHE_DIR = PROJECT_ROOT / ".cache" / "answers"
+
 # Zetaris
 ZETARIS_JDBC_URL = get("ZETARIS_JDBC_URL")
 ZETARIS_USER = get("ZETARIS_USER")

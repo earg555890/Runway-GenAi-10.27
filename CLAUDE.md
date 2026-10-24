@@ -94,9 +94,12 @@ This is part of the judging score, so keep it visible:
 
   Use local files for development and tests, use Zetaris for the real demo path, and never let a Zetaris query block the UI.
 
+- **Ask Runway (agent.py):** one PLAN call + one EXPLAIN call per question, plus at most one EXPLAIN rewrite when the number check fails (rule 10). `ANSWER_MODE` = live | cached | replay. The suggested flight question says "if I book it Nov 10": with no date, PLAN assumes tomorrow (Oct 27), when the flight is a "Not right now".
+
 ## Known issues
 
 - **JVM exit hang (Zetaris backend):** once a process has opened the Zetaris JDBC connection from a worker thread (Streamlit always does), the Python process doesn't exit; closing the connection or calling `jpype.shutdownJVM()` at exit didn't help. Queries themselves work. Workaround: close the terminal, or in PowerShell `Get-NetTCPConnection -LocalPort 8501 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`. Not fixed yet (by decision).
+- **NVIDIA endpoint flakiness:** on Oct 23 the EXPLAIN model returned 5xx errors and timeouts for several minutes while the PLAN model kept working. The agent falls back to template answers (the app never crashes); use `ANSWER_MODE=cached` or `replay` for the demo.
 
 ## Stack
 

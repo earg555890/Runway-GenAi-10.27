@@ -14,7 +14,7 @@ def header(ds, note=None):
                   'semester, and why.</p>', unsafe_allow_html=True)
     with right.container(horizontal=True, horizontal_alignment="right", gap="small"):
         st.badge(data.backend_label(ds), color="gray")
-        st.badge("NVIDIA Nemotron (soon)", color="gray")
+        st.badge("Reasoning by NVIDIA Nemotron", color="green")
         st.badge(f"Today: {fmt.day(config.DEMO_TODAY)}, {config.DEMO_TODAY.year}", color="gray")
     if note:
         st.info(fmt.md(note))

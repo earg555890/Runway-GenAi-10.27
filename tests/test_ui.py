@@ -41,7 +41,8 @@ def test_base_status_and_fix_cards(at):
     s = status(at)
     assert "Your money runs out Mon Nov 9, 2 weeks from today." in s
     assert "credit card payment of $359.53" in s
-    assert at.chat_input[0].disabled
+    assert not at.chat_input[0].disabled
+    assert [b.label for b in at.button if str(b.key).startswith("ask_suggest_")][1] == "How long will my money last?"
     assert [t.label for t in at.toggle][:3] == ["**Send the verification form to financial aid**", "**Cancel Spotify**",
                                                "**Pick up an extra shift**"]
     body = "\n".join(texts(at))
@@ -118,3 +119,42 @@ def test_behind_the_scenes_drills_into_records(at):
     at.pills(key="explain_input").set_value("ACCT-CHK-01")
     run(at)
     assert any("checking/account.csv" in c.value for c in at.code)
+
+
+# --- Ask Runway (mocked models) -----------------------------------------------------------------
+
+@pytest.fixture
+def asked(at, monkeypatch, tmp_path):
+    import agent
+    import llm_client
+    from test_agent import FLIGHT_PLAN, GOOD_FLIGHT, FakeLLM
+
+    fake = FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT])
+    monkeypatch.setattr(llm_client, "chat_json", fake.chat_json)
+    monkeypatch.setattr(llm_client, "stream_chat", fake.stream_chat)
+    monkeypatch.setattr(config, "ANSWER_MODE", "live")
+    monkeypatch.setattr(config, "ANSWER_CACHE_DIR", tmp_path / "answers")
+    at.button(key="ask_suggest_0").click()
+    run(at)
+    assert agent.SUGGESTED[0].startswith("Can I afford a $400 flight")
+    return at
+
+
+def test_ask_flight_question_shows_answer_chips_and_do_these(asked):
+    at = asked
+    assert any(":orange-badge[Yes, if you do 2 things]" in t for t in texts(at))     # the verdict chip
+    answer = next(t for t in texts(at) if t.startswith("Yes, if you do 2 things"))
+    assert ":blue-badge[1]" in answer and "[C1]" not in answer             # citations became footnote chips
+    proof = at.pills(key=next(k for k in at.session_state if str(k).startswith("proof_")))
+    assert len(proof.options) >= 5
+    proof.set_value(proof.options[1])
+    run(at)
+    assert any("Thu Nov 5" in t for t in texts(at))                          # the refund proof, in plain words
+    assert any("Draft email to Office of Student Financial Aid" in t for t in texts(at))
+    do = next(b for b in at.button if str(b.key).startswith("ans_do_"))
+    do.click()
+    run(at)
+    assert at.toggle(key="wf_refund").value and at.toggle(key="wf_cancel_Spotify").value
+    assert not at.session_state["wf_cancel_Apple Music"]
+    assert "Lowest point: $5.81 on Mon Nov 2." in status(at)
+    assert len(at.session_state["history"]) == 1 and at.session_state["history"][0].mode == "live"
