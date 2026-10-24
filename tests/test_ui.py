@@ -62,8 +62,8 @@ def test_base_status_and_fix_cards(at):
     assert not at.chat_input[0].disabled
     assert [b.label for b in at.button if str(b.key).startswith("ask_suggest_")][3] == \
         "Can I afford a $400 flight home for Thanksgiving?"
-    assert [t.label for t in at.toggle][:3] == ["**Send the verification form**", "**Cancel Spotify**",
-                                               "**Pick up an extra shift**"]
+    assert [t.label for t in at.toggle if t.key != "ask_think"][:3] == [
+        "**Send the verification form**", "**Cancel Spotify**", "**Pick up an extra shift**"]
     body = "\n".join(texts(at))
     assert "Releases your $1,850 refund around Thu, Nov 5." in body
     assert "Saves $23.98 this semester." in body
@@ -217,6 +217,8 @@ def test_judge_setup_no_key_replay_mode(monkeypatch):
             run(at)
             a = at.session_state["history"][0]
             assert a.mode == "replay" and a.text.startswith("ANSWER:"), (fixes, a.question, a.mode)
+            at.button(key="ask_new").click()                     # suggested questions show in an empty thread
+            run(at)
     at.chat_input(key="ask_input").set_value("Can I afford a $90 jacket?")
     run(at)
     a = at.session_state["history"][0]

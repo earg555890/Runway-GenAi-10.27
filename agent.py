@@ -18,6 +18,7 @@ Answers are saved by (question, what-ifs): live answers in config.ANSWER_CACHE_D
 answers in config.DEMO_ANSWERS_DIR. config.ANSWER_MODE picks live / cached / replay (see config.py). With no
 saved answer and no way to call the models (replay, or no NVIDIA key), the answer says so.
 """
+import difflib
 import hashlib
 import json
 import re
@@ -56,8 +57,8 @@ TOOLS = {
                       "\"next Friday\" with the calendar); leave it out otherwise",
               "account": "\"checking\" (debit, the default) or \"card\" (credit card)"}),
     "runway": dict(
-        does="How long the money lasts, the lowest point, whether they are OK this semester (vague worries too).",
-        args={}),
+        does="How long the money lasts (when it runs out), the lowest point, whether they are OK this semester "
+             "(vague worries too).", args={}),
     "what_if": dict(
         does="What changes if the student makes changes: cancel subscriptions, add work shifts, send the "
              "verification form to financial aid.",
@@ -67,8 +68,36 @@ TOOLS = {
     "find_leaks": dict(does="Where money is leaking: duplicate subscriptions, fees.", args={}),
     "refund_status": dict(does="Why the financial aid refund is held, how much, and what releases it.", args={}),
     "cash_crunches": dict(does="Weeks where a bill lands right after a small paycheck.", args={}),
+    "spending_summary": dict(
+        does="How much was spent in a past period, by category (groceries, eating out...) or by merchant.",
+        args={"start": "YYYY-MM-DD (default: the semester start)", "end": "YYYY-MM-DD (default: today)",
+              "group_by": "\"category\" (default) or \"merchant\"",
+              "account": "\"both\" (default), \"checking\" or \"card\""}),
+    "find_transactions": dict(
+        does="Find past transactions by merchant or keyword (\"Kroger\", \"Uber\", \"coffee\"): how many, how "
+             "much, when the last one was.",
+        args={"query": "merchant name or keyword", "start": "YYYY-MM-DD (optional)", "end": "YYYY-MM-DD (optional)",
+              "account": "\"both\" (default), \"checking\" or \"card\"", "min_amount": "dollars (optional)",
+              "max_amount": "dollars (optional)"}),
+    "upcoming_bills": dict(
+        does="Scheduled money out coming up (rent, card payments, tuition installments, subscriptions, bills).",
+        args={"start": "YYYY-MM-DD (default: tomorrow)", "end": "YYYY-MM-DD (default: a week after start)"}),
+    "work_summary": dict(
+        does="Hours worked or scheduled at the job, and the pay, for a period.",
+        args={"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}),
+    "balance_on": dict(does="The checking balance on one date (past or future), with that day's payments.",
+                       args={"date": "YYYY-MM-DD"}),
+    "accounts_today": dict(does="Balances RIGHT NOW and what's pending today (not how long the money lasts): "
+                                "checking, next card payment, the held refund, the next paycheck.", args={}),
+    "money_ideas": dict(does="Ways to get money before the money runs out (extra shifts paid in time, the "
+                             "refund, cancellations), ranked by when the money arrives.", args={}),
+    "general_info": dict(does="A general money question NOT about the student's own data (\"What's a credit "
+                              "score?\", \"What is FAFSA verification?\"). Never for questions about her money.",
+                         args={"topic": "the question, in a few words"}),
 }
-INTENTS = ("afford", "runway", "what_if", "leaks", "refund", "crunch", "off_topic")
+INTENTS = ("afford", "runway", "what_if", "leaks", "refund", "crunch", "off_topic", *list(TOOLS)[6:])
+MAX_CALLS = 3
+DATA_START = date(2026, 7, 1)          # the earliest history question that makes sense (Maya's data starts in July)
 
 
 # ---------------------------------------------------------------------------------------
@@ -82,6 +111,12 @@ class Plan:
     clarifying_question: str | None = None
     assumptions: list = field(default_factory=list)
     source: str = "llm"          # "llm" or "keywords" (fallback)
+    calls: list = field(default_factory=list)          # [{"tool", "args"}], up to MAX_CALLS; [0] = tool/args
+    resolved_question: str | None = None               # the question as answered, follow-ups resolved
+
+    def __post_init__(self):
+        if not self.calls and self.tool:
+            self.calls = [{"tool": self.tool, "args": self.args}]
 
 
 @dataclass
@@ -126,6 +161,8 @@ class Answer:
     created: float = 0.0
     sections: dict = field(default_factory=dict)     # {"answer", "why": [...], "do": [...], "note"}
     facts: list = field(default_factory=list)        # required facts: [{"key", "label", "appended"}]
+    quick: str = ""              # the instant answer built from the engine (shown before the AI answer)
+    think: bool = False          # answered in "Think harder" mode (Super, thinking on)
 
     def to_json(self):
         return json.dumps(asdict(self), default=str)
@@ -159,19 +196,33 @@ def _semester_date(x, what):
     return d
 
 
-def parse_plan(data, sub_names):
-    """Strictly validate the PLAN model's JSON. Raises ValueError with a message the model can fix."""
-    if not isinstance(data, dict):
-        raise ValueError("the reply must be one JSON object")
-    intent, tool = data.get("intent"), data.get("tool")
-    clarifying = data.get("clarifying_question") or None
-    if tool in (None, "", "none"):
-        if intent != "off_topic" and not clarifying:
-            raise ValueError('"tool" is required unless "intent" is "off_topic" or you ask a clarifying_question')
-        return Plan(intent or "off_topic", None, {}, clarifying)
+def _any_date(x, what, earliest=DATA_START):
+    """A date in Maya's data range (history or the rest of the semester)."""
+    try:
+        d = date.fromisoformat(str(x))
+    except ValueError:
+        raise ValueError(f"{what} must be YYYY-MM-DD, got {x!r}") from None
+    if not earliest <= d <= config.SEMESTER_END:
+        raise ValueError(f"{what} {d} is outside {earliest} to {config.SEMESTER_END}")
+    return d
+
+
+def _choice(x, what, allowed, default):
+    x = x or default
+    if x not in allowed:
+        raise ValueError(f"{what} must be one of {list(allowed)}, got {x!r}")
+    return x
+
+
+def _amount_or_none(x, what):
+    return None if x in (None, "") else str(_money(x, what))
+
+
+def validate_call(tool, args, sub_names):
+    """(clean args, assumptions) for one tool call. Raises ValueError with a message the model can fix."""
     if tool not in TOOLS:
         raise ValueError(f"unknown tool {tool!r}; use one of {sorted(TOOLS)}")
-    args = data.get("args") or {}
+    args = args or {}
     if not isinstance(args, dict):
         raise ValueError('"args" must be an object')
     unknown = set(args) - set(TOOLS[tool]["args"])
@@ -182,9 +233,7 @@ def parse_plan(data, sub_names):
     if tool == "can_afford":
         clean["cost"] = str(_money(args.get("cost"), "cost"))
         clean["item"] = (str(args.get("item") or "").strip() or "this purchase")[:60]
-        clean["account"] = args.get("account") or "checking"
-        if clean["account"] not in ("checking", "card"):
-            raise ValueError(f'account must be "checking" or "card", got {clean["account"]!r}')
+        clean["account"] = _choice(args.get("account"), "account", ("checking", "card"), "checking")
         if args.get("date"):
             clean["date"] = _semester_date(args["date"], "date").isoformat()
         else:
@@ -198,43 +247,143 @@ def parse_plan(data, sub_names):
                 raise ValueError(f"unknown subscription {name!r}; known: {sorted(sub_names)}")
             cancels.append(by_lower[str(name).lower()])
         shifts = []
-        for s in args.get("extra_shifts") or []:
-            if not isinstance(s, dict):
+        for sh in args.get("extra_shifts") or []:
+            if not isinstance(sh, dict):
                 raise ValueError('each extra shift must be {"date": "YYYY-MM-DD", "hours": number}')
-            hours = _money(s.get("hours"), "hours")
+            hours = _money(sh.get("hours"), "hours")
             if hours > 12:
                 raise ValueError(f"a shift can't be {hours} hours")
-            shifts.append({"date": _semester_date(s.get("date"), "shift date").isoformat(), "hours": str(hours)})
-        send = bool(args.get("send_verification_form"))
-        if args.get("form_date") and not send:
-            send = True
+            shifts.append({"date": _semester_date(sh.get("date"), "shift date").isoformat(), "hours": str(hours)})
+        send = bool(args.get("send_verification_form")) or bool(args.get("form_date"))
         form_date = _semester_date(args["form_date"], "form_date") if args.get("form_date") else tomorrow
         if not (cancels or shifts or send):
             raise ValueError("what_if needs at least one change (cancel_subscriptions, extra_shifts or "
                              "send_verification_form)")
         clean = {"cancel_subscriptions": cancels, "extra_shifts": shifts, "send_verification_form": send,
                  "form_date": form_date.isoformat()}
-    return Plan(intent if intent in INTENTS else tool, tool, clean, clarifying, assumptions)
+    elif tool in ("spending_summary", "find_transactions"):
+        default_start = config.SEMESTER_START if tool == "spending_summary" else None
+        start = _any_date(args["start"], "start") if args.get("start") else default_start
+        end = _any_date(args["end"], "end") if args.get("end") else config.DEMO_TODAY
+        if start and start > config.DEMO_TODAY:
+            raise ValueError(f"{tool} looks at past transactions; start {start} is after today "
+                             f"({config.DEMO_TODAY}). Use upcoming_bills for future payments.")
+        if start and end < start:
+            raise ValueError(f"end {end} is before start {start}")
+        clean = {"start": start.isoformat() if start else None, "end": min(end, config.DEMO_TODAY).isoformat(),
+                 "account": _choice(args.get("account"), "account", ("both", "checking", "card"), "both")}
+        if tool == "spending_summary":
+            clean["group_by"] = _choice(args.get("group_by"), "group_by", ("category", "merchant"), "category")
+        else:
+            clean["query"] = str(args.get("query") or "").strip()[:40]
+            clean["min_amount"] = _amount_or_none(args.get("min_amount"), "min_amount")
+            clean["max_amount"] = _amount_or_none(args.get("max_amount"), "max_amount")
+            if not (clean["query"] or clean["min_amount"] or clean["max_amount"]):
+                raise ValueError("find_transactions needs a query (merchant or keyword) or an amount range")
+    elif tool == "upcoming_bills":
+        start = _semester_date(args["start"], "start") if args.get("start") else tomorrow
+        end = _semester_date(args["end"], "end") if args.get("end") else min(start + timedelta(days=6),
+                                                                           config.SEMESTER_END)
+        if end < start:
+            raise ValueError(f"end {end} is before start {start}")
+        clean = {"start": start.isoformat(), "end": end.isoformat()}
+    elif tool == "work_summary":
+        start = _any_date(args["start"], "start") if args.get("start") else config.DEMO_TODAY.replace(day=1)
+        end = _any_date(args["end"], "end") if args.get("end") else config.SEMESTER_END
+        if end < start:
+            raise ValueError(f"end {end} is before start {start}")
+        clean = {"start": start.isoformat(), "end": end.isoformat()}
+    elif tool == "balance_on":
+        if not args.get("date"):
+            raise ValueError('balance_on needs "date"')
+        clean = {"date": _any_date(args["date"], "date", config.SEMESTER_START).isoformat()}
+    elif tool == "general_info":
+        clean = {"topic": str(args.get("topic") or "").strip()[:80]}
+    return clean, assumptions
 
 
-def plan_messages(question, scenario, sub_names):
+def parse_plan(data, sub_names):
+    """Strictly validate the PLAN model's JSON: {"resolved_question", "calls": [{"tool", "args"}, ...up to 3],
+    "clarifying_question"} (the older one-tool shape {"intent", "tool", "args"} is accepted too). Raises
+    ValueError with a message the model can fix."""
+    if not isinstance(data, dict):
+        raise ValueError("the reply must be one JSON object")
+    intent, clarifying = data.get("intent"), data.get("clarifying_question") or None
+    resolved = (str(data.get("resolved_question") or "").strip() or None)
+    calls = data.get("calls")
+    if calls is None:
+        calls = [] if data.get("tool") in (None, "", "none") else [{"tool": data.get("tool"),
+                                                                    "args": data.get("args") or {}}]
+    if not isinstance(calls, list):
+        raise ValueError('"calls" must be a list of {"tool": ..., "args": {...}}')
+    calls = [c for c in calls if isinstance(c, dict) and c.get("tool") not in (None, "", "none")]
+    if not calls:
+        if intent != "off_topic" and not clarifying:
+            raise ValueError('give at least one call with a "tool" unless "intent" is "off_topic" or you ask a '
+                             'clarifying_question')
+        return Plan(intent or "off_topic", None, {}, clarifying, resolved_question=resolved)
+    if len(calls) > MAX_CALLS:
+        raise ValueError(f"at most {MAX_CALLS} calls, got {len(calls)}")
+    clean, assumptions = [], []
+    for c in calls:
+        args, assumed = validate_call(c.get("tool"), c.get("args"), sub_names)
+        if not any(x["tool"] == c["tool"] and x["args"] == args for x in clean):
+            clean.append({"tool": c["tool"], "args": args})
+            assumptions += [a for a in assumed if a not in assumptions]
+    first = clean[0]
+    return Plan(intent if intent in INTENTS else first["tool"], first["tool"], first["args"], clarifying, assumptions,
+                calls=clean, resolved_question=resolved)
+
+
+def _turn_summary(a):
+    sec = a.sections or {}
+    said = sec.get("answer") or a.text.split("\n")[0]
+    return (f"Student: {a.question}\nRunway checked: {plan_words(Plan(**a.plan))}\n"
+            f"Runway answered: {strip_citations(said)[:200]}")
+
+
+def plan_messages(question, scenario, sub_names, history=()):
     tools = "\n".join(f"- {name}: {t['does']}" + ("".join(f"\n    {a}: {d}" for a, d in t["args"].items()))
                       for name, t in TOOLS.items())
+    recent = ""
+    if history:
+        recent = ("\nRecent conversation (oldest first). Resolve follow-ups like \"what about Nov 17 instead?\", "
+                  "\"why?\" or \"and if I also cancel Apple Music?\" against it:\n"
+                  + "\n\n".join(_turn_summary(a) for a in history[-3:]) + "\n")
     system = (
-        "You are the planner for Runway, a money app for one college student. Pick exactly ONE tool for the "
-        "student's question and its arguments. You never do math and never answer the question yourself.\n"
+        "You are the planner for Runway, a money app for one college student. Pick the tool(s) for the student's "
+        "question and their arguments. You never do math and never answer the question yourself.\n"
         f"Today is {w.day(config.DEMO_TODAY)}, {config.DEMO_TODAY.isoformat()}. The semester ends "
         f"{w.day(config.SEMESTER_END)}, {config.SEMESTER_END.isoformat()}. Calendar: {' '.join(CALENDAR)}\n"
         f"The student's subscriptions: {', '.join(sub_names)}.\n"
-        f"The student's current what-ifs: {scenario.describe()}.\n\nTools:\n{tools}\n\n"
+        f"The student's current what-ifs: {scenario.describe()}.\n{recent}\nTools:\n{tools}\n\n"
         "Reply with JSON only, exactly this shape:\n"
-        '{"intent": one of ' + json.dumps(list(INTENTS)) + ', "tool": a tool name or "none", "args": {...}, '
-        '"clarifying_question": null}\n'
-        "Rules: dates are YYYY-MM-DD between tomorrow and the semester end. A purchase date is when the money "
-        "is spent, not when a trip happens (\"a flight home for Thanksgiving\" gives NO purchase date); if the "
-        "student gives none, leave \"date\" out. Questions that are "
-        'not about the student\'s money get "intent": "off_topic", "tool": "none". Vague worries ("am I ok?") '
-        "use runway.")
+        '{"resolved_question": "the full question you are answering, follow-ups written out", '
+        '"intent": one of ' + json.dumps(list(INTENTS)) + ', '
+        '"calls": [{"tool": a tool name, "args": {...}}], "clarifying_question": null}\n'
+        "Rules: use exactly ONE call unless the question asks for several things or a whole plan. Never add a "
+        f"call the student didn't ask about. Up to {MAX_CALLS} calls only for broad requests. Dates are YYYY-MM-DD. "
+        "A purchase date is when the money is spent, not when a trip happens (\"a flight home for Thanksgiving\" "
+        "gives NO purchase date); if the student gives none, leave \"date\" out. \"This month\" is October 2026; "
+        "\"next week\" is the 7 days after today. Questions not about money get \"intent\": \"off_topic\" and no "
+        "calls. resolved_question: the student's question written out in full, in their words (for a follow-up, "
+        "fill in what it refers to); nothing else.\n"
+        "Examples (question -> calls):\n"
+        "- How long will my money last? / Am I ok? / When do I run out? -> runway\n"
+        "- What's my balance right now? / What's pending? -> accounts_today\n"
+        "- Can I afford a $60 jacket on Nov 20? -> can_afford {item: jacket, cost: 60, date: 2026-11-20}\n"
+        "- What if I cancel Spotify? -> what_if {cancel_subscriptions: [Spotify]}\n"
+        "- How much did I spend on food in October? -> spending_summary {start: 2026-10-01, end: 2026-10-31}\n"
+        "- How much did I spend at Kroger? -> find_transactions {query: Kroger}\n"
+        "- What bills are due next week? -> upcoming_bills\n"
+        "- How many hours did I work in October? -> work_summary {start: 2026-10-01, end: 2026-10-31}\n"
+        "- What will my balance be on Thanksgiving? -> balance_on {date: 2026-11-26}\n"
+        "- What can I do to get money before I run out? -> money_ideas\n"
+        "- Where is my money going to waste? -> find_leaks\n"
+        "- Help me get through the semester -> runway, money_ideas, find_leaks\n"
+        "- What is a credit score? / What is FAFSA verification? -> general_info\n"
+        "- After \"Can I afford a $400 flight if I book it Nov 10?\", \"what about Nov 17 instead?\" -> "
+        "can_afford {item: flight home, cost: 400, date: 2026-11-17}")
     return [{"role": "system", "content": system}, {"role": "user", "content": question}]
 
 
@@ -277,8 +426,29 @@ def keyword_plan(question, sub_names):
             p = parse_plan({"intent": "afford", "tool": "can_afford", "args": args}, sub_names)
         except ValueError:
             return None
+    elif "get through" in q or "help me" in q and "semester" in q:
+        p = Plan("runway", "runway", {}, calls=[{"tool": t, "args": {}} for t in ("runway", "money_ideas", "find_leaks")])
+    elif any(k in q for k in ("make money", "get money", "earn", "more money")):
+        p = Plan("money_ideas", "money_ideas", {})
     elif any(k in q for k in ("how long", "last", "run out", "runway", "am i ok", "okay")):
         p = Plan("runway", "runway", {})
+    elif "spend at" in q or "spent at" in q:
+        place = re.split(r"spen[dt] at\s+", q, maxsplit=1)[1].split("?")[0].split(" in ")[0].strip(" .")
+        p = Plan("find_transactions", "find_transactions", validate_call("find_transactions", {"query": place},
+                                                                          sub_names)[0])
+    elif "spend" in q or "spent" in q:
+        month = "october" in q or "this month" in q
+        args = {"start": "2026-10-01", "end": "2026-10-31"} if month else {}
+        p = Plan("spending_summary", "spending_summary", validate_call("spending_summary", args, sub_names)[0])
+    elif "bill" in q or " due" in q:
+        p = Plan("upcoming_bills", "upcoming_bills", validate_call("upcoming_bills", {}, sub_names)[0])
+    elif "hours" in q or "worked" in q:
+        args = {"start": "2026-10-01", "end": "2026-10-31"} if "october" in q or "this month" in q else {}
+        p = Plan("work_summary", "work_summary", validate_call("work_summary", args, sub_names)[0])
+    elif "balance" in q and "thanksgiving" in q:
+        p = Plan("balance_on", "balance_on", {"date": "2026-11-26"})
+    elif "balance" in q or "pending" in q:
+        p = Plan("accounts_today", "accounts_today", {})
     elif any(k in q for k in ("leak", "wast", "subscription")):
         p = Plan("leaks", "find_leaks", {})
     elif "refund" in q:
@@ -300,6 +470,8 @@ class ToolResult:
     fixes: list = field(default_factory=list)            # engine.Fix (yes_if)
     zero_fixes: list = field(default_factory=list)       # fixes that save $0 (Apple Music)
     facts: dict = field(default_factory=dict)            # for templates and actions
+    tool: str | None = None
+    args: dict = field(default_factory=dict)
 
 
 def _without_fixes(scenario):
@@ -318,8 +490,23 @@ def _projection_key(p, ledger):
 
 
 def execute(plan, scenario, ds):
-    ledger, a = engine.Ledger(), plan.args
-    if plan.tool == "can_afford":
+    """The first call of the plan (the one-tool path)."""
+    return execute_all(plan, scenario, ds)[0]
+
+
+def execute_all(plan, scenario, ds):
+    """Every call of the plan, in order. Each ToolResult remembers its tool and args."""
+    out = []
+    for c in plan.calls:
+        r = execute_call(c["tool"], c["args"], scenario, ds)
+        r.tool, r.args = c["tool"], c["args"]
+        out.append(r)
+    return out
+
+
+def execute_call(tool, a, scenario, ds):
+    ledger = engine.Ledger()
+    if tool == "can_afford":
         v = engine.can_afford(Decimal(a["cost"]), a["date"], a["account"], _without_fixes(scenario), ds, a["item"])
         best = v.with_fixes or v.without_fixes
         key = [v.verdict_computed, v.without_fixes.lowest, v.without_fixes.lowest_date]
@@ -331,12 +518,12 @@ def execute(plan, scenario, ds):
         return ToolResult(v.verdict, key, v.ledger, v.fixes, [f for f in v.considered if f.savings.value <= 0],
                           {"purchase": v.purchase, "fixes_applied": bool(v.fixes) and applied, "best": best,
                            "result": v})
-    if plan.tool == "runway":
+    if tool == "runway":
         p = engine.project(scenario, ds, ledger)
         key, r = _projection_key(p, ledger)
         return ToolResult("covered" if p.lasts_through_semester else "runs_out", key, ledger,
                           facts={"projection": p, "reason": r})
-    if plan.tool == "what_if":
+    if tool == "what_if":
         new = scenario.plus(cancel_subscriptions=tuple(a["cancel_subscriptions"]),
                             extra_shifts=tuple(engine.ExtraShift(date.fromisoformat(s["date"]), Decimal(s["hours"]))
                                                for s in a["extra_shifts"]))
@@ -365,28 +552,60 @@ def execute(plan, scenario, ds):
                           [f for f in fixes if f.savings.value <= 0 and f.name in a["cancel_subscriptions"]],
                           {"projection": after, "before": before, "reason": r, "shift_pay": shift_pay,
                            "new_scenario": new, "latest_shift": latest})
-    if plan.tool == "find_leaks":
+    if tool == "find_leaks":
         leaks = engine.find_leaks(scenario, ds, ledger)
         key = [c for leak in leaks for c in leak.computed]
         return ToolResult(None, key, ledger, facts={"leaks": leaks})
-    if plan.tool == "refund_status":
+    if tool == "refund_status":
         f = engine.refund_status(scenario, ds, ledger)
         return ToolResult(None, list(f.computed.values()) if f else [], ledger, facts={"finding": f})
-    if plan.tool == "cash_crunches":
+    if tool == "cash_crunches":
         found = engine.cash_crunches(scenario, ds, ledger)
         return ToolResult(None, [c for f in found for c in f.computed.values()], ledger, facts={"findings": found})
-    raise ValueError(f"unknown tool {plan.tool!r}")
+    if tool == "spending_summary":
+        sp = engine.spending_summary(a["start"], a["end"], a["group_by"], a["account"], ds, ledger)
+        return ToolResult(None, [sp.total, *(c for _, c, _ in sp.groups)], ledger, facts={"spending": sp})
+    if tool == "find_transactions":
+        m = engine.find_transactions(a["query"], a["start"], a["end"], a["account"], a["min_amount"], a["max_amount"],
+                                     ds, ledger)
+        key = [m.count, m.spent, m.received, m.last]
+        return ToolResult(None, [c for c in key if c is not None], ledger, facts={"matches": m})
+    if tool == "upcoming_bills":
+        b = engine.upcoming_bills(a["start"], a["end"], scenario, ds, ledger)
+        return ToolResult(None, [b.total, *(e.computed for e in b.events), b.balance_after], ledger,
+                          facts={"bills": b})
+    if tool == "work_summary":
+        wk = engine.work_summary(a["start"], a["end"], scenario, ds, ledger)
+        key = [wk.worked_hours, wk.scheduled_hours, wk.pay_total, *(c for _, n, d in wk.periods for c in (n, d))]
+        return ToolResult(None, key, ledger, facts={"work": wk})
+    if tool == "balance_on":
+        b = engine.balance_on(a["date"], scenario, ds, ledger)
+        evs = [e.computed for e in b.events if hasattr(e, "computed")]
+        return ToolResult(None, [b.balance, *evs], ledger, facts={"day": b})
+    if tool == "accounts_today":
+        t = engine.accounts_today(scenario, ds, ledger)
+        key = [t.checking, t.next_card_payment.computed if t.next_card_payment else None, t.refund, t.refund_release,
+               t.next_paycheck.computed if t.next_paycheck else None, t.next_paycheck_date]
+        return ToolResult(None, [c for c in key if c is not None], ledger, facts={"today": t})
+    if tool == "money_ideas":
+        ideas, deadline, p = engine.money_ideas(scenario, ds, ledger)
+        key = [deadline] + [c for i in ideas for c in (i.amount, i.arrives, i.detail) if c is not None]
+        return ToolResult("covered" if p.lasts_through_semester else "runs_out", key, ledger,
+                          facts={"ideas": ideas, "deadline": deadline, "projection": p})
+    if tool == "general_info":
+        return ToolResult(None, [], ledger, facts={"topic": a.get("topic", "")})
+    raise ValueError(f"unknown tool {tool!r}")
 
 
 # ---------------------------------------------------------------------------------------
 # Evidence pack
 # ---------------------------------------------------------------------------------------
 class Pack:
-    def __init__(self, items, context, ledger_to_pack):
-        self.items, self.context, self.ids = items, context, ledger_to_pack
+    def __init__(self, items, context, cite_ids):
+        self.items, self.context, self.cite_ids = items, context, cite_ids      # id(Computed) -> "C3"
 
     def cite(self, computed):
-        return f"[{self.ids[computed.id]}]" if computed.id in self.ids else ""
+        return f"[{self.cite_ids[id(computed)]}]" if computed is not None and id(computed) in self.cite_ids else ""
 
     def to_dict(self):
         return {"items": self.items, "context": self.context}
@@ -405,27 +624,34 @@ class Pack:
         return "\n".join(lines)
 
 
-def build_pack(result, ds, plan, scenario):
-    """The calculations the answer depends on (key records + their inputs, two levels), and the source
-    rows behind them, grouped by the query that returned them."""
-    ledger = result.ledger
-    order, depth = [], {}
-    queue = [(c.id, 0) for c in result.key if c is not None]
-    while queue and len(order) < MAX_PACK_CALCS:
-        cid, d = queue.pop(0)
-        if cid in depth:
-            continue
-        depth[cid] = d
-        order.append(cid)
-        if d < 2:
-            queue += [(i, d + 1) for i in ledger.get(cid).inputs if re.match(r"^C\d+$", i)]
-    ids = {cid: f"C{n}" for n, cid in enumerate(order, start=1)}
-    items, row_ids = [], []
-    for cid in order:
-        c = ledger.get(cid)
-        items.append({"id": ids[cid], "kind": "calc", "title": c.label, "value": w.value(c), "raw": str(c.value),
-                      "unit": c.unit, "how": c.how,
-                      "uses": [ids.get(i, i) for i in c.inputs if not re.match(r"^C\d+$", i) or i in ids]})
+def build_pack(results, ds, plan, scenario):
+    """The calculations the answer depends on (each result's key records + their inputs, two levels deep), and
+    the source rows behind them, grouped by the query that returned them. Several results (a multi-step plan)
+    share one numbering: C1.. and E1.."""
+    results = results if isinstance(results, list) else [results]
+    order, seen = [], set()                  # [(ledger, cid)]
+    for r in results:
+        queue = [(c.id, 0) for c in r.key if c is not None]
+        budget = MAX_PACK_CALCS if len(results) == 1 else max(8, MAX_PACK_CALCS // len(results) + 4)
+        taken = 0
+        while queue and taken < budget:
+            cid, d = queue.pop(0)
+            if (id(r.ledger), cid) in seen:
+                continue
+            seen.add((id(r.ledger), cid))
+            order.append((r.ledger, cid))
+            taken += 1
+            if d < 2:
+                queue += [(i, d + 1) for i in r.ledger.get(cid).inputs if re.match(r"^C\d+$", i)]
+    pack_id = {(id(lg), cid): f"C{n}" for n, (lg, cid) in enumerate(order, start=1)}
+    items, row_ids, cite_ids = [], [], {}
+    for lg, cid in order:
+        c = lg.get(cid)
+        cite_ids[id(c)] = pack_id[(id(lg), cid)]
+        items.append({"id": pack_id[(id(lg), cid)], "kind": "calc", "title": c.label, "value": w.value(c),
+                      "raw": str(c.value), "unit": c.unit, "how": c.how,
+                      "uses": [pack_id.get((id(lg), i), i) for i in c.inputs
+                               if not re.match(r"^C\d+$", i) or (id(lg), i) in pack_id]})
         row_ids += [i for i in c.inputs if not re.match(r"^C\d+$", i)]
     row_ids = list(dict.fromkeys(row_ids))
     n = 0
@@ -446,7 +672,7 @@ def build_pack(result, ds, plan, scenario):
     context = [f"Today is {w.day(config.DEMO_TODAY)}, {config.DEMO_TODAY.year}. The semester ends "
                f"{w.day(config.SEMESTER_END)}.", *CALENDAR,
                f"The student's current what-ifs: {scenario.describe()}.", *plan.assumptions]
-    return Pack(items, context, ids)
+    return Pack(items, context, cite_ids)
 
 
 # ---------------------------------------------------------------------------------------
@@ -462,6 +688,10 @@ RECORD_ID = re.compile(r"\b(?:ACCT|AWD|CHK|CRD|DSB|HLD|JOB|LED|LT|PAY|PPI|REQ|RF
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
+def strip_citations(text):
+    return re.sub(r"\s*" + CITE_RE.pattern, "", text)
+
+
 def find_amounts(text):
     out = []
     for m in MONEY_RE.finditer(text):
@@ -474,7 +704,7 @@ def find_dates(text):
     out = []
     for m in DATE_RE.finditer(text):
         month, dd = _MONTHS[m.group(2).lower()[:3]], int(m.group(3))
-        year = int(m.group(4)) if m.group(4) else (2026 if month >= 8 else 2027)
+        year = int(m.group(4)) if m.group(4) else (2026 if month >= 7 else 2027)     # data: Jul 2026 to Jan 2027
         try:
             out.append((m.group(0), date(year, month, dd), m.group(1)))
         except ValueError:
@@ -533,30 +763,155 @@ def parse_sections(text):
     return out if out["answer"] and out["why"] else None
 
 
-def check_answer(text, pack, require_format=False):
+def merchant_accounts(ds):
+    """{merchant name as a student would write it: accounts it charges} for every named merchant (not fees,
+    transfers or income). "Greenway Property Mgmt (rent)" -> "Greenway Property Mgmt"."""
+    out = {}
+    for t in ds.checking_txns + ds.card_txns:
+        if t.amount < 0 and t.category not in ("fee", "card_payment", "income"):
+            out.setdefault(re.sub(r"\s*\(.*\)", "", t.merchant).strip(), set()).add(t.account)
+    return out
+
+
+def private_amounts(ds):
+    """Every dollar amount in Maya's data (for the general-info rule: never state her numbers)."""
+    vals = {abs(t.amount) for t in ds.checking_txns + ds.card_txns}
+    vals |= {abs(r.amount) for r in ds.refunds} | {abs(ds.checking_account.current_balance)}
+    vals |= {abs(p.net) for p in ds.pay_periods if p.net} | {abs(i.amount) for i in ds.installments}
+    return {v for v in vals if v >= 1}
+
+
+CARD_CLAIM = re.compile(r"\b(?:charged|billed|charges?|bills?|goes|go|is|are|lands?)\s+(?:to|on)\s+(?:your\s+|the\s+|her\s+)?"
+                        r"(?:credit\s+)?card\b|\bcard\s+(?:bill|charges?)\b|\bon\s+(?:your\s+|the\s+)?credit\s+card\b",
+                        re.I)
+CHECKING_CLAIM = re.compile(r"\b(?:charged|billed|charges?|bills?|comes?|hits?|is|are|goes)\s+(?:to|on|out of|from)?\s*"
+                            r"(?:your\s+|the\s+)?checking\b|\bdirectly from (?:your\s+)?checking\b", re.I)
+SAVES_RE = re.compile(r"\bsav(?:e|es|ed|ing|ings of)\s+(?:you\s+|her\s+)?(?:only\s+|about\s+|just\s+)?"
+                      r"([-−]?\$\s?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)", re.I)
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n")
+
+
+def _windows(text, names):
+    """[(merchant, the text from its mention to the next merchant mention or the end of the sentence)]."""
+    out = []
+    for sentence in SENTENCE_END.split(text):
+        hits = sorted((m.start(), m.end(), name) for name in names
+                      for m in re.finditer(r"\b" + re.escape(name) + r"\b", sentence, re.I))
+        for i, (start, end, name) in enumerate(hits):
+            stop = hits[i + 1][0] if i + 1 < len(hits) else len(sentence)
+            out.append((name, sentence[end:stop]))
+    return out
+
+
+def reason_problems(text, pack, names):
+    """Reason claims must match the facts: a merchant named must be in the pack; "charged to the card" /
+    "charges checking" must match where the merchant really charges; "saves $X" next to a merchant must equal a
+    computed saving for that merchant."""
+    problems = []
+    pack_text = " ".join([*pack.context, *(f"{it.get('title', '')} {it.get('how', '')} "
+                                          + " ".join(r["what"] for r in it.get("rows", [])) for it in pack.items)]).lower()
+    for name, window in _windows(text, names):
+        if name.lower() not in pack_text:
+            problems.append(f"{name} is not in the facts")
+            continue
+        accounts = names[name]
+        if CARD_CLAIM.search(window) and "card" not in accounts:
+            problems.append(f"{name} is not charged to the credit card (it charges checking)")
+        if CHECKING_CLAIM.search(window) and "checking" not in accounts:
+            problems.append(f"{name} does not charge checking (it is billed to the credit card)")
+        m = SAVES_RE.search(window)
+        if m:
+            written, v = find_amounts(m.group(1))[0]
+            savings = [Decimal(it["raw"]) for it in pack.items if it["kind"] == "calc" and it.get("unit") == "USD"
+                       and name.lower() in it["title"].lower() and ("sav" in it["title"].lower()
+                                                                   or "cancel" in it["title"].lower())]
+            ok = any(abs(v) == abs(x) or ("." not in written and abs(v) == _rounded(x)) for x in savings)
+            if not ok:
+                problems.append(f"\"saves {written.strip()}\" for {name} doesn't match its computed saving"
+                                + (f" ({', '.join(w.money(x) for x in savings)})" if savings else
+                                   " (there is no saving for it in the facts)"))
+    return problems
+
+
+def _units(text):
+    """Bullets and sentences, normalized for comparing (no citations, no section heads, lowercase)."""
+    out = []
+    for line in text.splitlines():
+        line = SECTION_HEAD.sub(lambda m: m.group(2), line)
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", strip_citations(line))
+        for part in re.split(r"(?<=[.!?])\s+", line):
+            norm = " ".join(re.sub(r"[^a-z0-9$ ]", " ", part.lower()).split())
+            if len(norm.split()) >= 4:
+                out.append((part.strip(), norm))
+    return out
+
+
+def repetition_problems(text):
+    units, problems = _units(text), []
+    for i in range(len(units)):
+        for j in range(i + 1, len(units)):
+            a, b = units[i][1], units[j][1]
+            if a == b or difflib.SequenceMatcher(None, a, b).ratio() >= 0.9:
+                problems.append(f"the answer repeats itself (\"{units[j][0][:60]}\")")
+                return problems
+    return problems
+
+
+BUDGET_RE = re.compile(r"\b(?:budget|limit|cap|target|goal)\b[^.\n]{0,40}\$|\$[\d,.]+\s+(?:\w+\s+){0,3}"
+                       r"(?:budget|limit|cap|target|goal)\b", re.I)
+
+
+def invented_budget_problems(text):
+    """A step that sets a budget or limit with a dollar amount invents a number the engine never computed."""
+    sec = parse_sections(text) or {}
+    return [f"\"{x[:50]}\" sets a budget or limit Runway didn't compute" for x in sec.get("do", [])
+            if BUDGET_RE.search(x)]
+
+
+def cutoff_problems(text, finish_reason=None):
+    if finish_reason == "length":
+        return ["the answer was cut off (it ran out of room); write a shorter answer"]
+    tail = strip_citations(text).rstrip()
+    if tail and tail[-1] not in ".!?)\"'”’":
+        return ["the answer stops mid-sentence"]
+    return []
+
+
+def check_answer(text, pack, require_format=False, *, names=None, finish_reason=None, general=False,
+                 private=None):
     """Every dollar amount and date must come from the pack; every citation must exist. A whole-dollar amount
     ("$1,462") matches a pack value that rounds to it ($1,462.37); signs are ignored, so "$1,462 below zero"
-    and "-$1,462.37" both match -$1,462.37."""
-    money, dates = allowed_values(pack)
-    rounded = {_rounded(v) for v in money}
-    ids = {it["id"] for it in pack.items}
+    and "-$1,462.37" both match -$1,462.37. Also: reason claims about merchants (names: merchant_accounts()),
+    no repeated sentences, no cut-off answers. General info (general=True) skips the number check but must not
+    state any of the student's own amounts (private: private_amounts())."""
     problems = [] if text.strip() else ["the answer is empty"]
     problems += [f"{x} is a record ID; never write record IDs" for x in dict.fromkeys(RECORD_ID.findall(text))]
     if require_format and text.strip() and parse_sections(text) is None:
         problems.append("the answer is not in the ANSWER / WHY / DO THIS format")
-    amounts = find_amounts(text)
-    for written, v in amounts:
-        whole = "." not in written
-        if abs(v) not in money and not (whole and abs(v) in rounded):
-            problems.append(f"{written.strip()} is not in the facts")
-    found = find_dates(text)
-    for written, d, wd in found:
-        if d is None or d not in dates:
-            problems.append(f"{written.strip()} is not a date in the facts")
-        elif wd and WEEKDAYS[d.weekday()] != wd.lower()[:3]:
-            problems.append(f"{written.strip()} has the wrong weekday (it is a {d:%A})")
-    cites = [c.strip() for m in CITE_RE.finditer(text) for c in re.split(r"[,;]", m.group(1))]
-    problems += [f"[{c}] is not in the facts" for c in dict.fromkeys(cites) if c not in ids]
+    amounts, found, cites = find_amounts(text), find_dates(text), []
+    if general:
+        problems += [f"{x.strip()} looks like one of the student's own numbers; general info never states them"
+                     for x, v in amounts if private and (abs(v) in private or _rounded(abs(v)) in
+                                                         {_rounded(p) for p in private})]
+    else:
+        money, dates = allowed_values(pack)
+        rounded = {_rounded(v) for v in money}
+        ids = {it["id"] for it in pack.items}
+        for written, v in amounts:
+            whole = "." not in written
+            if abs(v) not in money and not (whole and abs(v) in rounded):
+                problems.append(f"{written.strip()} is not in the facts")
+        for written, d, wd in found:
+            if d is None or d not in dates:
+                problems.append(f"{written.strip()} is not a date in the facts")
+            elif wd and WEEKDAYS[d.weekday()] != wd.lower()[:3]:
+                problems.append(f"{written.strip()} has the wrong weekday (it is a {d:%A})")
+        cites = [c.strip() for m in CITE_RE.finditer(text) for c in re.split(r"[,;]", m.group(1))]
+        problems += [f"[{c}] is not in the facts" for c in dict.fromkeys(cites) if c not in ids]
+        if names:
+            problems += reason_problems(text, pack, names)
+    if text.strip():
+        problems += repetition_problems(text) + cutoff_problems(text, finish_reason) + invented_budget_problems(text)
     return Check(not problems, list(dict.fromkeys(problems)), len(amounts), len(found), len(cites))
 
 
@@ -580,41 +935,86 @@ EXPLAIN_SYSTEM = (
     "- Put a citation after each number or date, like [C3] or [E2]. At most 2 citations per bullet. Only cite "
     "ids that exist in the facts.\n"
     "- If the facts list an assumption, put it in NOTE.\n"
-    "- If cancelling a subscription is part of the answer and one saves $0.00, explain why in NOTE: its charges "
-    "go on the credit card, and that bill is paid after the semester ends.\n"
+    "- Only name a store, app or subscription that appears in the facts. Only say what it is charged to (the "
+    "credit card or checking) if the facts say so.\n"
+    "- Never repeat a sentence or a bullet. Finish every sentence.\n"
+    "- DO THIS steps use only amounts from the facts. Never invent a budget, a limit or a target amount.\n"
+    "- Only say what the facts support. Don't guess about holds, rules or deadlines.\n"
     "- Include EVERY fact listed under \"Your answer must include all of these\", with its number, date and "
     "citation, in the place it asks for.\n"
     "- Never write record IDs such as HLD-01, CHK-0042 or RFD-01. Cite with [C#] or [E#] only.\n"
     "- No jargon: never say scenario, projection, ledger, evidence or computed. No bold, no headings.")
 
+GENERAL_SYSTEM = (
+    "You are Runway, a friendly money coach for a college student. Answer a GENERAL money question in plain "
+    "words. It is not about the student's own accounts.\n"
+    "Write at a grade 6-8 reading level. Short sentences (under 15 words). One idea per sentence.\n"
+    "Reply in EXACTLY this format, under 90 words in total:\n"
+    "ANSWER: <one short sentence>\nWHY:\n- <key point>\n- <key point>\n"
+    "DO THIS:\n1. <one practical step>\nNOTE: <optional>\n"
+    "Rules: never mention the student's own balances, bills, payments or any number about them. No citations. "
+    "Never repeat a sentence. Finish every sentence. If it depends on the school or the lender, say so. Don't "
+    "name specific government tools, websites or programs; point the student to their financial aid office "
+    "instead.")
 
-def explain_messages(question, plan, result, pack, verdict_label, required=()):
+
+def explain_messages(question, plan, results, pack, verdict_label, required=(), general=False):
+    if general:
+        return [{"role": "system", "content": GENERAL_SYSTEM},
+                {"role": "user", "content": f"Question: {question}\n\nWrite the answer now, in the format."}]
     facts = pack.prompt_text()
     head = f"Question: {question}\nWhat Runway checked: {plan_words(plan)}"
     if verdict_label:
         head += f"\nThe answer: {verdict_label}"
     if required:
         head += "\nYour answer must include all of these:\n" + "\n".join(f.prompt() for f in required)
+    zero = [z for r in results for z in r.zero_fixes]
+    for z in {z.name: z for z in zero}.values():          # the "explain why" moment, only when it applies
+        head += (f"\nIn NOTE, say that cancelling {z.name} saves $0.00 {pack.cite(z.savings)} this semester: "
+                 f"{z.name} is billed to the credit card, and that card bill is paid after the semester ends.")
     return [{"role": "system", "content": EXPLAIN_SYSTEM},
             {"role": "user", "content": f"{head}\n\n{facts}\n\nWrite the answer now, in the format."}]
 
 
 def plan_words(plan):
-    a = plan.args
-    if plan.tool == "can_afford":
+    """What Runway checked, in plain words (every call of a multi-step plan, joined)."""
+    if not plan.calls:
+        return "nothing (off-topic)"
+    return "; ".join(call_words(c["tool"], c["args"]) for c in plan.calls)
+
+
+def _span(a):
+    start = w.day(date.fromisoformat(a["start"])) if a.get("start") else "the start of your records"
+    return f"{start} to {w.day(date.fromisoformat(a['end']))}"
+
+
+def call_words(tool, a):
+    if tool == "can_afford":
         how = "debit card (checking)" if a["account"] == "checking" else "credit card"
-        return f"can you afford {a['item']} for {w.dollars(Decimal(a['cost']))} on " \
-               f"{w.day(date.fromisoformat(a['date']))}, paid by {how}"
-    if plan.tool == "what_if":
+        return f"can you afford {a['item']} for {w.dollars(Decimal(a['cost']))} on "                f"{w.day(date.fromisoformat(a['date']))}, paid by {how}"
+    if tool == "what_if":
         parts = [f"cancel {', '.join(a['cancel_subscriptions'])}"] if a["cancel_subscriptions"] else []
         parts += [f"an extra {s['hours']}-hour shift on {w.day(date.fromisoformat(s['date']))}"
                   for s in a["extra_shifts"]]
         if a["send_verification_form"]:
             parts.append(f"send the verification form on {w.day(date.fromisoformat(a['form_date']))}")
         return "what happens if you " + " and ".join(parts)
+    if tool == "spending_summary":
+        return f"what you spent by {a['group_by']}, {_span(a)}"
+    if tool == "find_transactions":
+        return f"your transactions matching \"{a['query'] or 'any'}\", {_span(a)}"
+    if tool == "upcoming_bills":
+        return f"bills due {_span(a)}"
+    if tool == "work_summary":
+        return f"your hours and pay, {_span(a)}"
+    if tool == "balance_on":
+        return f"your checking balance on {w.day(date.fromisoformat(a['date']))}"
+    if tool == "general_info":
+        return f"general info: {a.get('topic') or 'your question'}"
     return {"runway": "how long your money lasts", "find_leaks": "where your money is leaking",
-            "refund_status": "why your refund is on hold", "cash_crunches": "weeks where money gets tight"
-            }.get(plan.tool, "your question")
+            "refund_status": "why your refund is on hold", "cash_crunches": "weeks where money gets tight",
+            "accounts_today": "your balances and what's pending today",
+            "money_ideas": "ways to get money before you run out"}.get(tool, "your question")
 
 
 def verdict_label(result):
@@ -685,8 +1085,8 @@ def template_answer(plan, result, pack, ds, scenario):
         else:
             answer = (f"Your money runs out on {w.day(p.first_below_zero.value)} {c(p.first_below_zero)}, in "
                       f"{w.weeks_words(p.runway_weeks.value)} {c(p.runway_weeks)}.")
-            why = [f"Your {w.event_name(r.event)} of {w.dollars(r.event.amount)} is due that week "
-                   f"{c(r.event.computed)}."] if r.event else ["Everyday spending slowly adds up."]
+            why = [f"A {w.dollars(r.event.amount)} {w.event_name(r.event)} {c(r.event.computed)} is due "
+                   f"{w.day(r.event.date)}, when you'll have {w.balance(r.balance_before)}."] if r.event else                 ["Everyday spending slowly adds up."]
         changes = [f"The extra shift adds {w.dollars(pay.value)} to your {w.day(pay_date)} paycheck {c(pay)}."
                    for pay_date, pay in f.get("shift_pay", [])]
         if changes:                                       # a what-if leads with the change itself
@@ -702,7 +1102,8 @@ def template_answer(plan, result, pack, ds, scenario):
             if leak.kind == "duplicate_subscriptions":
                 comb = next(x for x in leak.computed if x.label.startswith("combined"))
                 pick = next(x for x in leak.computed if x.label.startswith("which"))
-                why.append(f"You pay {w.dollars(comb.value)} a month for two music apps {c(comb)}.")
+                subs = [x.label.removesuffix(" monthly cost") for x in leak.computed if x.label.endswith("monthly cost")]
+                why.append(f"You pay for {' and '.join(subs)}: {w.dollars(comb.value)} a month together {c(comb)}.")
                 do.append(f"Cancel {pick.value}. That saves {w.dollars(leak.savings.value)} this semester "
                           f"{c(leak.savings)}.")
             else:
@@ -727,12 +1128,49 @@ def template_answer(plan, result, pack, ds, scenario):
                     f"Your paycheck before it is only {w.dollars(k['paycheck_net'].value)} {c(k['paycheck_net'])}."]
         return _format("One week in November is tight." if why else "No tight weeks ahead.",
                        why or ["Your bills and paychecks line up."], ["Set that money aside now."], note)
+    parts = lookup_template(plan.tool, result, c)
+    if parts:
+        answer, why, do, extra = parts
+        return _format(answer, why, do, " ".join(x for x in (extra, note) if x))
     return OFF_TOPIC
 
 
-def explain_chain():
-    """EXPLAIN models to try in order: Super, then Lightning (the PLAN model, with thinking on)."""
-    return list(dict.fromkeys(m for m in (config.NVIDIA_EXPLAIN_MODEL, config.NVIDIA_PLAN_MODEL) if m))
+def _single(plan, r):
+    return Plan(plan.intent, r.tool or plan.tool, r.args or plan.args, None, plan.assumptions, plan.source)
+
+
+def template_all(plan, results, pack, ds, scenario):
+    """The template answer for every call of the plan, merged into one (None for general info only)."""
+    results = [r for r in (results if isinstance(results, list) else [results]) if (r.tool or plan.tool) != "general_info"]
+    if not results:
+        return None
+    parts = [parse_sections(template_answer(_single(plan, r), r, pack, ds, scenario)) for r in results]
+    if len(parts) == 1:
+        return template_answer(_single(plan, results[0]), results[0], pack, ds, scenario)
+    m = merge_sections(parts)
+    return _format(m["answer"], m["why"], m["do"], m["note"])
+
+
+def quick_answer(plan, results, pack, ds, scenario, required):
+    """The instant answer: the template (verdict and key numbers, cited) plus any required fact it doesn't
+    already state. Deterministic, so it always passes the number check. None for general info."""
+    text = template_all(plan, results, pack, ds, scenario)
+    if text is None:
+        return None
+    missing = missing_facts(text, required)
+    return append_facts(text, missing) if missing else text
+
+
+FAST_MAX_TOKENS = 1024           # thinking off: the answer alone is under 200 tokens
+FAST_TIMEOUT_S = 60
+
+
+def explain_chain(think=False):
+    """EXPLAIN (model, thinking) pairs to try in order. Fast (default): Lightning with thinking off, then Super
+    with thinking off. Think harder: Super with thinking on, then Lightning with thinking on."""
+    fast, big = config.NVIDIA_PLAN_MODEL, config.NVIDIA_EXPLAIN_MODEL
+    order = [(big, True), (fast, True)] if think else [(fast, False), (big, False)]
+    return list(dict.fromkeys((m, t) for m, t in order if m))
 
 
 def model_name(model):
@@ -745,21 +1183,24 @@ def model_name(model):
     return model
 
 
-def _explain_with(llm, model, messages, pack, retries, required=()):
-    """Stream one EXPLAIN answer from `model`, check it (numbers, dates, citations, format, record IDs, required
-    facts), and allow one rewrite. Yields ("text"/"restart", ...) events and returns (text, reasoning, check,
-    missing) where missing are the required facts the model still left out. Raises if the model fails or answers
-    empty twice."""
+def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *, names=None, general=False,
+                  private=None):
+    """Stream one EXPLAIN answer from `model`, check it (numbers, dates, citations, format, record IDs, reasons,
+    repetition, cut-off, required facts), and allow one rewrite. Yields ("text"/"restart", ...) events and returns
+    (text, reasoning, check, missing) where missing are the required facts the model still left out. Raises if the
+    model fails or answers empty twice."""
     text, reasoning, check, missing = "", "", None, []
     for attempt in range(2):
-        limit = EXPLAIN_MAX_TOKENS if model == config.NVIDIA_EXPLAIN_MODEL else FALLBACK_MAX_TOKENS
-        stream = llm.stream_chat(messages, thinking=True, model=model, timeout=EXPLAIN_TIMEOUT_S, retries=1,
-                                 max_tokens=limit)
+        limit = FAST_MAX_TOKENS if not thinking else (
+            EXPLAIN_MAX_TOKENS if model == config.NVIDIA_EXPLAIN_MODEL else FALLBACK_MAX_TOKENS)
+        stream = llm.stream_chat(messages, thinking=thinking, model=model, retries=1, max_tokens=limit,
+                                 timeout=EXPLAIN_TIMEOUT_S if thinking else FAST_TIMEOUT_S)
         for kind, chunk in stream:
             if kind == "text":
                 yield "text", chunk
         text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
-        check = check_answer(text, pack, require_format=True)
+        check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
+                             finish_reason=getattr(stream.result, "finish_reason", None))
         missing = missing_facts(text, required) if text else list(required)
         if (check.ok and not missing) or attempt == 1:
             break
@@ -771,8 +1212,10 @@ def _explain_with(llm, model, messages, pack, retries, required=()):
         messages = messages + [
             {"role": "assistant", "content": text},
             {"role": "user", "content": "Problems: " + "; ".join(problems) +
-             ". Rewrite the answer in the ANSWER / WHY / DO THIS / NOTE format, using only numbers, dates and ids "
-             "from the facts, and include every required fact."}]
+             ". Rewrite the answer in the ANSWER / WHY / DO THIS / NOTE format"
+             + (", with no numbers about the student." if general else
+                ", using only numbers, dates and ids from the facts, and include every required fact.")
+             + " Keep it short and finish every sentence."}]
     if not text:
         raise llm_client.LLMError("the model returned an empty answer twice")
     return text, reasoning, check, missing
@@ -801,10 +1244,246 @@ class Fact:
         return f"- {self.label}: {self.line}{place}"
 
 
-def required_facts(plan, result, pack, ds, scenario):
-    """The facts one answer must contain, each with its exact engine value and citation."""
+def _hours(x):
+    return f"{float(x):g}"
+
+
+def _short(name):
+    return re.sub(r"\s*\(.*\)", "", name).strip()
+
+
+def _sentence(s):
+    return s if s.rstrip().endswith((".", "!", "?")) else s.rstrip() + "."
+
+
+def lookup_template(tool, result, c):
+    """(answer, why, do, note) for the data-lookup tools, built only from engine values, with citations."""
+    f = result.facts
+    if tool == "spending_summary":
+        sp = f["spending"]
+        if not sp.count:
+            return (f"You had no spending from {w.day(sp.start)} to {w.day(sp.end)} {c(sp.total)}.",
+                    ["Nothing was bought in that period."], [], "")
+        return (f"You spent {w.dollars(sp.total.value)} from {w.day(sp.start)} to {w.day(sp.end)} {c(sp.total)}.",
+                [f"{_short(n)}: {w.dollars(g.value)} {c(g)}." for n, g, _ in sp.groups[:4]],
+                [f"Start with {_short(sp.groups[0][0]).lower()}, your biggest {'category' if sp.group_by == 'category' else 'merchant'}."],
+                "Card payments are not counted: they just move money between your accounts.")
+    if tool == "find_transactions":
+        m = f["matches"]
+        what = m.query or "that"
+        if not m.rows:
+            return (f"I didn't find any transactions matching \"{what}\" {c(m.count)}.",
+                    [f"Nothing matched from {w.day(m.start)} to {w.day(m.end)}."], [], "")
+        n = m.count.value
+        head = (f"You spent {w.dollars(m.spent.value)} at {what} {c(m.spent)}." if m.spent else
+                f"You received {w.dollars(m.received.value)} from {what} {c(m.received)}.")
+        why = [f"That's {n} transaction{'s' if n != 1 else ''} from {w.day(m.start)} to {w.day(m.end)} {c(m.count)}.",
+               f"The most recent one was on {w.day(m.last.value)} {c(m.last)}."]
+        if m.spent and m.received:
+            why.append(f"You also received {w.dollars(m.received.value)} {c(m.received)}.")
+        return head, why, [], ""
+    if tool == "upcoming_bills":
+        b = f["bills"]
+        if not b.events:
+            return (f"No bills are due from {w.day(b.start)} to {w.day(b.end)} {c(b.total)}.",
+                    ["Only everyday spending comes out in those days."], [],
+                    f"Your balance at the end of {w.day(b.end)} would be {w.balance(b.balance_after.value)} "
+                    f"{c(b.balance_after)}.")
+        k = len(b.events)
+        return (f"You have {k} bill{'s' if k != 1 else ''} due from {w.day(b.start)} to {w.day(b.end)}: "
+                f"{w.dollars(b.total.value)} in all {c(b.total)}.",
+                [f"{w.event_name(e).capitalize()}: {w.dollars(e.amount)} on {w.day(e.date)} {c(e.computed)}."
+                 for e in b.events[:5]],
+                ["Keep that money in checking before each due date."],
+                f"Your balance at the end of {w.day(b.end)} would be {w.balance(b.balance_after.value)} "
+                f"{c(b.balance_after)}.")
+    if tool == "work_summary":
+        wk = f["work"]
+        why = []
+        if wk.scheduled_hours.value:
+            why.append(f"You're scheduled for {_hours(wk.scheduled_hours.value)} more hours {c(wk.scheduled_hours)}.")
+        why += [f"Your {w.day(d.value)} paycheck: {w.dollars(n.value)} {c(n)}." for _, n, d in wk.periods[:4]]
+        if wk.called_off:
+            why.append(f"You called off {len(wk.called_off)} shift{'s' if len(wk.called_off) != 1 else ''}.")
+        head = (f"You worked {_hours(wk.worked_hours.value)} hours from {w.day(wk.start)} to "
+                f"{w.day(min(wk.end, config.DEMO_TODAY))} {c(wk.worked_hours)}." if wk.start <= config.DEMO_TODAY
+                else f"You're scheduled for {_hours(wk.scheduled_hours.value)} hours {c(wk.scheduled_hours)}.")
+        if wk.periods:
+            why.append(f"Paychecks in that time add up to {w.dollars(wk.pay_total.value)} {c(wk.pay_total)}.")
+        return head, why or ["No paychecks in that time."], [], "Pay is after withholding."
+    if tool == "balance_on":
+        b = f["day"]
+        past = b.day <= config.DEMO_TODAY
+        head = f"On {w.day(b.day)}, your checking balance {'was' if past else 'would be'} " \
+               f"{w.balance(b.balance.value)} {c(b.balance)}."
+        evs = [e for e in b.events if hasattr(e, "computed")]
+        why = [f"{w.event_name(e).capitalize()}: {w.dollars(e.amount)} {'in' if e.amount > 0 else 'out'} "
+               f"{c(e.computed)}." for e in evs[:4]] or (
+            [f"{t.merchant}: {w.dollars(t.amount)} {'in' if t.amount > 0 else 'out'}." for t in b.events[:4]]
+            if past else ["Only everyday spending that day."])
+        return head, why or ["No transactions that day."], [], "" if past else "This is a projection."
+    if tool == "accounts_today":
+        t = f["today"]
+        why = []
+        if t.next_card_payment:
+            e = t.next_card_payment
+            why.append(f"Your next credit card payment is {w.dollars(e.amount)} on {w.day(e.date)} {c(e.computed)}.")
+        if t.refund:
+            why.append(f"Your {w.dollars(t.refund.value)} refund is on hold {c(t.refund)}.")
+        if t.next_paycheck:
+            why.append(f"Your next paycheck is {w.dollars(t.next_paycheck.amount)} on "
+                       f"{w.day(t.next_paycheck.date)} {c(t.next_paycheck.computed)}.")
+        do = [f"Send the verification form. The refund comes around {w.day(t.refund_release.value)} "
+              f"{c(t.refund_release)}."] if t.refund else []
+        return (f"You have {w.dollars(t.checking.value)} in checking today {c(t.checking)}.", why, do, "")
+    if tool == "money_ideas":
+        ideas, dl, p = f["ideas"], f["deadline"], f["projection"]
+        lines = []
+        for i in ideas[:4]:
+            if i.kind == "refund":
+                lines.append(f"Send the verification form: your {w.dollars(i.amount.value)} refund arrives around "
+                             f"{w.day(i.arrives.value)} {c(i.amount)}.")
+            elif i.kind == "shift":
+                lines.append(f"Work an extra shift by {w.day(i.detail.value)}: it adds {w.dollars(i.amount.value)} "
+                             f"on {w.day(i.arrives.value)} {c(i.amount)}.")
+            else:
+                lines.append(f"{i.name.capitalize()}: that saves {w.dollars(i.amount.value)} from "
+                             f"{w.day(i.arrives.value)} {c(i.amount)}.")
+        when = f"before you run out on {w.day(dl.value)}" if p.first_below_zero.value else \
+            f"by {w.day(dl.value)}"
+        if not ideas:
+            return (f"I don't see a quick way to add money {when} {c(dl)}.",
+                    ["The refund and extra shifts would come too late."], [], "")
+        k = len(ideas)
+        return (f"Here {'is 1 way' if k == 1 else f'are {k} ways'} to get money {when} {c(dl)}.", lines,
+                [lines[0].split(":")[0] + "."], "Ranked by when the money arrives.")
+    return None
+
+
+def merge_sections(parts):
+    """One answer from several (a multi-step plan): the first answer leads; each other part adds its answer and
+    up to two reasons; steps and notes are combined. Identical lines appear once."""
+    first = parts[0]
+    why = list(first["why"][:2])
+    for p in parts[1:]:
+        why += [p["answer"]] + p["why"][:1]
+    do = [x for p in parts for x in p["do"][:1]]
+    note = " ".join(dict.fromkeys(p["note"] for p in parts if p["note"]))
+    return {"answer": first["answer"], "why": list(dict.fromkeys(why))[:7], "do": list(dict.fromkeys(do))[:3],
+            "note": note}
+
+
+def lookup_facts(tool, result, c):
+    """Required facts for the data-lookup tools."""
+    f, out = result.facts, []
+    if tool == "spending_summary":
+        sp = f["spending"]
+        out.append(Fact("total", "the total spent", f"You spent {w.dollars(sp.total.value)} from {w.day(sp.start)} "
+                        f"to {w.day(sp.end)} {c(sp.total)}.", money=(sp.total.value,)))
+        for n, g, _ in sp.groups[:3]:
+            out.append(Fact(f"group_{n}", f"{_short(n)} and its amount", f"{_short(n)}: {w.dollars(g.value)} {c(g)}.",
+                            money=(g.value,), words=(_short(n),)))
+    elif tool == "find_transactions":
+        m = f["matches"]
+        if not m.rows:
+            out.append(Fact("none", "that nothing matched", f"No transactions matched \"{m.query}\" {c(m.count)}.",
+                            words=("no ", "didn't", "did not", "none", "nothing", "not find")))
+        else:
+            if m.spent:
+                out.append(Fact("spent", "how much was spent", f"You spent {w.dollars(m.spent.value)} {c(m.spent)}.",
+                                money=(m.spent.value,)))
+            if m.received and not m.spent:
+                out.append(Fact("received", "how much came in", f"You received {w.dollars(m.received.value)} "
+                                f"{c(m.received)}.", money=(m.received.value,)))
+            out.append(Fact("count", "how many transactions", f"That's {m.count.value} transactions {c(m.count)}.",
+                            words=(str(m.count.value),)))
+    elif tool == "upcoming_bills":
+        b = f["bills"]
+        if not b.events:
+            out.append(Fact("none", "that no bills are due", f"No bills are due from {w.day(b.start)} to "
+                            f"{w.day(b.end)} {c(b.total)}.", words=("no bill", "no scheduled", "nothing", "none")))
+        for i, e in enumerate(b.events[:5]):
+            out.append(Fact(f"bill{i}", f"the {w.event_name(e)} and its date",
+                            f"{w.event_name(e).capitalize()}: {w.dollars(e.amount)} on {w.day(e.date)} {c(e.computed)}.",
+                            money=(e.amount,), date=e.date))
+        if len(b.events) > 1:
+            out.append(Fact("total", "the total", f"That's {w.dollars(b.total.value)} in all {c(b.total)}.",
+                            money=(b.total.value,)))
+    elif tool == "work_summary":
+        wk = f["work"]
+        if wk.start <= config.DEMO_TODAY:
+            out.append(Fact("worked", "the hours worked", f"You worked {_hours(wk.worked_hours.value)} hours "
+                            f"{c(wk.worked_hours)}.", words=(_hours(wk.worked_hours.value),)))
+        if wk.scheduled_hours.value:
+            out.append(Fact("scheduled", "the hours still scheduled", f"You're scheduled for "
+                            f"{_hours(wk.scheduled_hours.value)} more hours {c(wk.scheduled_hours)}.",
+                            words=(_hours(wk.scheduled_hours.value),)))
+        if wk.periods:
+            out.append(Fact("pay", "the pay in that time", f"Paychecks in that time add up to "
+                            f"{w.dollars(wk.pay_total.value)} {c(wk.pay_total)}.", money=(wk.pay_total.value,)))
+    elif tool == "balance_on":
+        b = f["day"]
+        out.append(Fact("balance", "the balance on that day", f"On {w.day(b.day)}, your checking balance is "
+                        f"{w.balance(b.balance.value)} {c(b.balance)}.", money=(b.balance.value,), date=b.day,
+                        where="lead"))
+    elif tool == "accounts_today":
+        t = f["today"]
+        out.append(Fact("checking", "the checking balance today", f"You have {w.dollars(t.checking.value)} in "
+                        f"checking today {c(t.checking)}.", money=(t.checking.value,), where="lead"))
+        if t.next_card_payment:
+            e = t.next_card_payment
+            out.append(Fact("card", "the next card payment", f"Your next credit card payment is {w.dollars(e.amount)} "
+                            f"on {w.day(e.date)} {c(e.computed)}.", money=(e.amount,), date=e.date))
+        if t.refund:
+            out.append(Fact("refund", "the held refund", f"Your {w.dollars(t.refund.value)} refund is on hold "
+                            f"{c(t.refund)}.", money=(t.refund.value,)))
+        if t.next_paycheck:
+            e = t.next_paycheck
+            out.append(Fact("paycheck", "the next paycheck", f"Your next paycheck is {w.dollars(e.amount)} on "
+                            f"{w.day(e.date)} {c(e.computed)}.", money=(e.amount,), date=e.date))
+    elif tool == "money_ideas":
+        ideas, dl, p = f["ideas"], f["deadline"], f["projection"]
+        if p.first_below_zero.value:
+            out.append(Fact("deadline", "the day the money runs out", f"You run out on {w.day(dl.value)} {c(dl)}.",
+                            date=dl.value))
+        for i in ideas[:3]:
+            if i.kind == "refund":
+                out.append(Fact("idea_refund", "the refund, its amount and arrival date",
+                                f"Send the verification form: your {w.dollars(i.amount.value)} refund arrives around "
+                                f"{w.day(i.arrives.value)} {c(i.amount)}.", money=(i.amount.value,),
+                                date=i.arrives.value))
+            elif i.kind == "shift":
+                out.append(Fact("idea_shift", "the extra shift: by when, how much, paid when",
+                                f"Work an extra shift by {w.day(i.detail.value)}: it adds {w.dollars(i.amount.value)} "
+                                f"on {w.day(i.arrives.value)} {c(i.amount)}.", money=(i.amount.value,),
+                                date=(i.detail.value, i.arrives.value), words=("shift",)))
+            else:
+                name = i.name.removeprefix("cancel ")
+                out.append(Fact(f"idea_{name}", f"cancelling {name} and what it saves",
+                                f"Cancel {name}: that saves {w.dollars(i.amount.value)} from {w.day(i.arrives.value)} "
+                                f"{c(i.amount)}.", money=(i.amount.value,), words=(name,)))
+    return out
+
+
+def required_facts(plan, results, pack, ds, scenario):
+    """The facts one answer must contain, each with its exact engine value and citation (every call of a
+    multi-step plan), then the plan's assumptions."""
+    out = []
+    for r in results if isinstance(results, list) else [results]:
+        tool = r.tool or plan.tool
+        facts = lookup_facts(tool, r, pack.cite) if tool in LOOKUP_TOOLS else _core_facts(tool, r, pack, ds, scenario)
+        out += [f for f in facts if f.key not in {x.key for x in out}]
+    for a in plan.assumptions:
+        out.append(Fact("assumption", "the assumption", a, date=config.DEMO_TODAY + timedelta(days=1), where="note"))
+    return out
+
+
+LOOKUP_TOOLS = ("spending_summary", "find_transactions", "upcoming_bills", "work_summary", "balance_on",
+                "accounts_today", "money_ideas", "general_info")
+
+
+def _core_facts(tool, result, pack, ds, scenario):
     c, f, out = pack.cite, result.facts, []
-    tool = plan.tool
     if tool == "can_afford":
         r = f["result"]
         label = verdict_label(result)
@@ -886,8 +1565,6 @@ def required_facts(plan, result, pack, ds, scenario):
                          f"Your {w.day(k['paycheck_date'].value)} paycheck is only "
                          f"{w.dollars(k['paycheck_net'].value)} {c(k['paycheck_net'])}.",
                          money=(k["paycheck_net"].value,), date=k["paycheck_date"].value)]
-    for a in plan.assumptions:
-        out.append(Fact("assumption", "the assumption", a, date=config.DEMO_TODAY + timedelta(days=1), where="note"))
     return out
 
 
@@ -932,6 +1609,8 @@ def append_facts(text, missing):
     """Add a plain sentence for each missing fact: lead facts become the first WHY bullet, note facts go in NOTE,
     others are added as WHY bullets. Built from engine values only."""
     sec = parse_sections(text) or {"answer": text.strip(), "why": [], "do": [], "note": ""}
+    moved = [f for f in missing if f.where in ("lead", "note")]            # stated, but in the wrong place: move it
+    sec["why"] = [b for b in sec["why"] if not any(fact_present(f, b, {}) for f in moved)]
     lead = [f.line for f in missing if f.where == "lead"]
     rest = [f.line for f in missing if f.where in ("any", "answer")]
     notes = [f.line for f in missing if f.where == "note"]
@@ -952,7 +1631,9 @@ def _strip_think(text, reasoning):
 def actions_for(plan, result, ds, scenario):
     out, items = [], []
     refund = next((r for r in ds.refunds if r.status == "HELD"), None)
-    wants_refund = refund and (plan.tool == "refund_status" or any(f.kind == "refund" for f in result.fixes))
+    ideas = result.facts.get("ideas", []) if plan.tool == "money_ideas" else []
+    wants_refund = refund and (plan.tool == "refund_status" or any(f.kind == "refund" for f in result.fixes)
+                               or any(i.kind == "refund" for i in ideas))
     if wants_refund:
         reqs = [r for r in ds.requirements if r.status not in ("SATISFIED", "RECEIVED")]
         hold = next((h for h in ds.holds if "refund" in h.blocks.lower()), None)
@@ -978,6 +1659,22 @@ def actions_for(plan, result, ds, scenario):
     new_shifts = result.facts["new_scenario"].extra_shifts if plan.tool == "what_if" else ()
     for s in (x for x in new_shifts if x not in scenario.extra_shifts):
         items.append(f"Ask your manager for the extra shift on {w.day(s.date)}.")
+    items += [f"Ask your manager for an extra shift by {w.day(i.detail.value)}." for i in ideas if i.kind == "shift"]
+    if items:
+        out.append(Action("checklist", "checklist", "Your to-do list", items=items))
+    return out
+
+
+def actions_for_all(plan, results, ds, scenario):
+    """Drafts for every call of the plan: one email at most, one combined to-do list."""
+    emails, items = {}, []
+    for r in results:
+        for a in actions_for(_single(plan, r), r, ds, scenario):
+            if a.kind == "email":
+                emails.setdefault(a.id, a)
+            else:
+                items += [x for x in a.items if x not in items]
+    out = list(emails.values())
     if items:
         out.append(Action("checklist", "checklist", "Your to-do list", items=items))
     return out
@@ -990,9 +1687,12 @@ def normalize_question(q):
     return " ".join(re.sub(r"[^a-z0-9$.,\s]", " ", q.lower()).split()).rstrip(".,")
 
 
-def cache_path(question, scenario, folder=None):
-    key = hashlib.sha256(f"{normalize_question(question)}|{scenario.describe()}".encode()).hexdigest()[:20]
-    return (folder or config.ANSWER_CACHE_DIR) / f"{key}.json"
+def cache_path(question, scenario, folder=None, history=()):
+    """Saved answers are keyed by the question, the what-ifs and, for follow-ups, the earlier questions."""
+    key = f"{normalize_question(question)}|{scenario.describe()}"
+    if history:
+        key += "|" + "||".join(normalize_question(a.question) for a in history[-3:])
+    return (folder or config.ANSWER_CACHE_DIR) / f"{hashlib.sha256(key.encode()).hexdigest()[:20]}.json"
 
 
 def answer_folders(mode):
@@ -1000,16 +1700,16 @@ def answer_folders(mode):
     return [config.DEMO_ANSWERS_DIR] if mode == "replay" else [config.ANSWER_CACHE_DIR, config.DEMO_ANSWERS_DIR]
 
 
-def load_cached(question, scenario, mode="cached"):
+def load_cached(question, scenario, mode="cached", history=()):
     for folder in answer_folders(mode):
-        path = cache_path(question, scenario, folder)
+        path = cache_path(question, scenario, folder, history)
         if path.exists():
             return Answer.from_json(path.read_text(encoding="utf-8"))
     return None
 
 
-def save_cached(answer, scenario, folder=None):
-    path = cache_path(answer.question, scenario, folder)
+def save_cached(answer, scenario, folder=None, history=()):
+    path = cache_path(answer.question, scenario, folder, history)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(answer.to_json(), encoding="utf-8")
 
@@ -1031,6 +1731,8 @@ def _replay(answer, mode, typing_s):
     for stage in STAGES.values():
         yield "stage", stage
         time.sleep(typing_s * 10)
+    if answer.quick:
+        yield "quick", answer.quick
     for word in re.findall(r"\S+\s*", answer.text):
         yield "text", word
         time.sleep(typing_s)
@@ -1038,13 +1740,20 @@ def _replay(answer, mode, typing_s):
     yield "answer", answer
 
 
-def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
-    """Answer one question. Yields ("stage" | "text" | "restart" | "answer", payload); "answer" comes last."""
+def _verdict_result(results):
+    return next((r for r in results if r.verdict), results[0])
+
+
+def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, history=(), think=False):
+    """Answer one question. Yields ("stage" | "quick" | "text" | "restart" | "answer", payload); "answer" comes
+    last. "quick" is the instant answer built from the engine (shown while the AI writes); "text" chunks are the
+    AI answer streaming in. history: earlier Answers in this conversation (oldest first), for follow-ups.
+    think: Nemotron Super with thinking on (slower, shows its reasoning); default: Lightning, thinking off."""
     scenario, ds = scenario or engine.Scenario(), ds or normalize.load()
     mode, llm = (mode or config.ANSWER_MODE).lower(), llm or llm_client
-    question = question.strip()
+    question, history = question.strip(), list(history or [])[-3:]
     if mode in ("cached", "replay"):
-        cached = load_cached(question, scenario, mode)
+        cached = load_cached(question, scenario, mode, history)
         if cached and mode == "replay":
             yield from _replay(cached, "replay", typing_s)
             return
@@ -1054,25 +1763,27 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
             return
     t0 = time.perf_counter()
     timings, retries, notes = {}, {"plan_json": 0, "explain_rewrite": 0, "facts_appended": 0}, []
-    models = {"plan": config.NVIDIA_PLAN_MODEL, "explain": config.NVIDIA_EXPLAIN_MODEL}
+    chain = explain_chain(think)
+    models = {"plan": config.NVIDIA_PLAN_MODEL, "explain": chain[0][0] if chain else None, "think": think}
     if mode == "replay" or (llm is llm_client and not config.NVIDIA_API_KEY):    # nothing saved, no models
         text = no_live_answer_text(mode)
         yield "text", text
         timings["total_s"] = round(time.perf_counter() - t0, 2)
         yield "answer", Answer(question, text, None, None, asdict(Plan("off_topic", None, {}, None, [], "none")),
                                {"items": [], "context": []}, {}, "", [], [], "no_key", "none", [], timings,
-                               retries, models, scenario.describe(), time.time(), {}, [])
+                               retries, models, scenario.describe(), time.time(), {}, [], think=think)
         return
     sub_names = [s.merchant for s in engine.subscriptions(ds)]
 
-    # PLAN
+    # PLAN (one call; the last 3 turns let it resolve follow-ups)
     yield "stage", STAGES["plan"]
     t = time.perf_counter()
     plan = None
     try:
-        res = llm.chat_json(plan_messages(question, scenario, sub_names), thinking=False,
+        res = llm.chat_json(plan_messages(question, scenario, sub_names, history), thinking=False,
                             validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
-        plan = ground_purchase_date(parse_plan(res.data, sub_names), question)
+        plan = parse_plan(res.data, sub_names)
+        plan = ground_purchase_date(plan, f"{question} {plan.resolved_question or ''}")
         retries["plan_json"] = res.json_retries + res.retries
     except Exception as exc:                                       # slow, down, or unusable: keywords
         notes.append(f"The planner wasn't available ({type(exc).__name__}); Runway matched your question "
@@ -1080,8 +1791,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
     if plan is None:
         plan = keyword_plan(question, sub_names) or Plan("off_topic", None, {}, None, [], "keywords")
     timings["plan_s"] = round(time.perf_counter() - t, 2)
-
-    facts_record = []
+    facts_record, quick = [], ""
 
     def finish(text, verdict=None, label=None, pack=None, check=None, reasoning="", actions=(), fixes=(),
                ans_mode=None, source="none"):
@@ -1090,7 +1800,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
                       "context": []}, asdict(check) if check else {}, reasoning, [asdict(a) for a in actions],
                       [{"kind": f.kind, "name": f.name} for f in fixes], ans_mode or mode, source, notes, timings,
                       retries, models, scenario.describe(), time.time(), parse_sections(text) or {},
-                      facts_record)
+                      facts_record, quick=quick, think=think)
 
     if plan.tool is None:
         text = plan.clarifying_question or OFF_TOPIC
@@ -1098,63 +1808,78 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
         yield "answer", finish(text, ans_mode="off_topic")
         return
 
-    # EXECUTE
+    # EXECUTE (every call of the plan), then the instant quick answer
     yield "stage", STAGES["execute"]
     t = time.perf_counter()
     yield "stage", STAGES["math"]
-    result = execute(plan, scenario, ds)
-    pack = build_pack(result, ds, plan, scenario)
-    label = verdict_label(result)
-    actions = actions_for(plan, result, ds, scenario)
+    results = execute_all(plan, scenario, ds)
+    pack = build_pack(results, ds, plan, scenario)
+    lead = _verdict_result(results)
+    label = verdict_label(lead)
+    actions = actions_for_all(plan, results, ds, scenario)
+    fixes = list({(f.kind, f.name): f for r in results for f in r.fixes}.values())
+    required = required_facts(plan, results, pack, ds, scenario)
+    general = all(r.tool == "general_info" for r in results)
+    quick = quick_answer(plan, results, pack, ds, scenario, required) or ""
     timings["execute_s"] = round(time.perf_counter() - t, 3)
+    if quick:
+        timings["quick_s"] = round(time.perf_counter() - t0, 2)
+        yield "quick", quick
 
-    # EXPLAIN + CHECK: Super, then Lightning (thinking on), then a template. One rewrite per model at most.
+    # EXPLAIN + CHECK. Fast: Lightning, thinking off (then Super, thinking off). Think harder: Super, thinking on
+    # (then Lightning, thinking on). One rewrite per model at most. If no AI answer passes, the quick answer stays.
     yield "stage", STAGES["explain"]
     t = time.perf_counter()
-    required = required_facts(plan, result, pack, ds, scenario)
-    messages = explain_messages(question, plan, result, pack, label, required)
-    text, reasoning, check, source, answered_by, missing = "", "", None, "template", None, []
-    errors = []
-    for model in explain_chain():
+    names, private = merchant_accounts(ds), private_amounts(ds) if general else None
+    messages = explain_messages(plan.resolved_question or question, plan, results, pack, label, required, general)
+    text, reasoning, check, answered_by, missing, errors = "", "", None, None, [], []
+    for model, thinking in chain:
         try:
-            text, reasoning, check, missing = yield from _explain_with(llm, model, messages, pack, retries, required)
-            source, answered_by = "llm", model
+            text, reasoning, check, missing = yield from _explain_with(
+                llm, model, thinking, messages, pack, retries, required, names=names, general=general,
+                private=private)
+            answered_by = model
             break
         except Exception as exc:
             errors.append(f"{model_name(model)}: {type(exc).__name__}")
             yield "restart", ""
-    if answered_by is None:
-        text = template_answer(plan, result, pack, ds, scenario)
-        missing = missing_facts(text, required)
-    if missing:                                              # still missing after the rewrite: add them ourselves
+    if answered_by is not None and missing:              # still missing after the rewrite: add them ourselves
         text = append_facts(text, missing)
         retries["facts_appended"] = len(missing)
-        if answered_by is not None:
-            yield "restart", ""
-            yield "text", text
-    if answered_by is None:
-        check = check_answer(text, pack)
-        notes.append(f"The AI explanation isn't available right now ({'; '.join(errors)}), so this is a short "
-                     "summary built straight from your numbers.")
-        yield "text", text
-    else:
+        check = check_answer(text, pack, require_format=True, names=names, general=general, private=private)
+    passed = answered_by is not None and check.ok
+    if passed:
+        source = "llm"
         if errors:
-            notes.append(f"{model_name(config.NVIDIA_EXPLAIN_MODEL)} wasn't available ({'; '.join(errors)}), so "
+            notes.append(f"{model_name(chain[0][0])} wasn't available ({'; '.join(errors)}), so "
                          f"{model_name(answered_by)} wrote this answer.")
         if missing:
-            check = check_answer(text, pack, require_format=True)
-        if not check.ok:
-            notes.append("Some numbers or dates in this answer couldn't be matched to your records: "
-                         + "; ".join(check.problems))
+            yield "restart", ""
+            yield "text", text
+    else:
+        source = "template"
+        if answered_by is not None:
+            notes.append("The AI answer didn't pass Runway's checks (" + "; ".join(check.problems[:3]) + "), so this "
+                         "is the quick answer built straight from your numbers.")
+        elif general:
+            notes.append(f"General info isn't available right now ({'; '.join(errors)}).")
+        else:
+            notes.append(f"The AI explanation isn't available right now ({'; '.join(errors)}), so this is the quick "
+                         "answer built straight from your numbers.")
+        text = quick or ("I can't look that up right now. Try again in a minute." if general else OFF_TOPIC)
+        missing = missing_facts(text, required)
+        check = check_answer(text, pack, names=names, general=general, private=private)
+        reasoning = reasoning if answered_by is not None else ""
+        yield "restart", ""
     facts_record = [{"key": f.key, "label": f.label, "appended": f in missing} for f in required]
-    models["answered_by"] = answered_by or "template"
+    models["answered_by"] = answered_by if passed else "template"
     models["explain_errors"] = errors
     timings["explain_s"] = round(time.perf_counter() - t, 2)
-    answer = finish(text, result.verdict, label, pack, check, reasoning, actions, result.fixes,
+    answer = finish(text, lead.verdict, label, pack, check, reasoning, actions, fixes,
                     ans_mode="fallback" if source == "template" or plan.source == "keywords" else "live",
                     source=source)
     if answer.mode == "live" and check.ok:
-        save_cached(answer, scenario)
+        save_cached(answer, scenario, history=history)
     yield "answer", answer
 
 

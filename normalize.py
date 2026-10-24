@@ -31,6 +31,72 @@ ONE_OFF_THRESHOLD = Decimal("100.00")
 RECURRING_MIN_MONTHS = 3
 
 # ---------------------------------------------------------------------------------------
+# Student-friendly spending categories (shared by Ask Runway and the Budget tab). The ONE rules table.
+#   (direction, match, key, category): direction "out" (money out) or "in"; match is "category" (the
+#   classification above), "keyword" (substring of the raw description), "purpose" (MERCHANT_RULES), or
+#   "card" (the card's own category column). The first matching rule wins. Card payments are "Transfer":
+#   money moving between Maya's own accounts, never spending.
+# ---------------------------------------------------------------------------------------
+SPENDING_OUT = ("Rent", "Groceries", "Eating out", "Meal plan", "Subscriptions", "Transportation", "Shopping",
+                "Entertainment", "School", "Bills & utilities", "Fees", "Other")
+SPENDING_IN = ("Paycheck", "Financial aid", "Refund", "Gifts & deposits")
+TRANSFER = "Transfer"
+SPENDING_RULES = [
+    ("out", "category", "card_payment", TRANSFER),
+    ("in", "category", "card_payment", TRANSFER),
+    ("out", "category", "rent", "Rent"),
+    ("out", "category", "fee", "Fees"),
+    ("out", "category", "subscription", "Subscriptions"),
+    ("out", "keyword", "MEAL PLAN", "Meal plan"),
+    ("out", "keyword", "DINING DOLLARS", "Meal plan"),
+    ("out", "keyword", "TICKETMASTER", "Entertainment"),
+    ("out", "keyword", "CINEMA", "Entertainment"),
+    ("out", "keyword", "STEAM GAMES", "Entertainment"),
+    ("out", "keyword", "NETFLIX", "Subscriptions"),
+    ("out", "keyword", "LYFT", "Transportation"),
+    ("out", "keyword", "TUITION", "School"),
+    ("out", "purpose", "groceries", "Groceries"),
+    ("out", "purpose", "eating out", "Eating out"),
+    ("out", "purpose", "coffee", "Eating out"),
+    ("out", "purpose", "music streaming", "Subscriptions"),
+    ("out", "purpose", "transportation", "Transportation"),
+    ("out", "purpose", "shopping", "Shopping"),
+    ("out", "purpose", "pharmacy", "Shopping"),
+    ("out", "purpose", "repairs", "Shopping"),
+    ("out", "purpose", "books", "School"),
+    ("out", "purpose", "tuition", "School"),
+    ("out", "card", "Restaurants", "Eating out"),
+    ("out", "card", "Groceries", "Groceries"),
+    ("out", "card", "Merchandise", "Shopping"),
+    ("out", "card", "Transportation", "Transportation"),
+    ("out", "card", "Travel", "Transportation"),
+    ("out", "card", "Digital Services", "Subscriptions"),
+    ("out", "card", "Entertainment", "Entertainment"),
+    ("out", "card", "Education", "School"),
+    ("out", "card", "Utilities", "Bills & utilities"),
+    ("out", "category", "recurring_bill", "Bills & utilities"),     # e.g. the monthly Venmo utility share
+    ("in", "purpose", "wages", "Paycheck"),
+    ("in", "keyword", "FIN AID", "Financial aid"),
+    ("in", "keyword", "DISBURSEMENT", "Financial aid"),
+    ("in", "keyword", "REFUND", "Refund"),
+]
+
+
+def spending_category(t):
+    """Student-friendly category for a raw txn dict (or Txn): the first matching SPENDING_RULES row; else
+    "Other" for money out and "Gifts & deposits" for money in."""
+    get = t.get if isinstance(t, dict) else lambda k: getattr(t, k)
+    direction = "out" if get("amount") < 0 else "in"
+    text = _squash(get("description"))
+    for d, match, key, category in SPENDING_RULES:
+        if d != direction:
+            continue
+        if ((match == "category" and get("category") == key) or (match == "purpose" and get("purpose") == key)
+                or (match == "keyword" and _squash(key) in text) or (match == "card" and get("card_category") == key)):
+            return category
+    return "Other" if direction == "out" else "Gifts & deposits"
+
+# ---------------------------------------------------------------------------------------
 # Merchant rules: the ONE place merchant keywords live.
 #   (keyword, canonical merchant, fixed category or None, purpose or None, projected_from or None)
 # keyword: case-insensitive substring of the raw description (spaces/punctuation collapsed).
@@ -121,6 +187,8 @@ class Txn(Record):
     amount: Decimal
     running_balance: Decimal | None = None   # checking only
     post_date: date | None = None            # card only
+    card_category: str | None = None         # card only: the issuer's own category column
+    spending_category: str | None = None     # student-friendly (SPENDING_RULES); "Transfer" = not spending
 
 
 @dataclass(frozen=True)
@@ -327,6 +395,8 @@ def classify(raw):
             t["category"] = "one_off"
         else:
             t["category"] = "variable"
+    for t in raw:
+        t["spending_category"] = spending_category(t)
     return [Txn(**t) for t in raw]
 
 
@@ -349,7 +419,8 @@ def build(results, backend):
                     for r in rows["checking_transactions"]])
     # card export: purchases positive, payments negative -> flip
     card = classify([_txn("card", "transactions", r["trans_id"], "card", parse_date(r["trans_date"], "mdy"),
-                          r["merchant"], -money(r["amount"]), post_date=parse_date(r["post_date"], "mdy"))
+                          r["merchant"], -money(r["amount"]), post_date=parse_date(r["post_date"], "mdy"),
+                          card_category=r.get("category") or None)
                      for r in rows["card_transactions"]])
 
     statements = [Statement("card", "statements", r["statement_id"], parse_date(r["cycle_start"], "mdy"),

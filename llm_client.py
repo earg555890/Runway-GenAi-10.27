@@ -72,6 +72,7 @@ class LLMResult:
     retries: int = 0
     data: object = None  # parsed JSON, chat_json only
     json_retries: int = 0  # chat_json only: 1 if the first answer was invalid JSON
+    finish_reason: str | None = None  # "stop", or "length" when the answer hit max_tokens
 
 
 def _is_retryable(exc):
@@ -143,6 +144,7 @@ def chat(messages, thinking=False, *, model=None, timeout=DEFAULT_TIMEOUT_S, ret
         prompt_tokens=getattr(usage, "prompt_tokens", None),
         completion_tokens=getattr(usage, "completion_tokens", None),
         retries=retries_used,
+        finish_reason=getattr(resp.choices[0], "finish_reason", None),
     )
     _log(result)
     return result
@@ -220,13 +222,14 @@ class LLMStream:
         start = time.perf_counter()
         # Retry only while opening the stream; once chunks arrive, a mid-stream failure is raised.
         stream, retries_used = _with_retries(self._start_call, self._retries)
-        prompt_tokens = completion_tokens = None
+        prompt_tokens = completion_tokens = finish_reason = None
         for chunk in stream:
             usage = getattr(chunk, "usage", None)
             if usage is not None:
                 prompt_tokens = getattr(usage, "prompt_tokens", prompt_tokens)
                 completion_tokens = getattr(usage, "completion_tokens", completion_tokens)
             for choice in chunk.choices or []:
+                finish_reason = getattr(choice, "finish_reason", None) or finish_reason
                 delta = choice.delta
                 reasoning = _reasoning_of(delta)
                 if reasoning:
@@ -244,6 +247,7 @@ class LLMStream:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             retries=retries_used,
+            finish_reason=finish_reason,
         )
         _log(self.result)
 

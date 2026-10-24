@@ -227,13 +227,16 @@ def test_explain_retry_then_pass(ds):
     assert a.check["ok"] and a.retries["explain_rewrite"] == 1 and a.text == GOOD_FLIGHT
     assert ("restart", "Double-checking the numbers...") in events
     assert [c[0] for c in llm.calls] == ["plan", "explain", "explain"]
-    assert llm.calls[0] == ("plan", False) and llm.calls[1] == ("explain", True)
+    assert llm.calls[0] == ("plan", False) and llm.calls[1] == ("explain", False)      # fast mode: thinking off
 
 
 def test_explain_retry_then_warn(ds):
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=["You'd have $412.50 left [C4].", "Still $412.50 [C4]."])
-    _, a = run_all(FLIGHT_Q, llm, ds=ds)
-    assert not a.check["ok"] and any("$412.50" in n for n in a.notes)
+    events, a = run_all(FLIGHT_Q, llm, ds=ds)
+    # the AI answer failed twice: the quick answer (built from the engine) stays, with a note saying why
+    assert a.explain_source == "template" and a.text == a.quick and a.check["ok"]
+    assert any("didn't pass Runway's checks" in n and "$412.50" in n for n in a.notes)
+    assert ("quick", a.quick) in events
     assert not list(config.ANSWER_CACHE_DIR.glob("*.json"))          # failed answers are not cached
 
 
@@ -333,7 +336,8 @@ def test_super_down_lightning_answers(ds, monkeypatch):
     monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT], explain_error=llm_client.LLMError("503"),
                   failing_models={"nvidia/nemotron-3.5-super-vl-120b-a12b"})
-    _, a = run_all(FLIGHT_Q, llm, ds=ds)
+    events = list(agent.run(FLIGHT_Q, engine.Scenario(), ds=ds, mode="live", llm=llm, typing_s=0, think=True))
+    a = events[-1][1]
     assert a.explain_source == "llm" and a.mode == "live" and a.text == GOOD_FLIGHT
     assert a.models["answered_by"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
     assert [m for m, _ in llm.messages] == ["nvidia/nemotron-3.5-super-vl-120b-a12b",

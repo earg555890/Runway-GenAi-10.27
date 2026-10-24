@@ -981,3 +981,290 @@ def cash_crunches(scenario=None, ds=None, ledger=None):
         out.append(Finding(f"{fmt_money(-inst.amount)} installment due {fmt_date(inst.due)} in the same week as a "
                            f"short paycheck ({pc.hours} hours vs {normal_hours})", c, rows))
     return out
+
+
+# ---------------------------------------------------------------------------------------
+# Lookups for Ask Runway's data questions (spending, transactions, bills, work, balances, money ideas).
+# Each returns Computed records that cite the rows they were read from.
+# ---------------------------------------------------------------------------------------
+SPENT_HOW = "Money out only; card payments are transfers between your own accounts, not spending."
+
+
+def _txns(ds, account):
+    return ds.checking_txns + ds.card_txns if account in (None, "both") else ds.txns(account)
+
+
+def _range(start, end):
+    """(start, end) dates; history questions can't look past DEMO_TODAY."""
+    return _date(start), min(_date(end), config.DEMO_TODAY)
+
+
+@dataclass
+class Spending:
+    start: date
+    end: date
+    group_by: str
+    account: str
+    groups: list                 # [(name, Computed spent (positive), count)] biggest first
+    total: Computed
+    count: int
+
+
+def spending_summary(start, end, group_by="category", account="both", ds=None, ledger=None):
+    """What was spent between start and end (inclusive, up to DEMO_TODAY), grouped by spending category or
+    merchant. Totals are positive amounts spent; card payments (transfers) are not spending."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    start, end = _range(start, end)
+    where = {"both": "checking and card", "checking": "checking", "card": "the credit card"}[account]
+    rows = [t for t in _txns(ds, account) if start <= t.date <= end and t.amount < 0
+            and t.spending_category != normalize.TRANSFER]
+    by = {}
+    for t in rows:
+        by.setdefault(t.spending_category if group_by == "category" else t.merchant, []).append(t)
+    groups = []
+    for name, ts in sorted(by.items(), key=lambda kv: sum(t.amount for t in kv[1])):
+        spent = D(-sum(t.amount for t in ts))
+        groups.append((name, ledger.add(f"spent on {name} {start} to {end} ({where})", spent, "USD",
+                                        f"{len(ts)} purchase(s) in {name} from {fmt_date(start)} to {fmt_date(end)} "
+                                        f"({where}). {SPENT_HOW}",
+                                        [t.row_id for t in sorted(ts, key=lambda t: t.date, reverse=True)]), len(ts)))
+    total = ledger.add(f"total spent {start} to {end} ({where})", D(-sum(t.amount for t in rows)), "USD",
+                       f"Sum of {len(rows)} purchases from {fmt_date(start)} to {fmt_date(end)} ({where}), in "
+                       f"{len(groups)} {'categories' if group_by == 'category' else 'merchants'}. {SPENT_HOW}",
+                       [c for _, c, _ in groups])
+    return Spending(start, end, group_by, account, groups, total, len(rows))
+
+
+@dataclass
+class Matches:
+    query: str
+    start: date
+    end: date
+    rows: list                   # Txn, newest first
+    count: Computed
+    spent: Computed | None       # money out, positive
+    received: Computed | None    # money in
+    last: Computed | None        # date of the newest match
+
+
+def find_transactions(query, start=None, end=None, account="both", min_amount=None, max_amount=None, ds=None,
+                      ledger=None):
+    """Transactions whose merchant, description or spending category contains `query` (case-insensitive),
+    between start and end (default: all history up to DEMO_TODAY), with an absolute amount between min_amount
+    and max_amount."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    start = _date(start) if start else min(t.date for t in _txns(ds, "both"))
+    end = min(_date(end), config.DEMO_TODAY) if end else config.DEMO_TODAY
+    q = (query or "").strip().lower()
+    rows = [t for t in _txns(ds, account) if start <= t.date <= end
+            and (not q or q in t.merchant.lower() or q in t.description.lower()
+                 or q in (t.spending_category or "").lower())
+            and (min_amount is None or abs(t.amount) >= D(min_amount))
+            and (max_amount is None or abs(t.amount) <= D(max_amount))]
+    rows.sort(key=lambda t: (t.date, t.row_id), reverse=True)
+    what = f'"{query}"' if q else "all transactions"
+    count = ledger.add(f"number of transactions matching {what} {start} to {end}", len(rows), "count",
+                       f"Transactions from {fmt_date(start)} to {fmt_date(end)} whose merchant, description or "
+                       f"category contains {what}.", [t.row_id for t in rows])
+    out_rows = [t for t in rows if t.amount < 0 and t.spending_category != normalize.TRANSFER]
+    in_rows = [t for t in rows if t.amount > 0 and t.spending_category != normalize.TRANSFER]
+    spent = ledger.add(f"spent on {what} {start} to {end}", D(-sum(t.amount for t in out_rows)), "USD",
+                       f"Sum of {len(out_rows)} matching purchases. {SPENT_HOW}",
+                       [t.row_id for t in out_rows]) if out_rows else None
+    received = ledger.add(f"received from {what} {start} to {end}", D(sum(t.amount for t in in_rows)), "USD",
+                          f"Sum of {len(in_rows)} matching deposits.", [t.row_id for t in in_rows]) if in_rows else None
+    last = ledger.add(f"most recent {what} transaction", rows[0].date, "date",
+                      f"{rows[0].merchant} {fmt_money(rows[0].amount)} on {fmt_date(rows[0].date)}.",
+                      [rows[0].row_id]) if rows else None
+    return Matches(query, start, end, rows, count, spent, received, last)
+
+
+BILL_KINDS = ("rent", "card_autopay", "installment", "subscription", "recurring_bill")
+
+
+@dataclass
+class Bills:
+    start: date
+    end: date
+    events: list                 # Event, in date order
+    total: Computed
+    balance_after: Computed      # end-of-day balance on `end`
+
+
+def upcoming_bills(start, end, scenario=None, ds=None, ledger=None):
+    """Scheduled money out of checking between start and end, from the projection."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    start = max(_date(start), config.DEMO_TODAY + timedelta(days=1))
+    end = min(_date(end), config.SEMESTER_END)
+    p = project(scenario, ds, ledger)
+    events = [e for e in p.events if e.kind in BILL_KINDS and start <= e.date <= end]
+    total = ledger.add(f"scheduled bills {start} to {end}", D(-sum((e.amount for e in events), ZERO)), "USD",
+                       f"{len(events)} scheduled payment(s) out of checking from {fmt_date(start)} to {fmt_date(end)}"
+                       + (": " + ", ".join(f"{e.label} {fmt_money(-e.amount)} on {fmt_date(e.date)}" for e in events)
+                          if events else "") + ".", [e.computed for e in events])
+    bal = ledger.add(f"checking balance at the end of {end}", p.balance_on(end), "USD",
+                     f"Projected end-of-day checking balance on {fmt_date(end)}.",
+                     [p.start_balance, *(e.computed for e in events)])
+    return Bills(start, end, events, total, bal)
+
+
+@dataclass
+class Work:
+    start: date
+    end: date
+    worked_hours: Computed
+    scheduled_hours: Computed
+    periods: list                # [(PayPeriod or Paycheck, Computed net pay, Computed pay date)] by pay date
+    pay_total: Computed
+    called_off: list             # Shift
+
+
+def work_summary(start, end, scenario=None, ds=None, ledger=None):
+    """Hours worked (past) and scheduled (future) between start and end, and the paychecks paid in that window:
+    paid ones from pay_periods, upcoming ones from the paycheck rule."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    start, end = _date(start), min(_date(end), config.SEMESTER_END)
+    shifts = [s for s in ds.shifts if start <= s.date <= end]
+    worked = [s for s in shifts if s.status == "WORKED"]
+    sched = [s for s in shifts if s.status == "SCHEDULED"]
+    worked_c = ledger.add(f"hours worked {start} to {end}", sum((s.hours for s in worked), NO_HOURS), "hours",
+                          f"{len(worked)} worked shift(s) from {fmt_date(start)} to {fmt_date(end)}.",
+                          [s.row_id for s in worked])
+    sched_c = ledger.add(f"hours scheduled {start} to {end}", sum((s.hours for s in sched), NO_HOURS), "hours",
+                         f"{len(sched)} scheduled shift(s) from {fmt_date(start)} to {fmt_date(end)}.",
+                         [s.row_id for s in sched])
+    periods = []
+    for p in ds.pay_periods:
+        if start <= p.pay_date <= end and p.status == "PAID":
+            periods.append((p, ledger.add(f"paycheck {p.pay_date} net", p.net, "USD",
+                                          f"{p.hours} hours, {fmt_money(p.gross)} gross, {fmt_money(p.net)} net, "
+                                          f"paid {fmt_date(p.pay_date)}.", [p.row_id]),
+                            ledger.add(f"pay date {p.pay_date}", p.pay_date, "date", "Pay period record.",
+                                       [p.row_id])))
+    for pc in paychecks(ds, scenario or Scenario(), ledger):
+        if start <= pc.pay_date <= end:
+            periods.append((pc, pc.net, ledger.add(f"pay date {pc.pay_date}", pc.pay_date, "date",
+                                                   f"Pay-date rule: {fmt_date(pc.start)} to {fmt_date(pc.end)} is "
+                                                   f"paid {fmt_date(pc.pay_date)}.",
+                                                   [ds.job.row_id, *([pc.period_id] if pc.period_id else [])])))
+    periods.sort(key=lambda x: x[2].value)
+    total = ledger.add(f"pay from {start} to {end}", D(sum((n.value for _, n, _ in periods), ZERO)), "USD",
+                       f"{len(periods)} paycheck(s) paid from {fmt_date(start)} to {fmt_date(end)}, after withholding.",
+                       [n for _, n, _ in periods])
+    return Work(start, end, worked_c, sched_c, periods, total, [s for s in shifts if s.status == "CALLED_OFF"])
+
+
+@dataclass
+class DayBalance:
+    day: date
+    balance: Computed
+    events: list                 # Event (future) or Txn (past) on that day
+
+
+def balance_on(day, scenario=None, ds=None, ledger=None):
+    """Checking balance at the end of `day`: the bank's running balance for past days, the projection after
+    DEMO_TODAY. With that day's events."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    day = _date(day)
+    if day > config.SEMESTER_END:
+        raise ValueError(f"{day} is after the semester ends")
+    if day <= config.DEMO_TODAY:
+        rows = [t for t in ds.checking_txns if t.date <= day]
+        last = max(rows, key=lambda t: (t.date, t.row_id)) if rows else None
+        bal = ledger.add(f"checking balance at the end of {day}",
+                         last.running_balance if last else ds.checking_account.opening_balance, "USD",
+                         f"The bank's running balance after the last transaction on or before {fmt_date(day)}.",
+                         [last.row_id] if last else [ds.checking_account.row_id])
+        return DayBalance(day, bal, [t for t in ds.checking_txns if t.date == day])
+    p = project(scenario, ds, ledger)
+    evs = [e for e in p.events if e.date == day]
+    bal = ledger.add(f"checking balance at the end of {day}", p.balance_on(day), "USD",
+                     f"Projected end-of-day balance on {fmt_date(day)}"
+                     + (": " + ", ".join(f"{e.label} {fmt_money(e.amount)}" for e in evs) if evs else
+                        " (everyday spending only that day)") + ".",
+                     [p.start_balance, p.checking_rate, *(e.computed for e in evs)])
+    return DayBalance(day, bal, evs)
+
+
+@dataclass
+class Today:
+    checking: Computed
+    next_card_payment: Event | None
+    refund: Computed | None      # held refund amount
+    refund_release: Computed | None
+    next_paycheck: Event | None
+    next_paycheck_date: Computed | None
+
+
+def accounts_today(scenario=None, ds=None, ledger=None):
+    """Balances and what's pending as of DEMO_TODAY: checking, the next card payment, the held refund and when
+    it would arrive, the next paycheck."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    p = project(scenario, ds, ledger)
+    card = next((e for e in p.events if e.kind == "card_autopay"), None)
+    r = _held_refund(ds)
+    refund = rel = None
+    if r and not scenario.refund_released:
+        refund = ledger.add("held refund", D(r.amount), "USD", f"Refund {r.status.lower()}: {r.reason}.",
+                            [r.row_id])
+        rel = ledger.add("refund arrival if the form is sent tomorrow", refund_release_date(ds, scenario), "date",
+                         f"Released {r.release_business_days} business days after the form arrives.", [r.row_id])
+    pc = next((e for e in p.events if e.kind == "paycheck"), None)
+    pcd = ledger.add("next pay date", pc.date, "date", "Pay-date rule of the job.", [pc.computed, ds.job.row_id])         if pc else None
+    return Today(p.start_balance, card, refund, rel, pc, pcd)
+
+
+@dataclass
+class Idea:
+    kind: str                    # "refund", "shift", "cancel"
+    name: str                    # plain words: "send the verification form", "cancel Spotify"
+    amount: Computed             # money in (or kept) before the deadline
+    arrives: Computed            # when the money arrives (or the first charge it avoids)
+    detail: Computed | None = None   # the latest shift date, for shifts
+
+
+def money_ideas(scenario=None, ds=None, ledger=None, shift_hours="4"):
+    """Ways to get money before the run-out date (or the semester end, if the money lasts), ranked by when the
+    money actually arrives: the held refund, an extra shift that is paid in time, cancellations that save
+    before then. Returns (ideas, deadline Computed, projection)."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    p = project(scenario, ds, ledger)
+    deadline = p.first_below_zero.value or config.SEMESTER_END
+    dl = ledger.add("deadline for the money", deadline, "date",
+                    "The first day checking is projected below $0." if p.first_below_zero.value else
+                    "The semester end (the money lasts until then).", [p.first_below_zero])
+    ideas = []
+    r = _held_refund(ds)
+    if r and not scenario.refund_released:
+        rel = refund_release_date(ds, scenario)
+        if rel <= config.SEMESTER_END:
+            ideas.append(Idea("refund", "send the verification form",
+                              ledger.add("refund released by sending the form", D(r.amount), "USD",
+                                         "Held until the missing verification form arrives.", [r.row_id]),
+                              ledger.add("refund arrival date", rel, "date",
+                                         f"Form sent {fmt_date(scenario.submit_date)}; released "
+                                         f"{r.release_business_days} business days later.", [r.row_id])))
+    if p.first_below_zero.value:
+        latest = latest_shift_paid_before(deadline, ds, ledger)
+        if latest:
+            shift_c, pay_c = latest
+            _, pay = extra_shift_pay(ExtraShift(shift_c.value, D(shift_hours)), ds, scenario, ledger)
+            if pay.value > 0:
+                ideas.append(Idea("shift", f"an extra {shift_hours}-hour shift", pay, pay_c, shift_c))
+    for sub in subscriptions(ds):
+        if sub.merchant in scenario.cancel_subscriptions:
+            continue
+        hits = [(d, pay) for d, pay in subscription_timing(sub, ds, scenario) if pay and pay < deadline]
+        if hits:
+            ideas.append(Idea("cancel", f"cancel {sub.merchant}",
+                              ledger.add(f"cancel {sub.merchant}: savings before {deadline}",
+                                         D(-sub.amount * len(hits)), "USD",
+                                         f"{len(hits)} {sub.merchant} charge(s) would reach checking before "
+                                         f"{fmt_date(deadline)}.", [t.row_id for t in sub.rows]),
+                              ledger.add(f"first {sub.merchant} charge avoided", hits[0][1], "date",
+                                         f"{sub.merchant} charges {sub.account} on day {sub.day}.",
+                                         [t.row_id for t in sub.rows])))
+    ideas.sort(key=lambda i: (i.arrives.value, -i.amount.value))
+    return ideas, dl, p
