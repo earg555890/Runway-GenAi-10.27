@@ -125,6 +125,11 @@ def test_broad_request_is_widened_when_plan_picks_one_tool(ds):
     assert [c["tool"] for c in a.plan["calls"]] == ["runway", "money_ideas", "find_leaks"]
     p = agent.parse_plan({"calls": [{"tool": "runway"}]}, SUBS)
     assert len(agent.widen_broad_plan(p, "How long will my money last?").calls) == 1      # specific: unchanged
+    off = agent.parse_plan({"intent": "off_topic", "calls": []}, SUBS)     # seen live: Lightning called it off-topic
+    off = agent.widen_broad_plan(off, "Help me get through the semester")
+    assert [c["tool"] for c in off.calls] == list(agent.BROAD_CALLS) and off.tool == "runway"
+    off = agent.parse_plan({"intent": "off_topic", "calls": []}, SUBS)
+    assert agent.widen_broad_plan(off, "What's the capital of France?").tool is None     # off-topic stays off-topic
 
 
 def test_parse_plan_limits_calls():

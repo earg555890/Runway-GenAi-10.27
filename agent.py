@@ -429,11 +429,14 @@ BROAD_CALLS = ("runway", "money_ideas", "find_leaks")
 
 def widen_broad_plan(plan, question):
     """A broad request for help ("Help me get through the semester") needs the whole picture: when PLAN picked
-    just one overview tool, add the other two (rule-based; still one PLAN call)."""
+    just one overview tool, or none at all (it once called it off-topic), use all three (rule-based; still one
+    PLAN call)."""
     tools = [c["tool"] for c in plan.calls]
-    if BROAD_RE.search(question) and len(tools) == 1 and tools[0] in BROAD_CALLS + ("accounts_today",):
+    if BROAD_RE.search(question) and (not tools or len(tools) == 1 and tools[0] in BROAD_CALLS + ("accounts_today",)):
         plan.calls = [{"tool": t, "args": {}} for t in BROAD_CALLS]
         plan.tool, plan.args = plan.calls[0]["tool"], plan.calls[0]["args"]
+        if plan.intent == "off_topic":
+            plan.intent = plan.tool
     return plan
 
 
