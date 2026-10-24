@@ -125,6 +125,13 @@ def test_zetaris_results_are_cached_by_name_and_params(monkeypatch, tmp_path):
     assert len(calls) == 2
 
 
+def test_jvm_is_not_destroyed_at_exit():
+    """The JVM's own shutdown waits for the (Streamlit script) thread that started it, so the app hung on exit."""
+    import jpype.config
+    import zetaris_db  # noqa: F401
+    assert jpype.config.destroy_jvm is False
+
+
 # --- parity: Zetaris vs local (skipped automatically when Zetaris is unreachable) -------------
 
 def _zetaris_reachable():

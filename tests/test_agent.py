@@ -30,6 +30,7 @@ def ds():
 @pytest.fixture(autouse=True)
 def tmp_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "ANSWER_CACHE_DIR", tmp_path / "answers")
+    monkeypatch.setattr(config, "DEMO_ANSWERS_DIR", tmp_path / "demo_answers")
 
 
 SUBS = ["Apple Music", "Spotify"]
@@ -280,13 +281,28 @@ def test_cached_and_replay_modes(ds):
     _, cached = run_all("  can I afford a $400 flight home for thanksgiving if I book it Nov 10 ", NoLLM(),
                         mode="cached", ds=ds)
     assert cached.mode == "cached" and cached.text == GOOD_FLIGHT and cached.timings == live.timings
+    _, missing = run_all(FLIGHT_Q, NoLLM(), mode="replay", ds=ds)        # replay reads only demo_answers/
+    assert missing.mode == "no_key"
+    agent.save_cached(live, engine.Scenario(), config.DEMO_ANSWERS_DIR)
     events, replayed = run_all(FLIGHT_Q, NoLLM(), mode="replay", ds=ds)
     assert replayed.mode == "replay"
     assert "".join(p for k, p in events if k == "text") == GOOD_FLIGHT
     assert [p for k, p in events if k == "stage"] == list(agent.STAGES.values())
-    # a different what-if is a different answer
-    _, other = run_all(FLIGHT_Q, NoLLM(), mode="replay", ds=ds, scenario=engine.Scenario(refund_released=True))
-    assert other.explain_source == "template" and any("no recorded answer" in n for n in other.notes)
+    agent.cache_path(FLIGHT_Q, engine.Scenario()).unlink()                 # cached falls back to demo_answers/
+    _, from_demo = run_all(FLIGHT_Q, NoLLM(), mode="cached", ds=ds)
+    assert from_demo.mode == "cached" and from_demo.text == GOOD_FLIGHT
+    # a different what-if is a different answer: no recording, so a friendly message and no model calls
+    llm = NoLLM()
+    _, other = run_all(FLIGHT_Q, llm, mode="replay", ds=ds, scenario=engine.Scenario(refund_released=True))
+    assert other.mode == "no_key" and "Recorded answers cover the four suggested questions" in other.text
+
+
+def test_no_key_typed_question_gets_friendly_message(ds, monkeypatch):
+    monkeypatch.setattr(config, "NVIDIA_API_KEY", None)
+    for mode in ("cached", "live", "replay"):
+        events, a = run_all("Can I afford a $90 jacket?", None, mode=mode, ds=ds)   # the real client
+        assert a.mode == "no_key" and a.text.startswith("Live answers need an NVIDIA key.")
+        assert "add NVIDIA_API_KEY to .env" in a.text and not a.check
 
 
 def test_cached_mode_misses_go_live(ds):

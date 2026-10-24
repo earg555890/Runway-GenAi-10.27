@@ -10,8 +10,14 @@ rather than plain SHOW DATABASES / SHOW TABLES, which Zetaris rejects.
 import os
 
 import jaydebeapi
+import jpype.config
 
 import config
+
+# At Python exit, don't run the JVM's own shutdown: it waits for the thread that started the JVM, and in
+# Streamlit that is a script thread that never finishes, so the process used to hang after Ctrl+C. The JDBC
+# connection needs no Java-side cleanup; the OS closes the socket when the process ends.
+jpype.config.destroy_jvm = False
 
 DRIVER_CLASS = "com.zetaris.lightning.jdbc.LightningDriver"
 

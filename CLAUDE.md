@@ -108,7 +108,7 @@ This is part of the judging score, so keep it visible:
 
 ## Known issues
 
-- **JVM exit hang (Zetaris backend):** once a process has opened the Zetaris JDBC connection from a worker thread (Streamlit always does), the Python process doesn't exit; closing the connection or calling `jpype.shutdownJVM()` at exit didn't help. Queries themselves work. Workaround: close the terminal, or in PowerShell `Get-NetTCPConnection -LocalPort 8501 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`. Not fixed yet (by decision).
+- **JVM exit hang (Zetaris backend): fixed Oct 24.** The process used to hang on exit once a worker thread (Streamlit's script thread) had started the JVM: JPype's exit handler destroys the JVM, which waits for that thread. `zetaris_db` sets `jpype.config.destroy_jvm = False`; a headless app run on Zetaris now exits in 0.3 s (it hung past 60 s before). If it ever comes back: `Get-NetTCPConnection -LocalPort 8501 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`.
 - **NVIDIA endpoint flakiness:** on Oct 23 the EXPLAIN model returned 5xx errors and timeouts for several minutes while the PLAN model kept working. The agent falls back to template answers (the app never crashes); use `ANSWER_MODE=cached` or `replay` for the demo.
 
 ## Stack

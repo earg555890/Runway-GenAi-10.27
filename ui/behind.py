@@ -35,7 +35,8 @@ def answers():
         t = a.timings
         how = {"live": "live", "cached": "cached (original timings)", "replay": "replayed (original timings)",
                "fallback": "fallback (no AI)" if a.explain_source == "template" else "fallback (keywords)",
-               "off_topic": "off-topic (one model call)"}.get(a.mode, a.mode)
+               "off_topic": "off-topic (one model call)",
+               "no_key": "not answered (no saved answer; live answers need a key)"}.get(a.mode, a.mode)
         rows.append({"question": a.question, "answer came from": how, "plan": a.plan.get("tool") or "none",
                      "plan by": a.plan.get("source"), "PLAN s": t.get("plan_s"), "math s": t.get("execute_s"),
                      "EXPLAIN s": t.get("explain_s"), "total s": t.get("total_s"),

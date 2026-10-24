@@ -14,8 +14,9 @@
   answer is shown with a warning. If EXPLAIN fails, a template answer is built from the pack.
 - ACTIONS: drafts (an email to financial aid, a checklist) from templates. Never sent.
 
-Answers are cached by (question, what-ifs) in config.ANSWER_CACHE_DIR; config.ANSWER_MODE picks
-live / cached / replay.
+Answers are saved by (question, what-ifs): live answers in config.ANSWER_CACHE_DIR, the committed demo
+answers in config.DEMO_ANSWERS_DIR. config.ANSWER_MODE picks live / cached / replay (see config.py). With no
+saved answer and no way to call the models (replay, or no NVIDIA key), the answer says so.
 """
 import hashlib
 import json
@@ -989,20 +990,38 @@ def normalize_question(q):
     return " ".join(re.sub(r"[^a-z0-9$.,\s]", " ", q.lower()).split()).rstrip(".,")
 
 
-def cache_path(question, scenario):
+def cache_path(question, scenario, folder=None):
     key = hashlib.sha256(f"{normalize_question(question)}|{scenario.describe()}".encode()).hexdigest()[:20]
-    return config.ANSWER_CACHE_DIR / f"{key}.json"
+    return (folder or config.ANSWER_CACHE_DIR) / f"{key}.json"
 
 
-def load_cached(question, scenario):
-    path = cache_path(question, scenario)
-    return Answer.from_json(path.read_text(encoding="utf-8")) if path.exists() else None
+def answer_folders(mode):
+    """Where saved answers are looked up: replay = only the committed demo answers; cached = local cache first."""
+    return [config.DEMO_ANSWERS_DIR] if mode == "replay" else [config.ANSWER_CACHE_DIR, config.DEMO_ANSWERS_DIR]
 
 
-def save_cached(answer, scenario):
-    path = cache_path(answer.question, scenario)
+def load_cached(question, scenario, mode="cached"):
+    for folder in answer_folders(mode):
+        path = cache_path(question, scenario, folder)
+        if path.exists():
+            return Answer.from_json(path.read_text(encoding="utf-8"))
+    return None
+
+
+def save_cached(answer, scenario, folder=None):
+    path = cache_path(answer.question, scenario, folder)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(answer.to_json(), encoding="utf-8")
+
+
+def no_live_answer_text(mode):
+    """What a question with no saved answer gets when the models can't be called."""
+    why = ("Live answers are off in replay mode." if config.NVIDIA_API_KEY else
+           "Live answers need an NVIDIA key.")
+    fix = ("restart with ANSWER_MODE=cached." if config.NVIDIA_API_KEY else
+           "add NVIDIA_API_KEY to .env and restart with ANSWER_MODE=cached.")
+    return (f"{why} Recorded answers cover the four suggested questions, with nothing changed or with both "
+            f"fixes on. To ask anything else, {fix}")
 
 
 # ---------------------------------------------------------------------------------------
@@ -1025,7 +1044,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
     mode, llm = (mode or config.ANSWER_MODE).lower(), llm or llm_client
     question = question.strip()
     if mode in ("cached", "replay"):
-        cached = load_cached(question, scenario)
+        cached = load_cached(question, scenario, mode)
         if cached and mode == "replay":
             yield from _replay(cached, "replay", typing_s)
             return
@@ -1036,21 +1055,28 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
     t0 = time.perf_counter()
     timings, retries, notes = {}, {"plan_json": 0, "explain_rewrite": 0, "facts_appended": 0}, []
     models = {"plan": config.NVIDIA_PLAN_MODEL, "explain": config.NVIDIA_EXPLAIN_MODEL}
+    if mode == "replay" or (llm is llm_client and not config.NVIDIA_API_KEY):    # nothing saved, no models
+        text = no_live_answer_text(mode)
+        yield "text", text
+        timings["total_s"] = round(time.perf_counter() - t0, 2)
+        yield "answer", Answer(question, text, None, None, asdict(Plan("off_topic", None, {}, None, [], "none")),
+                               {"items": [], "context": []}, {}, "", [], [], "no_key", "none", [], timings,
+                               retries, models, scenario.describe(), time.time(), {}, [])
+        return
     sub_names = [s.merchant for s in engine.subscriptions(ds)]
 
     # PLAN
     yield "stage", STAGES["plan"]
     t = time.perf_counter()
     plan = None
-    if mode != "replay":
-        try:
-            res = llm.chat_json(plan_messages(question, scenario, sub_names), thinking=False,
-                                validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
-            plan = ground_purchase_date(parse_plan(res.data, sub_names), question)
-            retries["plan_json"] = res.json_retries + res.retries
-        except Exception as exc:                                   # slow, down, or unusable: keywords
-            notes.append(f"The planner wasn't available ({type(exc).__name__}); Runway matched your question "
-                         "by keywords.")
+    try:
+        res = llm.chat_json(plan_messages(question, scenario, sub_names), thinking=False,
+                            validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
+        plan = ground_purchase_date(parse_plan(res.data, sub_names), question)
+        retries["plan_json"] = res.json_retries + res.retries
+    except Exception as exc:                                       # slow, down, or unusable: keywords
+        notes.append(f"The planner wasn't available ({type(exc).__name__}); Runway matched your question "
+                     "by keywords.")
     if plan is None:
         plan = keyword_plan(question, sub_names) or Plan("off_topic", None, {}, None, [], "keywords")
     timings["plan_s"] = round(time.perf_counter() - t, 2)
@@ -1089,18 +1115,14 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
     messages = explain_messages(question, plan, result, pack, label, required)
     text, reasoning, check, source, answered_by, missing = "", "", None, "template", None, []
     errors = []
-    if mode == "replay":
-        errors.append("no recorded answer")                     # replay never calls the models
-    else:
-        for model in explain_chain():
-            try:
-                text, reasoning, check, missing = yield from _explain_with(llm, model, messages, pack, retries,
-                                                                           required)
-                source, answered_by = "llm", model
-                break
-            except Exception as exc:
-                errors.append(f"{model_name(model)}: {type(exc).__name__}")
-                yield "restart", ""
+    for model in explain_chain():
+        try:
+            text, reasoning, check, missing = yield from _explain_with(llm, model, messages, pack, retries, required)
+            source, answered_by = "llm", model
+            break
+        except Exception as exc:
+            errors.append(f"{model_name(model)}: {type(exc).__name__}")
+            yield "restart", ""
     if answered_by is None:
         text = template_answer(plan, result, pack, ds, scenario)
         missing = missing_facts(text, required)
@@ -1112,9 +1134,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035):
             yield "text", text
     if answered_by is None:
         check = check_answer(text, pack)
-        notes.append("There's no recorded answer for this question, so this is a short summary built straight "
-                     "from your numbers." if mode == "replay" else
-                     f"The AI explanation isn't available right now ({'; '.join(errors)}), so this is a short "
+        notes.append(f"The AI explanation isn't available right now ({'; '.join(errors)}), so this is a short "
                      "summary built straight from your numbers.")
         yield "text", text
     else:

@@ -1,74 +1,100 @@
 # Runway
 
-An AI agent for college students: projects their money forward through the semester across separate sources, explains why with evidence, and drafts actions for them to approve. Built for the GenAI Works Open Agent Hackathon (Track 2).
+**An AI money agent for college students that tells you how long your money lasts, and explains why, with proof.**
 
-## Setup
+Built for the GenAI Works Open Agent Hackathon, Track 2: "The Agent That Can Explain Why".
 
-Requires Python 3.11+ and Java 8+ (for the Zetaris JDBC driver). Developed on Windows on ARM with Python 3.14 (x64 build) and Temurin JDK 21.
+## The problem
 
-```bash
-python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements.txt   # macOS/Linux: .venv/bin/python
-cp .env.example .env                                       # then fill in the values
-```
+A student's money is split across six places that never talk to each other: a bank account, a credit card, a financial aid award, the school's student account (bursar), a lease and a part-time job. Each one looks fine on its own. Together they hide surprises: a refund held for a missing form, rent landing the day before payday, an overdraft fee, a card bill that falls due right after a big purchase. Students find out when the money is already gone.
 
-`.env` holds the NVIDIA API key, model ID and base URL, and the Zetaris JDBC URL, user, password, jar path and `JAVA_HOME`. It is gitignored.
+## What Runway does
 
-Zetaris itself runs separately in Docker (see the Zetaris bundle's README); it must be up for the Zetaris data path.
+Runway connects the six sources, projects the checking balance day by day to the end of the semester, and answers plain questions. Every answer shows its proof.
 
-## Demo data
+The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester ends Fri, Dec 18.
 
-```bash
-.venv/Scripts/python generate_maya_data.py   # rewrite data/maya/ (fixed seed) and run the history checks
-.venv/Scripts/python load_zetaris.py         # load data/maya into Zetaris: one Lightning database per source (safe to rerun)
-```
+| Suggested question | What Runway answers |
+|---|---|
+| Can I afford a $400 flight home for Thanksgiving if I book it Nov 10? | **Yes, if you do 2 things:** send the verification form (releases a held $1,850 refund around Thu, Nov 5) and cancel Spotify. Cancelling Apple Music saves $0.00, because its next charge is paid on a card bill due after the semester. |
+| How long will my money last? | **Your money runs out on Mon, Nov 9**, when a $360 card payment is due. |
+| Where is my money leaking? | Two music subscriptions and a $35 overdraft fee from rent, and which of them is worth cancelling. |
+| Can I afford a $400 flight home for Thanksgiving? | **Not right now:** with no date, Runway assumes tomorrow, before the refund arrives, and says so. |
 
-The app reads data only through `data_access.py`: named queries (`data_access.catalog()`), each with a Lightning SQL template and an equivalent local implementation. `DATA_BACKEND=local` (default) reads the CSVs; `DATA_BACKEND=zetaris` queries Zetaris over JDBC, with results cached in `.cache/zetaris/` (`ZETARIS_CACHE=on`). Every result carries an evidence record (query, sources, tables, SQL, params, row IDs, backend, duration).
+- **What-if panel:** turn fixes on and off (send the form, cancel a subscription, pick up an extra shift) and the balance chart and numbers update instantly, with no AI call.
+- **Drafted actions:** a ready-to-send email to the financial aid office and a to-do list. Runway never sends anything; you copy and send it yourself.
 
-## Run the app
+## Watch the demo
 
-```bash
-.venv/Scripts/python -m streamlit run ui/app.py                          # backend from .env (DATA_BACKEND, default local)
-DATA_BACKEND=local   .venv/Scripts/python -m streamlit run ui/app.py     # Git Bash: local CSVs
-DATA_BACKEND=zetaris .venv/Scripts/python -m streamlit run ui/app.py     # Git Bash: Zetaris (Docker bundle must be up)
-```
+Video: *coming soon* (link to be added)
 
-PowerShell: `$env:DATA_BACKEND="zetaris"; .venv\Scripts\python -m streamlit run ui/app.py` (use `"local"` for the CSVs). Opens at http://localhost:8501. The first Zetaris load runs every engine query (about a minute on this laptop) and fills the query cache; later loads come from the cache. If Zetaris fails, the app falls back to the local files and says so.
+## Try it in 2 minutes
 
-`ui/app.py` is short; each part is its own module in `ui/`: `top` (greeting, status sentence), `ask` (question box, coming soon), three tabs `semester` (chart + ways to fix it), `afford` (Can I afford it?), `found` (What we found, with proof), and `behind` (Behind the scenes: data sources, every calculation via `explain`, and `live_zetaris`). The UI does no money math: every number comes from `engine`.
+No keys needed. This runs the full app on the included data, with the recorded AI answers for the suggested questions. Needs Python 3.11 or newer and git.
 
-## Money engine
-
-`normalize.py` turns the query results into typed records: one date type for every source's date format, and one sign convention (money out is negative). It also normalizes merchant names and classifies every transaction with rules (`MERCHANT_RULES`). `engine.py` does all the money math in plain, tested Python, with no LLM:
-
-```python
-import engine
-engine.project()                                                    # daily checking projection, "nothing changes"
-engine.project(engine.Scenario(refund_released=True, cancel_subscriptions=("Spotify",)))   # what-if
-engine.can_afford("400.00", "2026-11-10")                           # yes / no / yes_if + smallest set of fixes
-engine.find_leaks(); engine.refund_status(); engine.cash_crunches()
-```
-
-Each number is a `Computed` record (`C#`: label, value, unit, how, inputs = row IDs and other `C#` ids) that the EXPLAIN step can cite.
-
-## Ask Runway (the agent)
-
-`agent.py`: `agent.run(question, scenario)` yields progress stages, streamed text and a final `Answer`. Per question: one PLAN call (`NVIDIA_PLAN_MODEL`, thinking off, JSON) picks one engine tool, validated strictly in Python; the engine does all the math; one EXPLAIN call (`NVIDIA_EXPLAIN_MODEL`, thinking on, streamed) writes the answer from a small pack of calculations (C1..) and source records (E1..); a checker matches every dollar amount, date and citation against the pack and allows one rewrite. Drafts (email to financial aid, checklist) come from templates and are never sent. If a model is down or slow, fallbacks take over: keyword planning for PLAN; for EXPLAIN, Nemotron Super, then Nemotron Lightning (thinking on), then a template answer built from the numbers. The answer records which model wrote it.
-
-`ANSWER_MODE` in `.env`: `live` (always call), `cached` (default: reuse a saved answer for the same question and what-ifs), `replay` (saved answers only, typed out, for recording the demo). Saved answers live in `.cache/answers/`.
+**macOS / Linux**
 
 ```bash
-.venv/Scripts/python pregenerate_answers.py   # live: cache the 4 suggested questions, with and without the "Do these" fixes
-.venv/Scripts/python eval_agent.py 3 240      # live: 10 questions x 3 runs, 240 s apart -> eval_summary.md (+ eval_results.*)
+git clone REPO_URL_HERE runway && cd runway
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp .env.example .env
+.venv/bin/streamlit run ui/app.py
 ```
 
-## Checks
+**Windows (PowerShell)**
 
-```bash
-.venv/Scripts/python -m pytest                 # all tests; Zetaris parity tests skip if Zetaris is unreachable
-.venv/Scripts/python -m pytest -m "not zetaris" # fast: no network, no Zetaris, no real API calls
-.venv/Scripts/python nemotron_smoke_test.py    # live NVIDIA check: chat, tool calling, reasoning on/off
-.venv/Scripts/python benchmark_latency.py 3    # live latency comparison of Nemotron models (slow; measures only)
+```powershell
+git clone REPO_URL_HERE runway; cd runway
+py -m venv .venv; .venv\Scripts\pip install -r requirements.txt
+copy .env.example .env
+.venv\Scripts\streamlit run ui/app.py
 ```
 
-The LLM client is `llm_client.py`: `chat()` for normal calls, `chat_json()` for the PLAN call, and `stream_chat()` for the EXPLAIN call. Every call has a 90 s timeout and up to 2 retries on 5xx errors and timeouts.
+Then open http://localhost:8501 and click a suggested question. Typed questions need a key (below).
+
+**Live answers (NVIDIA key):** put your key from [build.nvidia.com](https://build.nvidia.com) in `.env` as `NVIDIA_API_KEY=...` and set `ANSWER_MODE=cached` (saved answers first, then live) or `ANSWER_MODE=live`. Restart the app.
+
+**Zetaris:** start the Zetaris Docker bundle, fill in the `ZETARIS_*` settings and `JAVA_HOME` in `.env`, load the data with `python load_zetaris.py`, then run with `DATA_BACKEND=zetaris`. The first load runs every query on Zetaris (about a minute on our laptop) and caches the results. More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+## How it works
+
+```mermaid
+flowchart LR
+    Q[Student's question] --> P["PLAN<br/>Nemotron Lightning<br/>picks one tool, as JSON"]
+    P --> D["Named queries via Zetaris<br/>across 6 separate sources"]
+    D --> E["Money engine<br/>plain Python, tested to the cent"]
+    E --> X["EXPLAIN<br/>Nemotron Super<br/>writes from the evidence"]
+    X --> C["Check<br/>every number, date and<br/>required fact"]
+    C --> A[Answer with proof]
+```
+
+Trust rules:
+
+- **All math is in code.** The AI never adds, subtracts or projects anything; the engine computes every number before the AI writes a word.
+- **Every number is cited.** Each sentence points to a calculation or a source record, and the app shows the rows behind it.
+- **A checker reads every answer.** Each dollar amount and date must match the computed results, and the answer must include the facts that matter (like the run-out date). On a miss, the AI gets one rewrite; if a fact is still missing, Runway adds it from the numbers and records that.
+- **No internal IDs leak into answers.** Record IDs stay in the proof view, not in the text.
+- **It degrades gracefully.** At most two AI calls per question. If Nemotron Super is down, Nemotron Lightning writes; if both are down, a template built from the numbers answers. If Zetaris is down, the app runs on the local copy of the data and says so.
+
+## Sponsor technology
+
+- **Zetaris:** federated data access over JDBC (Lightning SQL). Each source is its own Lightning database (6 in all), read through 16 named queries. One federated query spans two of those databases, the checking account and the credit card, to find charges that repeat every month. The app has a "Run live on Zetaris" button that runs it uncached, with a timer and the SQL.
+- **NVIDIA Nemotron:** two models. PLAN (`nvidia/nemotron-3.5-lightning-30b-a3b`, thinking off) picks the tool and its arguments as JSON. EXPLAIN (`nvidia/nemotron-3.5-super-vl-120b-a12b`, thinking on) writes the answer, and its reasoning trace is shown in the app.
+
+## Results
+
+We asked Runway 10 realistic student questions, 3 times each, with the live models: **30/30 full answers**. Right tool, right verdict, every amount and date matching the records, and every required fact written by the model, with no rewrites. Details: [eval_summary.md](eval_summary.md).
+
+## Data
+
+All data is synthetic. Maya Rivera is fictional, and no real bank, card, school or employer account is connected. Her files are in `data/maya/`, generated by `generate_maya_data.py`.
+
+## Roadmap
+
+1. **Upload your own bank export.** A CSV or statement upload, mapped onto the same six sources.
+2. **Bank connections with consent, through an aggregator.** Not built in a 6-day hackathon: it needs the aggregator's approval, a security review, and real consent and privacy work.
+3. **School portal integrations, through university partnerships.** Not built yet: there are no standard APIs for financial aid or bursar accounts, so each school needs its own agreement.
+
+---
+
+Developer notes (setup, tests, evaluation, Zetaris loading): [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).

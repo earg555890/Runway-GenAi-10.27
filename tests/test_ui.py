@@ -193,6 +193,37 @@ def test_ask_flight_question_shows_structured_answer(asked):
     assert at.session_state["history"][0].mode == "live" and at.session_state["history"][0].sections
 
 
+def test_judge_setup_no_key_replay_mode(monkeypatch):
+    """A fresh clone: no NVIDIA key, local data, replay mode. The committed demo answers serve every suggested
+    question (with nothing changed and with both fixes on); a typed question gets a friendly message."""
+    import functools
+
+    import agent
+    monkeypatch.setattr(config, "DATA_BACKEND", "local")
+    monkeypatch.setattr(config, "ANSWER_MODE", "replay")
+    monkeypatch.setattr(config, "NVIDIA_API_KEY", None)
+    monkeypatch.setattr(agent, "run", functools.partial(agent.run, typing_s=0))     # no typing delay
+    at = AppTest.from_file("../ui/app.py", default_timeout=60)
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    for fixes in (False, True):
+        if fixes:
+            at.toggle(key="wf_refund").set_value(True)
+            at.toggle(key="wf_cancel_Spotify").set_value(True)
+            run(at)
+        for i in range(4):
+            at.button(key=f"ask_suggest_{i}").click()
+            run(at)
+            a = at.session_state["history"][0]
+            assert a.mode == "replay" and a.text.startswith("ANSWER:"), (fixes, a.question, a.mode)
+    at.chat_input(key="ask_input").set_value("Can I afford a $90 jacket?")
+    run(at)
+    a = at.session_state["history"][0]
+    assert a.mode == "no_key" and a.text.startswith("Live answers need an NVIDIA key.")
+    assert any("Live answers need an NVIDIA key." in t for t in texts(at))
+    assert not at.exception
+
+
 # --- Behind the scenes --------------------------------------------------------------------------
 
 def test_behind_the_scenes_drills_into_records(at):
