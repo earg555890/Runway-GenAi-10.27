@@ -163,6 +163,7 @@ def asked(at, monkeypatch, tmp_path):
     monkeypatch.setattr(llm_client, "stream_chat", fake.stream_chat)
     monkeypatch.setattr(config, "ANSWER_MODE", "live")
     monkeypatch.setattr(config, "ANSWER_CACHE_DIR", tmp_path / "answers")
+    monkeypatch.setattr(config, "NVIDIA_API_KEY", "test-key")        # the fake client stands in; no .env needed
     at.button(key="ask_suggest_0").click()
     run(at)
     return at

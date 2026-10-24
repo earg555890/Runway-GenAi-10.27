@@ -50,6 +50,8 @@ copy .env.example .env
 .venv\Scripts\streamlit run ui/app.py
 ```
 
+On Windows, clone into a short folder (like `C:\code`): one package installs files with very long paths, and pip fails past Windows' 260-character limit.
+
 Then open http://localhost:8501 and click a suggested question. Typed questions need a key (below).
 
 **Live answers (NVIDIA key):** put your key from [build.nvidia.com](https://build.nvidia.com) in `.env` as `NVIDIA_API_KEY=...` and set `ANSWER_MODE=cached` (saved answers first, then live) or `ANSWER_MODE=live`. Restart the app.
