@@ -42,12 +42,13 @@ A student's money is spread across separate sources (checking account, credit ca
    - one PLAN call: the model picks which tools to run and with what arguments, as structured JSON;
    - one EXPLAIN call: the model writes the answer from the evidence.
 
-   Everything between them, every query and all the math, runs in deterministic Python with no LLM calls. Never build an open-ended tool-calling loop. The PLAN call runs with thinking off; the EXPLAIN call runs with thinking on, and its reasoning trace is kept so the UI can show it. (Why: the hosted endpoint takes 80–200+ s per round trip.)
+   Everything between them, every query and all the math, runs in deterministic Python with no LLM calls. Never build an open-ended tool-calling loop. The PLAN call runs with thinking off (up to 3 tool calls, with the last 3 turns for follow-ups). EXPLAIN runs Nemotron Lightning with thinking off by default (fast); "Think harder" runs Nemotron Super with thinking on, and its reasoning trace is kept so the UI can show it. A quick answer built from the engine is shown before EXPLAIN. (Why: thinking-on round trips take 20–200+ s.)
 10. **Python computes every number the answer could need,** including results like "balance after the purchase", before EXPLAIN.
     - The EXPLAIN prompt forbids introducing any number not in the evidence or computed results.
     - It requires each claim to cite evidence IDs like [E3].
     - After EXPLAIN, a check verifies that every dollar amount and date in the answer appears in the evidence or computed results.
-    - On failure, retry once with the offending numbers listed, then show the answer with a visible warning.
+    - On failure, retry once with the offending numbers listed; if it still fails, the quick answer (built from the engine) stays, with a note.
+    - The check also covers reasons (merchants named must be in the evidence; card/checking claims and "saves $X" must match), repetition, cut-off answers and invented budgets.
 11. **Projection rule:**
     - Known items are projected explicitly: rent schedule, paychecks from pay periods/scheduled shifts, payment-plan installments, card autopay from statements, detected monthly subscriptions, aid/refund releases.
     - Everything else is variable spending, projected per account as the semester-to-date daily average of non-recurring purchases under $100.

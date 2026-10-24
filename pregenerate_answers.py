@@ -1,4 +1,5 @@
-"""Pre-generate the committed demo answers in demo_answers/ (live NVIDIA calls).
+"""Pre-generate the committed demo answers in demo_answers/ (live NVIDIA calls, Think harder: Nemotron Super with
+thinking on, the best quality; replay is instant anyway).
 
     .venv/Scripts/python pregenerate_answers.py            # all of them
     .venv/Scripts/python pregenerate_answers.py "money last"   # only questions containing this text
@@ -43,7 +44,7 @@ def main():
     failed = 0
     for q, name in jobs:
         for attempt in range(1, 4):
-            a = agent.ask(q, SCENARIOS[name], ds=ds, mode="live")
+            a = agent.ask(q, SCENARIOS[name], ds=ds, mode="live", think=True)        # Super, thinking on
             saved = (a.mode == "live" and a.check.get("ok")
                      and a.models.get("answered_by") == config.NVIDIA_EXPLAIN_MODEL       # not a fallback model
                      and a.text.rstrip()[-1:] in ".!?])")                                # not cut off

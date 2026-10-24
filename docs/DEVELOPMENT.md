@@ -53,7 +53,17 @@ Each number is a `Computed` record (`C#`: label, value, unit, how, inputs = row 
 
 ## Ask Runway (the agent)
 
-`agent.py`: `agent.run(question, scenario)` yields progress stages, streamed text and a final `Answer`. Per question: one PLAN call (`NVIDIA_PLAN_MODEL`, thinking off, JSON) picks one engine tool, validated strictly in Python; the engine does all the math; one EXPLAIN call (`NVIDIA_EXPLAIN_MODEL`, thinking on, streamed) writes the answer from a small pack of calculations (C1..) and source records (E1..); a checker matches every dollar amount, date and citation against the pack and allows one rewrite. Drafts (email to financial aid, checklist) come from templates and are never sent. If a model is down or slow, fallbacks take over: keyword planning for PLAN; for EXPLAIN, Nemotron Super, then Nemotron Lightning (thinking on), then a template answer built from the numbers. The answer records which model wrote it.
+`agent.py`: `agent.run(question, scenario, history=..., think=False)` yields progress stages, the quick answer, streamed text and a final `Answer`. Per question:
+
+- **PLAN:** one call (`NVIDIA_PLAN_MODEL`, thinking off, JSON). It picks up to 3 tool calls and their arguments, validated strictly in Python (`validate_call`). It gets the last 3 turns of the chat, so follow-ups resolve, and returns the question it answered (`resolved_question`). If it fails, `keyword_plan` takes over.
+- **EXECUTE:** the engine does all the math. Results from every call merge into one pack of calculations (C1..) and source records (E1..).
+- **QUICK:** a quick answer built from the engine (template + every required fact) is yielded at once.
+- **EXPLAIN:** one streamed call. Fast mode (default): Lightning, thinking off, then Super, thinking off. "Think harder": Super, thinking on, then Lightning, thinking on.
+- **CHECK:** the checker covers amounts, dates, citations, format, record IDs, required facts, reason claims (`merchant_accounts`), repetition, cut-off answers (`finish_reason`) and invented budgets. One rewrite; if the answer still fails, the quick answer stays.
+
+General questions (`general_info`) get no facts and no number check, but must not state her numbers. Drafts (email to financial aid, checklist) come from templates and are never sent. The answer records which model wrote it and its timings (`quick_s`, `total_s`).
+
+Tools: `can_afford`, `runway`, `what_if`, `find_leaks`, `refund_status`, `cash_crunches`, `spending_summary`, `find_transactions`, `upcoming_bills`, `work_summary`, `balance_on`, `accounts_today`, `money_ideas`, `general_info`. Spending categories come from one rules table, `normalize.SPENDING_RULES`.
 
 `ANSWER_MODE` in `.env`: `live` (always call), `cached` (reuse a saved answer for the same question and what-ifs: `.cache/answers/` first, then `demo_answers/`), `replay` (only the committed `demo_answers/`, typed out; no key needed). Live answers are saved to `.cache/answers/` (gitignored). With no saved answer and no way to call the models (replay mode, or no `NVIDIA_API_KEY`), a question gets a short message saying live answers need a key.
 
@@ -61,8 +71,10 @@ Each number is a `Computed` record (`C#`: label, value, unit, how, inputs = row 
 
 ```bash
 .venv/Scripts/python pregenerate_answers.py   # live: rewrite demo_answers/ (optional filter: pregenerate_answers.py "money last")
-.venv/Scripts/python eval_agent.py 3 240      # live: 10 questions x 3 runs, 240 s apart -> eval_summary.md (+ eval_results.*)
+.venv/Scripts/python eval_agent.py fast,fast,think 180   # live: 20 questions x 3 runs -> eval_summary.md (+ eval_results.*)
 ```
+
+Windows launchers in the repo root: `Start Runway.bat` (local data, saved answers first; starts the app on 8501 in a window titled "Runway" only if nothing is listening there, waits for the health check, opens the browser), `Start Runway (Zetaris).bat` (the same with `DATA_BACKEND=zetaris`, after checking that the Zetaris JDBC port answers) and `Stop Runway.bat` (stops whatever serves 8501, and its "Runway" window).
 
 ## Checks
 
