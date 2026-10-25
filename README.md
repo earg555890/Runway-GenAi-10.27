@@ -38,7 +38,7 @@ No keys needed. This runs the full app on the included data, with the recorded A
 **macOS / Linux**
 
 ```bash
-git clone REPO_URL_HERE runway && cd runway
+git clone https://github.com/earg555890/Hackathon1 runway && cd runway
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env
 .venv/bin/streamlit run ui/app.py
@@ -47,7 +47,7 @@ cp .env.example .env
 **Windows (PowerShell)**
 
 ```powershell
-git clone REPO_URL_HERE runway; cd runway
+git clone https://github.com/earg555890/Hackathon1 runway; cd runway
 py -m venv .venv; .venv\Scripts\pip install -r requirements.txt
 copy .env.example .env
 .venv\Scripts\streamlit run ui/app.py
