@@ -10,7 +10,8 @@ import pandas as pd
 import streamlit as st
 
 import agent
-from ui import fmt, state
+import engine
+from ui import checkin, fmt, state
 
 CITE = re.compile(r"\[((?:[CE]\d+)(?:\s*[,;]\s*[CE]\d+)*)\]")
 MAX_TURNS = state.MAX_TURNS
@@ -114,16 +115,32 @@ def _thinking(a):
                 st.text(a.reasoning)
 
 
-def _actions(a, key):
-    if not a.actions:
+def _todo_cards(act, key, ds):
+    """An action_plan answer: the same cards and buttons as the check-in, for the items it's about."""
+    if ds is None:
         return
-    label = " and ".join(["a ready-made email" if x["kind"] == "email" else "a to-do list" for x in a.actions])
+    done = st.session_state.get("done") or {}
+    items = {it.kind: it for it in engine.attention_items(state.done_scenario(), ds)}
+    for kind in act["items"]:
+        if kind in done:
+            st.caption(f":material/check: {fmt.md(done[kind]['label'])}: done.")
+        elif kind in items:
+            checkin.card(items[kind], ds, f"chat{key}_{kind}")
+
+
+def _actions(a, key, ds=None):
+    for act in (x for x in a.actions if x["kind"] == "attention"):
+        _todo_cards(act, key, ds)
+    drafts = [x for x in a.actions if x["kind"] != "attention"]
+    if not drafts:
+        return
+    label = " and ".join(["a ready-made email" if x["kind"] == "email" else "a to-do list" for x in drafts])
     with st.expander(label[0].upper() + label[1:], icon=":material/edit_note:"):
         _action_cards(a, key)
 
 
 def _action_cards(a, key):
-    for act in a.actions:
+    for act in (x for x in a.actions if x["kind"] != "attention"):
         with st.container(border=True):
             if act["kind"] == "email":
                 st.markdown(f"**:material/mail: Draft email to {fmt.md(act['to'])}**")
@@ -218,7 +235,7 @@ def reply(a, latest=True, ds=None):
         pick = st.pills("Proof", list(notes), key=f"proof_{key}", format_func=lambda cid: _chip(cid, notes, items))
         if pick:
             _proof(items[pick], a, key, ds)
-    _actions(a, key)
+    _actions(a, key, ds)
     if a.plan.get("tool") or a.mode == "no_key":
         _thinking(a)
 
@@ -245,7 +262,8 @@ def _ask(question, ds, scenario):
         status = st.status(agent.STAGES["plan"], expanded=False)
         box, caption = st.empty(), st.empty()
         earlier = list(reversed([a for a in s.history if a.mode != "event"][:3]))
-        for kind, payload in agent.run(question, scenario, ds=ds, history=earlier, think=s.get("ask_think", False)):
+        for kind, payload in agent.run(question, scenario, ds=ds, history=earlier, think=s.get("ask_think", False),
+                                       done=tuple(s.get("done") or {})):
             if kind == "stage":
                 status.update(label=payload)
             elif kind == "quick":

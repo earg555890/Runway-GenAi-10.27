@@ -70,6 +70,28 @@ def text(item, cite=_none):
     return (k, "")
 
 
+LABELS = {"refund": "the verification form and when the refund arrives", "rent": "the rent and what it leaves",
+          "run_out": "the card payment and where it takes you", "subscriptions": "the subscription to cancel",
+          "tight_week": "the tuition payment in the tight week"}
+
+
+def line(item, cite=_none):
+    """One self-contained line for a chat answer (the card's title and sentence in one)."""
+    f, k = item.facts, item.kind
+    if k == "refund":
+        return (f"Send your verification form: your {w.dollars(f['refund'].value)} refund{_c(cite, f['refund'])} "
+                f"then arrives around {w.day(f['arrives'].value)}{_c(cite, f['arrives'])}.")
+    if k == "rent":
+        return (f"Rent of {w.dollars(f['rent'].value)}{_c(cite, f['rent'])} is due {w.day(item.due.value)}"
+                f"{_c(cite, item.due)} and leaves you just {w.balance(f['left'].value)}{_c(cite, f['left'])}. "
+                f"Last time, rent before payday cost a {w.dollars(f['fee'].value)} fee{_c(cite, f['fee'])}.")
+    if k == "run_out" and "payment" in f:
+        return (f"Your {w.dollars(f['payment'].value)} card payment{_c(cite, f['payment'])} on "
+                f"{w.day(item.due.value)}{_c(cite, item.due)} takes you to {w.balance(f['after'].value)}"
+                f"{_c(cite, f['after'])}.")
+    return text(item, cite)[1]
+
+
 def step(item):
     """The one thing to do, as a short imperative (chat DO THIS and to-do lists)."""
     f = item.facts

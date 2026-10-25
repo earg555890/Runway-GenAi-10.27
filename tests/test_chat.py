@@ -372,3 +372,46 @@ def test_proof_details_use_the_current_backend():
     ev = ask._current_evidence(src, now)
     assert ev.backend == "zetaris-cached" and ev.sql == "SELECT zetaris"
     assert ask._current_evidence(src, SimpleNamespace(evidence=[])) is None      # falls back to the recorded one
+
+
+# --- action_plan: "What should I do this week?" -----------------------------------------------------------
+
+WEEK = {"start": "2026-10-26", "end": "2026-11-01"}
+
+
+def test_action_plan_this_week_and_first(ds):
+    plan, results, pack, required = _pieces([{"tool": "action_plan", "args": WEEK}], ds)
+    assert [it.kind for it in results[0].facts["items"]] == ["refund", "rent"]           # due Oct 27 and Nov 1
+    assert {f.key for f in required} == {"todo_refund", "todo_rent"}
+    quick = agent.quick_answer(plan, results, pack, ds, engine.Scenario(), required)
+    assert quick.startswith("ANSWER: 2 things need you from Mon, Oct 26 to Sun, Nov 1")
+    c = agent.check_answer(quick, pack, require_format=True, names=agent.merchant_accounts(ds), required=required,
+                           events=agent.event_dates(ds, engine.Scenario()))
+    assert c.ok, c.problems
+    assert not agent.missing_facts(quick, required)
+    assert [a.kind for a in agent.actions_for_all(plan, results, ds, engine.Scenario())] == ["attention"]
+    assert agent.actions_for_all(plan, results, ds, engine.Scenario())[0].items == ["refund", "rent"]
+    plan, results, pack, required = _pieces([{"tool": "action_plan", "args": {}}], ds)
+    quick = agent.quick_answer(plan, results, pack, ds, engine.Scenario(), required)
+    assert quick.startswith("ANSWER: Start here: send your verification form to financial aid.")
+    assert "2 more in your check-in." in quick
+
+
+def test_action_plan_validation_and_keywords():
+    assert agent.validate_call("action_plan", {}, SUBS)[0] == {"start": "2026-10-26", "end": "2026-12-18"}
+    with pytest.raises(ValueError):
+        agent.validate_call("action_plan", {"end": "2027-03-01"}, SUBS)                  # after the semester
+    with pytest.raises(ValueError):
+        agent.validate_call("action_plan", {"start": "2026-11-10", "end": "2026-11-01"}, SUBS)
+    p = agent.keyword_plan("What should I do this week?", SUBS)
+    assert p.tool == "action_plan" and p.args == WEEK
+    assert agent.keyword_plan("what do I need to do?", SUBS).args["end"] == "2026-12-18"
+
+
+def test_action_plan_leaves_out_what_is_done(ds):
+    llm = FakeLLM(plans=[plan_json([{"tool": "action_plan", "args": WEEK}])], answers=["x", "x"])
+    events = list(agent.run("What should I do this week?", engine.Scenario(), ds=ds, mode="live", llm=llm, typing_s=0,
+                            done=("rent",)))
+    a = events[-1][1]
+    assert a.actions[0]["items"] == ["refund"] and "Rent" not in a.text
+    assert agent.cache_path("q", engine.Scenario(), done=("rent",)) != agent.cache_path("q", engine.Scenario())

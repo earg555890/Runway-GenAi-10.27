@@ -81,7 +81,7 @@ def _actions(item, ds, key):
                   on_click=state.mark_done, args=(item, ds))
 
 
-def _card(item, ds, key):
+def card(item, ds, key):
     title, sentence = actions.text(item)
     with st.container(border=True, key=f"ci_card_{key}"):
         st.markdown(f'<div class="rw-ci-title">{fmt.html(title)}</div>'
@@ -128,12 +128,12 @@ def render(ds, done_scenario):
         cols = st.columns(TOP)
         for i, it in enumerate(items[:TOP]):
             with cols[i]:
-                _card(it, ds, it.kind)
+                card(it, ds, it.kind)
         with st.container(horizontal=True, gap="small", vertical_alignment="center", key="ci_more"):
             if len(items) > TOP:
                 with st.expander(f"See all ({len(items) - TOP} more)"):
                     for it in items[TOP:]:
-                        _card(it, ds, it.kind)
+                        card(it, ds, it.kind)
             if items:
                 st.download_button("Add all deadlines to my calendar", actions.all_deadlines(items),
                                    file_name="runway-deadlines.ics", mime=MIME_ICS, icon=":material/calendar_add_on:",

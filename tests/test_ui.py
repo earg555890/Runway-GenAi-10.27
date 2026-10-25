@@ -481,3 +481,20 @@ def test_cancel_spotify_done_and_all_caught_up(at):
     assert at.session_state[f"wf_cancel_Spotify"] is True
     assert "Nice. With Spotify cancelled, you keep $23.98 this semester." in plain(at.chat_message[-1].markdown[0].value)
     assert not [b for b in at.button if str(b.key) == "ci_cal_all"]                        # nothing left to remind
+
+
+def test_what_should_i_do_this_week_shows_the_same_buttons(at, monkeypatch, tmp_path):
+    import json
+    plan = json.dumps({"calls": [{"tool": "action_plan", "args": {"start": "2026-10-26", "end": "2026-11-01"}}]})
+    _fake_models(monkeypatch, tmp_path, [plan], ["x", "x"])                 # bad AI answer: the quick answer stays
+    at.chat_input(key="ask_input").set_value("What should I do this week?")
+    run(at)
+    a = at.session_state["history"][0]
+    assert a.actions == [{"id": "attention", "kind": "attention", "title": "What to do", "to": "", "subject": "",
+                          "body": "", "items": ["refund", "rent"]}]
+    chat_keys = [str(b.key) for b in at.button if str(b.key).startswith("ci_done_chat")]
+    assert len(chat_keys) == 2 and chat_keys[0].endswith("_refund")
+    at.button(key=chat_keys[0]).click()                                   # "Form sent" from the chat answer
+    run(at)
+    assert ">You're covered all semester.<" in status(at)
+    assert "refund" in at.session_state["done"]
