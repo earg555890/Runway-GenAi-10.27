@@ -28,6 +28,7 @@ through SEMESTER_END, starting from the checking account's current balance:
     (non-recurring, under $100), rounded to the cent; one-offs ($100+) are not projected;
   - scenario purchases on their date (checking) or in their card cycle (card).
 """
+import calendar
 import itertools
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
@@ -163,6 +164,7 @@ class Scenario:
     cancel_subscriptions: tuple = ()           # canonical merchant names, e.g. ("Spotify",)
     extra_shifts: tuple = ()                   # ExtraShift
     purchases: tuple = ()                      # Purchase
+    budget: tuple = ()                         # ((flexible category, Decimal monthly amount), ...)
 
     def __post_init__(self):
         today = config.DEMO_TODAY
@@ -1373,3 +1375,169 @@ def attention_items(scenario=None, ds=None, ledger=None):
 
     out.sort(key=lambda a: (-a.urgency.value, a.due.value))
     return out
+
+
+# ---------------------------------------------------------------------------------------
+# Budgets: spending by category, money left after fixed bills, and a suggested budget
+# ---------------------------------------------------------------------------------------
+AVG_START = date(2026, 8, 1)             # the budget average covers Aug 1 to DEMO_TODAY (Aug-Oct)
+
+
+def month_span(month):
+    """(first day, last day) of a month given as "2026-11", a date, or (year, month)."""
+    if isinstance(month, str):
+        y, m = (int(x) for x in month.split("-")[:2])
+    elif isinstance(month, date):
+        y, m = month.year, month.month
+    else:
+        y, m = month
+    return date(y, m, 1), date(y, m, calendar.monthrange(y, m)[1])
+
+
+@dataclass
+class CategoryTotal:
+    name: str
+    kind: str                    # "fixed" or "flexible"
+    spent: Computed              # positive dollars
+    txns: list                   # Txn, newest first
+
+
+@dataclass
+class CategorySpending:
+    start: date
+    end: date
+    account: str
+    categories: list             # CategoryTotal, biggest first
+    total: Computed
+    count: int
+
+    def get(self, name):
+        return next((c for c in self.categories if c.name == name), None)
+
+
+def spending_by_category(start, end, account="both", ds=None, ledger=None):
+    """Money out per spending category between start and end (up to DEMO_TODAY), card payments (transfers)
+    left out; each category with the transactions behind it."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    start, end = _date(start), min(_date(end), config.DEMO_TODAY)
+    where = {"both": "checking and card", "checking": "checking", "card": "the credit card"}[account]
+    rows = [t for t in _txns(ds, account) if start <= t.date <= end and t.amount < 0
+            and t.spending_category != normalize.TRANSFER]
+    by = {}
+    for t in rows:
+        by.setdefault(t.spending_category, []).append(t)
+    cats = []
+    for name, ts in sorted(by.items(), key=lambda kv: (sum(t.amount for t in kv[1]), kv[0])):
+        ts = sorted(ts, key=lambda t: (t.date, t.row_id), reverse=True)
+        spent = ledger.add(f"spent on {name} {start} to {end} ({where})", D(-sum(t.amount for t in ts)), "USD",
+                           f"{len(ts)} purchase(s) in {name} from {fmt_date(start)} to {fmt_date(end)} ({where}). "
+                           f"{SPENT_HOW}", [t.row_id for t in ts])
+        cats.append(CategoryTotal(name, "fixed" if name in normalize.FIXED else "flexible", spent, ts))
+    total = ledger.add(f"total spent {start} to {end} ({where})", D(sum((c.spent.value for c in cats), ZERO)), "USD",
+                       f"Sum of {len(rows)} purchases in {len(cats)} categories. {SPENT_HOW}",
+                       [c.spent for c in cats])
+    return CategorySpending(start, end, account, cats, total, len(rows))
+
+
+@dataclass
+class MoneyToBudget:
+    start: date
+    end: date                    # the month, cut at SEMESTER_END
+    money_in: Computed
+    fixed: Computed
+    amount: Computed             # money_in - fixed (negative: the bills are bigger than the pay)
+    lines: list                  # [(label, date, signed Decimal, Computed)]
+
+
+def money_to_budget(month, scenario=None, ds=None, ledger=None):
+    """Money she can spend on everything flexible in `month`: money in (paychecks, the refund if released) minus
+    fixed bills (rent, tuition installments, subscriptions on either account, recurring bills), all from the
+    projection. Card autopays are left out: they pay for spending already counted in its category."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    start, end = month_span(month)
+    end = min(end, config.SEMESTER_END)
+    p = project(replace(scenario, budget=()), ds, ledger)
+    lines = [(e.label, e.date, e.amount, e.computed) for e in p.events if start <= e.date <= end
+             and e.kind in ("paycheck", "refund", "rent", "installment", "subscription", "recurring_bill")]
+    for r in recurring_items(ds):                      # card subscriptions: charged in the month, paid later
+        if r.account == "card" and r.merchant not in scenario.cancel_subscriptions:
+            for d in r.next_charges:
+                if start <= d <= end:
+                    lines.append((f"{r.merchant} {d}", d, r.amount, ledger.add(
+                        f"{r.merchant} card charge {d}", D(-r.amount), "USD",
+                        f"{r.merchant} charges the card {fmt_money(-r.amount)} monthly on day {r.day}.",
+                        [t.row_id for t in r.rows])))
+    lines.sort(key=lambda x: x[1])
+    span = f"{fmt_date(start)} to {fmt_date(end)}"
+    ins, outs = [x for x in lines if x[2] > 0], [x for x in lines if x[2] < 0]
+    money_in = ledger.add(f"money in, {span}", D(sum((x[2] for x in ins), ZERO)), "USD",
+                          " + ".join(f"{x[0]} {fmt_money(x[2])}" for x in ins) or "None.", [x[3] for x in ins])
+    fixed = ledger.add(f"fixed bills, {span}", D(-sum((x[2] for x in outs), ZERO)), "USD",
+                       " + ".join(f"{x[0]} {fmt_money(-x[2])}" for x in outs) or "None.", [x[3] for x in outs])
+    amount = ledger.add(f"money to budget, {span}", money_in.value - fixed.value, "USD",
+                        f"Money in {fmt_money(money_in.value)} - fixed bills {fmt_money(fixed.value)}. Card "
+                        "payments are not counted: they pay for spending already counted in its category.",
+                        [money_in, fixed])
+    return MoneyToBudget(start, end, money_in, fixed, amount, lines)
+
+
+@dataclass
+class BudgetLine:
+    category: str
+    average: Computed            # her average for a month this long (positive)
+    suggested: Computed          # whole dollars
+
+
+@dataclass
+class Suggestion:
+    start: date
+    end: date
+    lines: list                  # BudgetLine, flexible categories with spending, biggest first
+    average_total: Computed
+    available: MoneyToBudget
+    total: Computed
+    fits: bool                   # False: nothing is left after fixed bills, so no budget can fit
+
+    def amounts(self):
+        return {x.category: x.suggested.value for x in self.lines}
+
+
+def suggest_budget(month, scenario=None, ds=None, ledger=None):
+    """A budget for each flexible category: her Aug 1 to today daily average, times the days in the month,
+    rounded to whole dollars; scaled down (each category by the same share, rounded down) if the total is more
+    than money_to_budget. If nothing is left after fixed bills, every amount is $0 and fits is False."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    start, end = month_span(month)
+    avail = money_to_budget(month, scenario, ds, ledger)
+    past = spending_by_category(AVG_START, config.DEMO_TODAY, "both", ds, ledger)
+    n = (config.DEMO_TODAY - AVG_START).days + 1
+    month_days = (end - start).days + 1
+    avgs = []
+    for c in past.categories:
+        if c.kind != "flexible":
+            continue
+        avg = ledger.add(f"{c.name}: average for a {month_days}-day month",
+                         D((c.spent.value / n * month_days).quantize(Decimal("1"), rounding=ROUND_HALF_UP)), "USD",
+                         f"{fmt_money(c.spent.value)} spent from {fmt_date(AVG_START)} to "
+                         f"{fmt_date(config.DEMO_TODAY)} ({n} days), / {n} x {month_days} days, rounded to whole "
+                         "dollars.", [c.spent])
+        avgs.append((c.name, avg))
+    avg_total = ledger.add("average flexible spending for the month", D(sum((a.value for _, a in avgs), ZERO)),
+                           "USD", " + ".join(f"{name} {fmt_money(a.value)}" for name, a in avgs) + ".",
+                           [a for _, a in avgs])
+    room = avail.amount.value
+    fits = room > 0
+    scale = Decimal(1) if room >= avg_total.value else (room / avg_total.value if fits else Decimal(0))
+    lines = []
+    for name, a in avgs:
+        v = a.value if scale == 1 else (a.value * scale).quantize(Decimal("1"), rounding=ROUND_DOWN)
+        how = (f"Your average, {fmt_money(a.value)}." if scale == 1 else
+               f"Your average {fmt_money(a.value)} x {scale:.4f} (to fit {fmt_money(room)}), rounded down."
+               if fits else "Nothing is left after fixed bills, so $0.")
+        lines.append(BudgetLine(name, a, ledger.add(f"suggested budget: {name}", D(v), "USD", how,
+                                                    [a, avail.amount])))
+    total = ledger.add("suggested budget total", D(sum((x.suggested.value for x in lines), ZERO)), "USD",
+                       " + ".join(f"{x.category} {fmt_money(x.suggested.value)}" for x in lines) + ".",
+                       [x.suggested for x in lines])
+    return Suggestion(start, end, lines, avg_total, avail, total, fits)

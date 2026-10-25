@@ -40,6 +40,10 @@ RECURRING_MIN_MONTHS = 3
 SPENDING_OUT = ("Rent", "Groceries", "Eating out", "Meal plan", "Subscriptions", "Transportation", "Shopping",
                 "Entertainment", "School", "Bills & utilities", "Fees", "Other")
 SPENDING_IN = ("Paycheck", "Financial aid", "Refund", "Gifts & deposits")
+# Budgets: fixed costs she can't trim month to month vs flexible ones she can budget.
+FIXED = ("Rent", "Subscriptions", "Bills & utilities", "Fees", "School")
+FLEXIBLE = ("Groceries", "Eating out", "Meal plan", "Shopping", "Entertainment", "Transportation", "Other")
+assert set(FIXED) | set(FLEXIBLE) == set(SPENDING_OUT) and not set(FIXED) & set(FLEXIBLE)
 TRANSFER = "Transfer"
 SPENDING_RULES = [
     ("out", "category", "card_payment", TRANSFER),
