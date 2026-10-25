@@ -180,6 +180,11 @@ class Scenario:
                 raise ValueError(f"extra shift must be after {today}, within the semester, with hours > 0")
         if self.refund_submit_date is not None and self.refund_submit_date < today:      # today = "sent today"
             raise ValueError("refund_submit_date can't be before DEMO_TODAY")
+        for cat, amount in self.budget:
+            if cat not in normalize.FLEXIBLE:
+                raise ValueError(f"budget category {cat!r} is not a flexible category {normalize.FLEXIBLE}")
+            if Decimal(amount) < 0:
+                raise ValueError("budget amounts can't be negative")
 
     @property
     def submit_date(self):
@@ -200,6 +205,8 @@ class Scenario:
         parts += [f"cancel {m}" for m in self.cancel_subscriptions]
         parts += [f"extra shift {s.date} {s.hours}h" for s in self.extra_shifts]
         parts += [f"{p.label} {fmt_money(p.cost)} on {p.date} ({p.account})" for p in self.purchases]
+        if self.budget:
+            parts.append("budget " + ", ".join(f"{c} {fmt_money(a)}/month" for c, a in self.budget))
         return "; ".join(parts) or "nothing changes"
 
 
@@ -212,7 +219,8 @@ def scenario_from_dict(d):
         cancel_subscriptions=tuple(d.get("cancel_subscriptions", ())),
         extra_shifts=tuple(ExtraShift(_date(s["date"]), Decimal(str(s["hours"]))) for s in d.get("extra_shifts", ())),
         purchases=tuple(Purchase(Decimal(str(p["cost"])), _date(p["date"]), p.get("account", "checking"),
-                                 p.get("label", "purchase")) for p in d.get("purchases", ())))
+                                 p.get("label", "purchase")) for p in d.get("purchases", ())),
+        budget=tuple((c, D(a)) for c, a in (d.get("budget") or {}).items()))
 
 
 # ---------------------------------------------------------------------------------------
@@ -283,8 +291,9 @@ class CardCycle:
     amount: Computed             # statement balance (positive: owed)
 
 
-def card_cycles(ds, scenario, card_rate, ledger, recurring):
-    """Known scheduled statements, then projected cycles until a cycle starts after SEMESTER_END."""
+def card_cycles(ds, scenario, card_rate, ledger, recurring, card_daily=None):
+    """Known scheduled statements, then projected cycles until a cycle starts after SEMESTER_END. card_daily(d):
+    the budgeted card spending on day d (a budget is active), instead of the card rate."""
     today, end = config.DEMO_TODAY, config.SEMESTER_END
     cycles = []
     for s in ds.statements:
@@ -304,14 +313,16 @@ def card_cycles(ds, scenario, card_rate, ledger, recurring):
         n_days = max((closing - proj_from).days + 1, 0)
         subs = [(r, d) for r in card_subs for d in r.next_charges if proj_from <= d <= closing]
         buys = [p for p in scenario.purchases if p.account == "card" and start <= p.date <= closing]
-        total = actual_sum + card_rate.value * n_days - sum((r.amount for r, _ in subs), ZERO) + \
-            sum((p.cost for p in buys), ZERO)
+        projected = (sum((card_daily(d) for d in days(proj_from, closing)), ZERO) if card_daily and n_days
+                     else card_rate.value * n_days)
+        total = actual_sum + projected - sum((r.amount for r, _ in subs), ZERO) + sum((p.cost for p in buys), ZERO)
         pay = next_business_day(due)
         parts = []
         if actual:
             parts.append(f"{fmt_money(actual_sum)} of card purchases already made since {fmt_date(start)}")
-        parts.append(f"{n_days} days x {fmt_money(card_rate.value)}/day of card variable spending "
-                     f"({fmt_date(proj_from)} to {fmt_date(closing)})" if n_days else "no days left to project")
+        parts.append((f"{fmt_money(projected)} of budgeted card spending" if card_daily else
+                      f"{n_days} days x {fmt_money(card_rate.value)}/day of card variable spending")
+                     + f" ({fmt_date(proj_from)} to {fmt_date(closing)})" if n_days else "no days left to project")
         parts += [f"{r.merchant} {fmt_money(-r.amount)} on {fmt_date(d)}" for r, d in subs]
         parts += [f"{p.label} {fmt_money(p.cost)} on {fmt_date(p.date)}" for p in buys]
         c = ledger.add(f"projected card statement closing {closing} (autopay {pay})", D(total), "USD",
@@ -438,6 +449,11 @@ def project(scenario=None, ds=None, ledger=None):
                        [acct.row_id])
     chk_rate = variable_rate(ds, "checking", ledger)
     card_rate = variable_rate(ds, "card", ledger)
+    rates = budget_rates(scenario, ds, ledger) if scenario.budget else None
+
+    def spend(account, d):                       # everyday spending on day d: the budget, else the average
+        return rates[(account, d.year, d.month)].value if rates else (chk_rate if account == "checking"
+                                                                      else card_rate).value
     recurring = recurring_items(ds)
     events = []
 
@@ -460,7 +476,7 @@ def project(scenario=None, ds=None, ledger=None):
                 ledger.add(f"payment-plan installment {i.number} ({post})", D(-i.amount), "USD",
                            f"Installment {i.row_id} due {fmt_date(i.due)}, auto-debited from checking on the due "
                            f"date or the next business day ({fmt_date(post)}).", [i.row_id]))
-    cycles = card_cycles(ds, scenario, card_rate, ledger, recurring)
+    cycles = card_cycles(ds, scenario, card_rate, ledger, recurring, (lambda d: spend("card", d)) if rates else None)
     for c in cycles:
         add(c.pay_date, -c.amount.value, "card_autopay", c.amount.label, c.amount)
     for r in recurring:
@@ -493,7 +509,7 @@ def project(scenario=None, ds=None, ledger=None):
         by_day.setdefault(e.date, []).append(e)
     bal, daily, low, low_day, first_neg = start.value, [], None, None, None
     for d in days(today + timedelta(days=1), end):
-        bal = bal - chk_rate.value + sum((e.amount for e in by_day.get(d, [])), ZERO)
+        bal = bal - spend("checking", d) + sum((e.amount for e in by_day.get(d, [])), ZERO)
         daily.append((d, bal))
         if low is None or bal < low:
             low, low_day = bal, d
@@ -501,14 +517,23 @@ def project(scenario=None, ds=None, ledger=None):
             first_neg = d
 
     n_days = (end - today).days
-    var_total = ledger.add(f"checking variable spending {today + timedelta(days=1)} to {end}",
-                           D(chk_rate.value * n_days), "USD",
-                           f"{n_days} days x {fmt_money(chk_rate.value)}/day.", [chk_rate])
-    basis = [start, chk_rate, var_total, *(e.computed for e in events)]
+    if rates:
+        used = [c for (acct, *_), c in rates.items() if acct == "checking"]
+        var_total = ledger.add(f"checking budgeted spending {today + timedelta(days=1)} to {end}",
+                               D(sum((spend("checking", d) for d in days(today + timedelta(days=1), end)), ZERO)),
+                               "USD", "Each day's budgeted checking spending, added up.", used)
+        basis = [start, *used, var_total, *(e.computed for e in events)]
+        spending_words = "the budget's everyday spending"
+    else:
+        var_total = ledger.add(f"checking variable spending {today + timedelta(days=1)} to {end}",
+                               D(chk_rate.value * n_days), "USD",
+                               f"{n_days} days x {fmt_money(chk_rate.value)}/day.", [chk_rate])
+        basis = [start, chk_rate, var_total, *(e.computed for e in events)]
+        spending_words = f"{fmt_money(chk_rate.value)}/day variable spending"
     sc = scenario.describe()
     lowest = ledger.add(f"lowest checking balance through {end} ({sc})", D(low), "USD",
                         f"Day-by-day checking balance from {fmt_money(start.value)} on {fmt_date(today)}, applying "
-                        f"{len(events)} scheduled items and {fmt_money(chk_rate.value)}/day variable spending; "
+                        f"{len(events)} scheduled items and {spending_words}; "
                         f"the lowest end-of-day balance is {fmt_money(low)} on {fmt_date(low_day)}.", basis)
     lowest_date = ledger.add(f"date of lowest checking balance ({sc})", low_day, "date",
                              f"First day the projected balance reaches its lowest point, {fmt_money(low)}.", [lowest])
@@ -1541,3 +1566,83 @@ def suggest_budget(month, scenario=None, ds=None, ledger=None):
                        " + ".join(f"{x.category} {fmt_money(x.suggested.value)}" for x in lines) + ".",
                        [x.suggested for x in lines])
     return Suggestion(start, end, lines, avg_total, avail, total, fits)
+
+
+# ---------------------------------------------------------------------------------------
+# Budget in the forecast: each flexible category's monthly budget, spread evenly over the month's days and split
+# between checking and the card the way she has split that category so far.
+# ---------------------------------------------------------------------------------------
+def budget_shares(ds, ledger, categories):
+    """{category: (checking share, card share)} from Aug 1 to today; a category with no history is checking."""
+    past = spending_by_category(AVG_START, config.DEMO_TODAY, "both", ds, Ledger())
+    out = {}
+    for cat in categories:
+        c = past.get(cat)
+        chk = -sum((t.amount for t in c.txns if t.account == "checking"), ZERO) if c else ZERO
+        total = c.spent.value if c else ZERO
+        share = (chk / total) if total else Decimal(1)
+        out[cat] = ledger.add(f"{cat}: share paid from checking", share, "percent",
+                              (f"{fmt_money(chk)} of {fmt_money(total)} {cat} spending from {fmt_date(AVG_START)} to "
+                               f"{fmt_date(config.DEMO_TODAY)} was on checking; the rest on the card.") if total else
+                              f"No {cat} spending yet, so the budget is assumed to come from checking.",
+                              [t.row_id for t in c.txns] if c else [])
+    return out
+
+
+def budget_rates(scenario, ds, ledger):
+    """{(account, year, month): Computed dollars per day} for every month the projection touches (card cycles run
+    past the semester end, so two months more): each category's monthly budget x its account share / the days in
+    that month, added up, rounded to the cent."""
+    shares = budget_shares(ds, ledger, [c for c, _ in scenario.budget])
+    out = {}
+    d = config.DEMO_TODAY + timedelta(days=1)
+    while d <= add_months(config.SEMESTER_END, 2):
+        first, last = month_span(d)
+        n = (last - first).days + 1
+        for account in ("checking", "card"):
+            parts = [(c, D(a), shares[c].value if account == "checking" else 1 - shares[c].value)
+                     for c, a in scenario.budget]
+            out[(account, d.year, d.month)] = ledger.add(
+                f"{account} budgeted spending per day, {d:%Y-%m}",
+                D(sum((a * sh for _, a, sh in parts), ZERO) / n), "USD",
+                " + ".join(f"{c} {fmt_money(a)} x {sh:.3f}" for c, a, sh in parts) + f", / {n} days in {d:%B}.",
+                [shares[c] for c, _ in scenario.budget])
+        d = last + timedelta(days=1)
+    return out
+
+
+@dataclass
+class BudgetEffect:
+    without: Projection
+    with_budget: Projection
+    days_longer: Computed        # days the money lasts longer (negative: shorter); value None if neither runs out
+    lowest_change: Computed      # lowest point with the budget minus without
+    end_change: Computed
+
+
+def budget_effect(scenario, ds=None, ledger=None):
+    """The forecast with the scenario's budget vs the same scenario without it. When the money no longer runs out,
+    "lasts" counts to the day after the semester ends."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    without = project(replace(scenario, budget=()), ds, ledger)
+    with_b = project(scenario, ds, ledger)
+    after_end = config.SEMESTER_END + timedelta(days=1)
+
+    def lasts(p):
+        return p.first_below_zero.value or after_end
+
+    a, b = lasts(without), lasts(with_b)
+    longer = None if a == b == after_end else (b - a).days
+    days_c = ledger.add("days the money lasts longer with the budget", longer, "days",
+                        f"Runs out {fmt_date(b) if b != after_end else 'never this semester'} with the budget vs "
+                        f"{fmt_date(a) if a != after_end else 'never this semester'} without"
+                        + (f": {longer} days." if longer is not None else "."),
+                        [with_b.first_below_zero, without.first_below_zero])
+    low = ledger.add("change in the lowest point with the budget", with_b.lowest.value - without.lowest.value, "USD",
+                     f"{fmt_money(with_b.lowest.value)} with the budget - {fmt_money(without.lowest.value)} without.",
+                     [with_b.lowest, without.lowest])
+    end = ledger.add("change in the end-of-semester balance with the budget",
+                     with_b.end_balance.value - without.end_balance.value, "USD",
+                     f"{fmt_money(with_b.end_balance.value)} with the budget - {fmt_money(without.end_balance.value)} "
+                     "without.", [with_b.end_balance, without.end_balance])
+    return BudgetEffect(without, with_b, days_c, low, end)

@@ -93,3 +93,51 @@ def test_suggest_budget_scales_down_to_fit(ds, monkeypatch):
 def test_suggest_budget_when_nothing_is_left(ds):
     sg = engine.suggest_budget("2026-11", engine.Scenario(), ds)
     assert not sg.fits and sg.total.value == 0 and all(x.average.value > 0 for x in sg.lines)
+
+
+# --- the budget in the forecast ------------------------------------------------------------------------------
+
+SUGGESTED = (("Shopping", Decimal("227.00")), ("Groceries", Decimal("185.00")), ("Eating out", Decimal("96.00")),
+             ("Transportation", Decimal("14.00")))
+
+
+def test_budget_replaces_the_average_and_ties_out(ds):
+    from datetime import timedelta
+    sc = engine.Scenario(budget=SUGGESTED)
+    ledger = engine.Ledger()
+    p = engine.project(sc, ds, ledger)
+    rates = engine.budget_rates(sc, ds, engine.Ledger())
+    assert rates[("checking", 2026, 11)].value == Decimal("7.50") and rates[("card", 2026, 11)].value == Decimal("9.90")
+    # end balance = today's balance + every scheduled item - each day's budgeted checking spending, to the cent
+    spent = sum(rates[("checking", d.year, d.month)].value for d in engine.days(config.DEMO_TODAY + timedelta(days=1),
+                                                                                 config.SEMESTER_END))
+    assert p.end_balance.value == p.start_balance.value + sum(e.amount for e in p.events) - spent
+    # the Dec 7 card bill = card purchases already made in the cycle + each day's budgeted card spending
+    cyc = next(c for c in p.cycles if c.statement_id is None)
+    actual = -sum(t.amount for t in ds.card_txns if cyc.start <= t.date <= config.DEMO_TODAY
+                  and t.category != "card_payment")
+    budgeted = sum(rates[("card", d.year, d.month)].value
+                   for d in engine.days(config.DEMO_TODAY + timedelta(days=1), cyc.closing))
+    assert cyc.amount.value == actual + budgeted                     # Apple Music's next charge is after closing
+    assert engine.project(engine.Scenario(), ds).end_balance.value == Decimal("-1412.53")      # no budget: unchanged
+
+
+def test_budget_effect_direction(ds):
+    sent = engine.budget_effect(engine.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY,
+                                                budget=SUGGESTED), ds)
+    # her usual spending includes one-offs the plain forecast leaves out: the card bills grow, the semester ends lower
+    assert sent.without.lasts_through_semester and sent.with_budget.lasts_through_semester
+    assert sent.days_longer.value is None and sent.end_change.value == Decimal("-105.74")
+    assert sent.end_change.value == sent.with_budget.end_balance.value - sent.without.end_balance.value
+    lean = engine.budget_effect(engine.Scenario(budget=(("Groceries", Decimal("60")),)), ds)
+    assert lean.without.first_below_zero.value == date(2026, 11, 9)
+    assert lean.with_budget.first_below_zero.value == date(2026, 11, 15) and lean.days_longer.value == 6
+    assert lean.lowest_change.value == Decimal("352.03") > 0
+
+
+def test_budget_validation():
+    with pytest.raises(ValueError):
+        engine.Scenario(budget=(("Rent", Decimal("500")),))               # fixed, not budgetable
+    with pytest.raises(ValueError):
+        engine.Scenario(budget=(("Groceries", Decimal("-5")),))
+    assert "budget Groceries $60.00/month" in engine.Scenario(budget=(("Groceries", Decimal("60")),)).describe()
