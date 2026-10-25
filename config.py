@@ -76,6 +76,9 @@ ZETARIS_DATA_ROOT = get("ZETARIS_DATA_ROOT") or "/home/zetaris/customer-data/sha
 ANSWER_MODE = (get("ANSWER_MODE") or "cached").lower()
 ANSWER_CACHE_DIR = PROJECT_ROOT / ".cache" / "answers"
 DEMO_ANSWERS_DIR = PROJECT_ROOT / "demo_answers"
+# The check-in's one friendly greeting line, written by the fast model (greeting.py) when a key is set and
+# ANSWER_MODE is not replay; "off" always uses the deterministic line. It never blocks the page.
+AI_GREETING = (get("AI_GREETING") or "on").lower() != "off"
 
 # Zetaris
 ZETARIS_JDBC_URL = get("ZETARIS_JDBC_URL")

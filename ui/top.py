@@ -12,8 +12,7 @@ SHORT_NAMES = {"rent": "rent", "card_autopay": "card payment", "installment": "t
 
 def header(ds, note=None):
     left, right = st.columns([3, 2], vertical_alignment="bottom")
-    left.markdown('<p class="rw-brand">Runway</p><p class="rw-hello">Hi Maya. Here is how long your money lasts '
-                  'this semester.</p>', unsafe_allow_html=True)
+    left.markdown('<p class="rw-brand">Runway</p><p class="rw-hello">How long your money lasts this semester.</p>', unsafe_allow_html=True)
     with right.container(horizontal=True, horizontal_alignment="right", gap="small", key="badges"):
         st.badge(data.backend_label(ds), color="gray")
         st.badge("Reasoning by NVIDIA Nemotron", color="green")

@@ -428,3 +428,23 @@ def test_shift_card_hints_when_paid_after_running_out(at):
     body = "\n".join(texts(at))
     assert "Adds $57.35 to your Wed, Nov 18 paycheck." in body
     assert "That's after you run out. A shift worked by Sat, Oct 31 is paid Tue, Nov 3, in time." in body
+
+
+# --- the check-in ----------------------------------------------------------------------------------------
+
+def checkin_texts(at):
+    return [t for t in texts(at) if 'class="rw-ci-' in t and not t.startswith("<style>")]
+
+
+def test_checkin_under_the_status_card(at):
+    ts = checkin_texts(at)
+    assert any(">Hi Maya. 5 things need your attention.<" in t for t in ts)
+    assert any(">Start with the first one. It's the most urgent.<" in t for t in ts)        # the fixed line
+    cards = [t for t in ts if 'class="rw-ci-title"' in t]
+    assert [c.split('rw-ci-title">')[1].split("<")[0] for c in cards] == [
+        "Send your verification form", "Rent is due Sun, Nov 1", "Card payment on Mon, Nov 9",
+        "A tight week is coming", "You pay for 2 music apps"]
+    see_all = next(e for e in at.expander if e.label.startswith("See all"))
+    assert see_all.label == "See all (2 more)"
+    order = [t for t in texts(at) if 'class="rw-status' in t or 'class="rw-ci-head' in t]
+    assert "rw-status" in order[0] and "rw-ci-head" in order[1]                               # right under it

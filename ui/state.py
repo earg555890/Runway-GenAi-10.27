@@ -89,6 +89,11 @@ def scenario(subs):
         extra_shifts=base.extra_shifts, purchases=(p,) if p else ())
 
 
+def done_scenario():
+    """What the student has actually done (marked done in the check-in), without the what-ifs being explored."""
+    return engine.Scenario(refund_submit_date=st.session_state.wf_submit)
+
+
 def changed(sc):
     return bool(sc.refund_released or sc.cancel_subscriptions or sc.extra_shifts or sc.purchases)
 

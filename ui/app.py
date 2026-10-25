@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st  # noqa: E402
 
 import engine  # noqa: E402
-from ui import afford, ask, behind, data, found, semester, state, style, top  # noqa: E402
+from ui import afford, ask, behind, checkin, data, found, semester, state, style, top  # noqa: E402
 
 st.set_page_config(page_title="Runway", page_icon=":material/flight_takeoff:", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -28,6 +28,7 @@ deltas = engine.compare(base, current, ledger) if changed else None
 
 top.header(ds, note)
 top.status(current)
+checkin.render(ds, state.done_scenario())
 ask.render(ds, scenario)
 
 tab1, tab2, tab3 = st.tabs(["My semester", "Can I afford it?", "What we found"])

@@ -305,3 +305,37 @@ def test_money_ideas_ranked_by_when_the_money_arrives():
     covered, deadline, _ = e.money_ideas(e.Scenario(refund_released=True))
     assert deadline.value == date(2026, 12, 18)
     assert [(i.name, i.amount.value) for i in covered] == [("cancel Spotify", Decimal("23.98"))]
+
+
+# --- attention items (the check-in) ------------------------------------------------------------------
+
+def test_attention_items_base_case_ranked_sooner_and_bigger_first(ds):
+    items = e.attention_items(e.Scenario(), ds)
+    assert [a.kind for a in items] == ["refund", "rent", "run_out", "tight_week", "subscriptions"]
+    by = {a.kind: a for a in items}
+    assert by["refund"].due.value == date(2026, 10, 27) and by["refund"].facts["refund"].value == Decimal("1850.00")
+    assert by["refund"].facts["arrives"].value == date(2026, 11, 5) and by["refund"].fix == ("refund",)
+    assert by["rent"].due.value == date(2026, 11, 1) and by["rent"].facts["left"].value == Decimal("13.32")
+    assert by["rent"].facts["fee"].value == Decimal("35.00")
+    assert by["run_out"].due.value == date(2026, 11, 9) and by["run_out"].facts["payment"].value == Decimal("359.53")
+    assert by["run_out"].facts["after"].value == Decimal("-59.84")
+    assert by["subscriptions"].fix == ("cancel", "Spotify") and by["subscriptions"].due.value == date(2026, 11, 14)
+    assert by["subscriptions"].facts["saves"].value == Decimal("23.98")
+    assert by["tight_week"].facts["shortfall"].value == Decimal("85.30")
+    # urgency = dollars at stake / days until due: $1,850 / 1 day, $725 / 6 days, $1,462.37 / 14 days, ...
+    assert [a.urgency.value for a in items] == [Decimal("1850.00"), Decimal("120.83"), Decimal("104.46"),
+                                                Decimal("3.41"), Decimal("1.26")]
+
+
+def test_attention_items_drop_what_is_fixed(ds):
+    done = e.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY, cancel_subscriptions=("Spotify",))
+    assert [a.kind for a in e.attention_items(done, ds)] == ["rent", "tight_week"]     # money now lasts
+    only_form = e.attention_items(e.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY), ds)
+    assert "refund" not in [a.kind for a in only_form] and "run_out" not in [a.kind for a in only_form]
+
+
+def test_form_sent_today_is_allowed_and_arrives_a_day_sooner(ds):
+    s = e.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY)
+    assert e.refund_release_date(ds, s) == date(2026, 11, 4)
+    with pytest.raises(ValueError):
+        e.Scenario(refund_submit_date=date(2026, 10, 25))

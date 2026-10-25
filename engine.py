@@ -176,8 +176,8 @@ class Scenario:
         for s in self.extra_shifts:
             if not today < s.date <= config.SEMESTER_END or s.hours <= 0:
                 raise ValueError(f"extra shift must be after {today}, within the semester, with hours > 0")
-        if self.refund_submit_date is not None and self.refund_submit_date <= today:
-            raise ValueError("refund_submit_date must be after DEMO_TODAY")
+        if self.refund_submit_date is not None and self.refund_submit_date < today:      # today = "sent today"
+            raise ValueError("refund_submit_date can't be before DEMO_TODAY")
 
     @property
     def submit_date(self):
@@ -1273,3 +1273,103 @@ def money_ideas(scenario=None, ds=None, ledger=None, shift_hours="4"):
                                          [t.row_id for t in sub.rows])))
     ideas.sort(key=lambda i: (i.arrives.value, -i.amount.value))
     return ideas, dl, p
+
+
+# ---------------------------------------------------------------------------------------
+# What needs the student's attention (the check-in): built from the findings above, no new money math
+# beyond ranking. Later sources (aid, meal plan) add their own kinds to the same list.
+# ---------------------------------------------------------------------------------------
+@dataclass
+class Attention:
+    kind: str                    # "refund", "rent", "run_out", "subscriptions", "tight_week"
+    due: Computed                # the date it needs doing by (or the day it happens)
+    stake: Computed              # dollars at stake (positive)
+    urgency: Computed            # dollars at stake per day of warning: sooner and bigger rank higher
+    facts: dict                  # name -> Computed: the numbers its sentence states
+    fix: tuple = ()              # what marking it done turns on: ("refund",) or ("cancel", "Spotify")
+    row_ids: list = field(default_factory=list)
+
+
+def _attention(kind, due, stake, facts, ledger, fix=(), row_ids=()):
+    days_left = max((due.value - config.DEMO_TODAY).days, 1)
+    urgency = ledger.add(f"urgency of {kind}", D(stake.value / days_left), "USD",
+                         f"{fmt_money(stake.value)} at stake / {days_left} day(s) until {fmt_date(due.value)}.",
+                         [stake, due])
+    return Attention(kind, due, stake, urgency, facts, tuple(fix), list(dict.fromkeys(row_ids)))
+
+
+def attention_items(scenario=None, ds=None, ledger=None):
+    """What needs the student's attention, most urgent first (dollars at stake per day until it's due; the
+    sooner date breaks ties): the held refund and its missing form, the next rent when rent before payday
+    has caused an overdraft fee, the run-out date and the payment that causes it, duplicate subscriptions, and
+    a tight week. Anything the scenario already fixes (form sent, subscription cancelled) drops out."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    p = project(scenario, ds, ledger)
+    out = []
+
+    f = refund_status(scenario, ds, ledger) if not scenario.refund_released else None
+    if f:
+        c = f.computed
+        due = ledger.add("send the verification form by", scenario.submit_date, "date",
+                         "The day the form is sent (tomorrow unless the student picked another day).",
+                         [c["release_date"]])
+        out.append(_attention("refund", due, c["refund_amount"],
+                              {"refund": c["refund_amount"], "arrives": c["release_date"]}, ledger, ("refund",),
+                              [r for ids in f.row_ids.values() for r in ids]))
+
+    leaks = find_leaks(scenario, ds, ledger)
+    rent_fee = next((lk for lk in leaks if lk.kind == "fee" and any(x.label == "rent due day" for x in lk.computed)),
+                    None)
+    rent = next((e for e in p.events if e.kind == "rent"), None)
+    if rent_fee and rent:
+        fee = next(x for x in rent_fee.computed if x.label.startswith("fee "))
+        left = ledger.add(f"checking balance at the end of {rent.date} (rent day)", p.balance_on(rent.date), "USD",
+                          f"Projected end-of-day balance on {fmt_date(rent.date)}, after rent.", [p.lowest, rent.computed])
+        due = ledger.add("rent due date", rent.date, "date", f"Rent due {fmt_date(rent.date)}.", [rent.computed])
+        stake = ledger.add("rent amount", D(-rent.amount), "USD", f"Rent {fmt_money(-rent.amount)}.", [rent.computed])
+        out.append(_attention("rent", due, stake, {"rent": stake, "left": left, "fee": fee}, ledger,
+                              row_ids=rent_fee.row_ids))
+
+    if p.first_below_zero.value:
+        r = main_reason(p)
+        facts = {"runs_out": p.first_below_zero}
+        if r.event:
+            facts["payment"] = ledger.add(f"{r.event.label} amount", D(-r.event.amount), "USD",
+                                          f"{r.event.label} on {fmt_date(r.event.date)}.", [r.event.computed])
+            facts["after"] = ledger.add(f"checking balance at the end of {r.event.date} (after that payment)",
+                                        p.balance_on(r.event.date), "USD",
+                                        f"Projected end-of-day balance on {fmt_date(r.event.date)}.",
+                                        [p.lowest, r.event.computed])
+        depth = ledger.add("how far below zero it goes", D(-p.lowest.value), "USD",
+                           f"Lowest projected balance {fmt_money(p.lowest.value)} on {fmt_date(p.lowest_date.value)}.",
+                           [p.lowest])
+        out.append(_attention("run_out", p.first_below_zero, depth, facts, ledger))
+
+    for lk in leaks:
+        if lk.kind != "duplicate_subscriptions" or lk.savings.value <= 0:
+            continue
+        pick = next(x for x in lk.computed if x.label.startswith("which"))
+        sub = next(s for s in subscriptions(ds) if s.merchant == pick.value)
+        nxt = next((d for d, pay in subscription_timing(sub, ds, scenario) if d > config.DEMO_TODAY), None)
+        if not nxt:
+            continue
+        combined = next(x for x in lk.computed if x.label.startswith("combined"))
+        due = ledger.add(f"next {sub.merchant} charge", nxt, "date",
+                         f"{sub.merchant} charges {sub.account} on day {sub.day}; cancel before then.",
+                         [t.row_id for t in sub.rows])
+        monthly = [x for x in lk.computed if x.label.endswith("monthly cost")]
+        count = ledger.add("number of duplicate subscriptions", len(monthly), "count",
+                           ", ".join(x.label.removesuffix(" monthly cost") for x in monthly) + ".", monthly)
+        out.append(_attention("subscriptions", due, lk.savings,
+                              {"monthly": combined, "saves": lk.savings, "pick": pick, "count": count},
+                              ledger, ("cancel", sub.merchant), lk.row_ids))
+
+    for fi in cash_crunches(scenario, ds, ledger)[:1]:
+        c = fi.computed
+        if "shortfall" in c:
+            out.append(_attention("tight_week", c["installment_due"], c["shortfall"], dict(c), ledger,
+                                  row_ids=[r for ids in fi.row_ids.values() for r in ids]))
+
+    out.sort(key=lambda a: (-a.urgency.value, a.due.value))
+    return out

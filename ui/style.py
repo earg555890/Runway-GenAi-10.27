@@ -40,6 +40,11 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
              margin-top: .4rem;}
 .rw-note {font-size: .95rem; opacity: .85; margin: .3rem 0 .4rem; max-width: 64ch;}
 [class*="st-key-ask_suggest_"] button p {font-size: .92rem;}
+.rw-ci-head {font-size: 1.25rem; font-weight: 700; margin: .2rem 0 0;}
+.rw-ci-line {font-size: 1rem; opacity: .85; margin: .1rem 0 .5rem;}
+.rw-ci-title {font-size: 1.05rem; font-weight: 700; line-height: 1.3;}
+.rw-ci-text {font-size: 1rem; line-height: 1.45; margin-top: .25rem;}
+.st-key-checkin {margin-bottom: .6rem;}
 @media (max-width: 640px) {
   .st-key-badges {justify-content: flex-start !important;}
   .rw-status .rw-big {font-size: 1.45rem;}
