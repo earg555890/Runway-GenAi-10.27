@@ -50,7 +50,7 @@ def heading(items):
 
 
 def _email(act, key):
-    with st.popover("Email", icon=":material/mail:"):
+    with st.popover("Email", icon=":material/mail:", type="tertiary"):
         st.markdown(f"**To:** {fmt.md(act.extra['to'])}  \n**Subject:** {fmt.md(act.extra['subject'])}")
         st.caption("A demo address: Maya's data is made up. Use your real financial aid office's address.")
         st.link_button(act.label, act.url, icon=":material/open_in_new:", key=f"ci_mail_{key}",
@@ -62,7 +62,7 @@ def _email(act, key):
 
 def _actions(item, ds, key):
     """1-2 actions, then "mark as done". Each one is a click; nothing happens on its own."""
-    with st.container(horizontal=True, gap="small", key=f"ci_acts_{key}"):
+    with st.container(horizontal=True, gap="xsmall", key=f"ci_acts_{key}"):
         for act in actions.for_item(item, ds):
             if act.kind == "email":
                 state.prepared(f"email-{key}", f"Email to {act.extra['to']}: \"{act.extra['subject']}\" (draft)")
@@ -70,15 +70,16 @@ def _actions(item, ds, key):
             elif act.kind == "cancel":
                 state.prepared(f"cancel-{key}", f"Link to {act.extra['name']}'s official cancel page")
                 st.link_button("Cancel page", act.url, icon=":material/open_in_new:", key=f"ci_cancel_{key}",
-                               help=act.label, on_click=state.log,
+                               help=act.label, type="tertiary", on_click=state.log,
                                args=(f"Opened {act.extra['name']}'s cancel page",))
             elif act.kind == "calendar":
                 state.prepared(f"cal-{key}", f"Calendar reminder: {act.extra['title']} ({fmt.day(act.extra['day'])})")
-                st.download_button("Remind me", act.data, file_name=act.file_name, mime=MIME_ICS,
-                                   icon=":material/event:", key=f"ci_cal_{key}", on_click=state.log,
+                st.download_button("Remind", act.data, file_name=act.file_name, mime=MIME_ICS, type="tertiary",
+                                   icon=":material/event:", key=f"ci_cal_{key}", help="Add a reminder to your calendar",
+                                   on_click=state.log,
                                    args=(f"Downloaded the calendar reminder: {act.extra['title']}",))
-        st.button(actions.done_label(item), key=f"ci_done_{key}", icon=":material/check:", type="primary",
-                  on_click=state.mark_done, args=(item, ds))
+        st.button(actions.done_label(item), key=f"ci_done_{key}", icon=":material/check:",
+                  help="Mark as done", on_click=state.mark_done, args=(item, ds))
 
 
 def card(item, ds, key):

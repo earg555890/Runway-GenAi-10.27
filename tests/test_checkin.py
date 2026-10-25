@@ -51,7 +51,7 @@ class FakeChat:
 
 
 def test_greeting_ai_line_is_checked_and_falls_back(items):
-    good = FakeChat("You've got this. Start with the form, then take the rest one step at a time.")
+    good = FakeChat("You've got this. Start with the form and take it one step at a time.")
     assert greeting.ai_line(items, good) == good.text and good.calls == [(False, greeting.config.NVIDIA_PLAN_MODEL)]
     for bad in ("Send the form so your $1,850 arrives Thu, Nov 5.",                 # numbers: the cards show them
                 "Send it, and your refund arrives around soon.",                    # copies the first card
@@ -178,3 +178,11 @@ def test_done_messages_come_from_the_engine(ds, items):
     assert actions.done_message(rent, ds, engine.Scenario(), 3) == \
         "Got it. Rent is due Sun, Nov 1: marked done. 3 things still need you."
     assert actions.done_message(rent, ds, engine.Scenario(), 0).endswith("You're all caught up.")
+
+
+def test_greeting_rejects_false_links_between_items(items):
+    for bad in ("Tackle the form first so your refund lands before rent hits.",       # seen live: refund is after rent
+                "Start with the form, then your card payment is easy.",
+                "Send the form because it covers everything."):
+        assert greeting.ai_line(items, FakeChat(bad)) is None, bad
+    assert greeting.ai_line(items, FakeChat("You've got this. Start with the form.")) is not None

@@ -3,6 +3,8 @@
     .venv/Scripts/python eval_agent.py                       # one fast run -> eval_results.md / eval_results.json
     .venv/Scripts/python eval_agent.py fast,fast,think 240   # 3 runs (fast, fast, Think harder), 240 s apart
                                                              #   -> also eval_summary.md
+    .venv/Scripts/python eval_agent.py fast,think 0 "this week"   # only questions containing this text (and the
+                                                             #   ones they follow) -> .cache/eval_one.json only
 
 For each question: did PLAN pick the expected tool(s) (and, for follow-ups, the right arguments), is the verdict
 right, did the answer pass every check (numbers, dates, citations, reasons, repetition, cut-off), did the model
@@ -61,6 +63,7 @@ CASES = [
     Case("Help me get through the semester", ("runway", "money_ideas", "find_leaks"), new=True),
     Case("What is FAFSA verification?", ("general_info",), new=True),
     Case("money stuff is stressing me out", ("runway",), new=True),
+    Case("What should I do this week?", ("action_plan",), {"start": "2026-10-26", "end": "2026-11-01"}, new=True),
 ]
 
 
@@ -99,9 +102,9 @@ def healthy(think, tries=10, wait_s=60):
     return False
 
 
-def run_once(ds, run_no, think):
+def run_once(ds, run_no, think, cases=None):
     results, answers = [], {}
-    for i, case in enumerate(CASES, start=1):
+    for i, case in enumerate(cases or CASES, start=1):
         start = time.perf_counter()
         history = [answers[case.after]] if case.after else []
         a = agent.ask(case.question, engine.Scenario(), ds=ds, mode="live", history=history, think=think)
@@ -209,9 +212,10 @@ def mode_block(runs, think):
 def summary(runs):
     total = sum(len(run) for run in runs)
     lines = ["# Ask Runway: how well it answers", "",
-             f"We asked Runway {len(CASES)} realistic student questions (the original 10, plus 10 new ones: "
-             "spending, transactions, bills, work hours, a balance on a date, two follow-ups, a multi-step plan, a "
-             f"general question and a vague one), {len(runs)} separate times ({total} answers in all), using the "
+             f"We asked Runway {len(CASES)} realistic student questions (the original 10, plus "
+             f"{sum(c.new for c in CASES)} new ones: spending, transactions, bills, work hours, a balance on a date, "
+             "two follow-ups, a multi-step plan, a general question, a vague one and \"what should I do this "
+             f"week?\"), {len(runs)} separate times ({total} answers in all), using the "
              "real NVIDIA Nemotron models. Every answer was graded automatically against numbers that Runway's money "
              "engine computes on its own. Follow-ups were asked after the question they follow, in the same chat.",
              "",
@@ -230,6 +234,9 @@ def main():
     global SUBS
     modes = (sys.argv[1] if len(sys.argv) > 1 else "fast").split(",")
     gap_s = int(sys.argv[2]) if len(sys.argv) > 2 else 240
+    only = sys.argv[3].lower() if len(sys.argv) > 3 else ""
+    picked = [c for c in CASES if only in c.question.lower()]
+    cases = [c for c in CASES if c in picked or any(p.after == c.question for p in picked)] if only else None
     ds = normalize.load()
     SUBS = [s.merchant for s in engine.subscriptions(ds)]
     config.ANSWER_CACHE_DIR = Path(tempfile.mkdtemp(prefix="runway-eval-"))       # keep the app cache clean
@@ -241,14 +248,18 @@ def main():
             time.sleep(gap_s)
         if not healthy(think):
             print("endpoint still unhealthy; running anyway", flush=True)
-        runs.append(run_once(ds, run_no, think))
+        runs.append(run_once(ds, run_no, think, cases))
         last = runs[-1]
+        if only:                                       # a spot check: never overwrite the full results
+            Path(".cache").mkdir(exist_ok=True)
+            Path(".cache/eval_one.json").write_text(json.dumps(runs, indent=2, default=str), encoding="utf-8")
+            continue
         with open("eval_results.md", "w", encoding="utf-8") as f:
             f.write(f"# Ask Runway live evaluation (latest run, {mode})\n\nScore: **{sum(r['passed'] for r in last)}/"
                     f"{len(last)}**\n\n{table(last)}\n")
         with open("eval_results.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(runs, indent=2, default=str))
-    if len(runs) > 1:
+    if len(runs) > 1 and not only:
         text = summary(runs)
         with open("eval_summary.md", "w", encoding="utf-8") as f:
             f.write(text)

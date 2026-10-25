@@ -6,8 +6,8 @@ thinking on, the best quality; replay is instant anyway).
     .venv/Scripts/python pregenerate_answers.py "leaking" "nothing changed"   # ...and only this what-if
 
 Each suggested question is answered twice: with nothing changed, and with the "Do these" fixes applied (refund
-form sent tomorrow + Spotify cancelled), matching the what-ifs the UI builds. The extra-shift question is
-answered once, with nothing changed. Answers that fail the number check, that a fallback model wrote, or that
+form sent tomorrow + Spotify cancelled), matching the what-ifs the UI builds. The extra-shift question and
+"What should I do this week?" are answered once, with nothing changed. Answers that fail the number check, that a fallback model wrote, or that
 stop mid-sentence (the model ran out of output) are retried (up to 3 tries) and never saved. Reasoning traces
 are trimmed to keep the files small. ANSWER_MODE=replay serves only these files; cached serves .cache/answers/ first, then these.
 """
@@ -24,7 +24,8 @@ SCENARIOS = {
     "fixes applied": engine.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY + timedelta(days=1),
                                      cancel_subscriptions=("Spotify",)),
 }
-EXTRA = [("What if I pick up a 5 hour shift on Nov 7?", "nothing changed")]
+EXTRA = [("What if I pick up a 5 hour shift on Nov 7?", "nothing changed"),
+         ("What should I do this week?", "nothing changed")]
 REASONING_HEAD, REASONING_TAIL = 2000, 1000          # characters of the reasoning trace kept
 
 
