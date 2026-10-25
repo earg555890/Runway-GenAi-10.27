@@ -1686,3 +1686,47 @@ def budget_progress(amounts, month=None, ds=None, ledger=None):
         pace = "over" if spent.value > b else "spending fast" if spent.value > expected.value else "on pace"
         out.append(Progress(cat, b, spent, left, expected, pace))
     return out
+
+
+BUDGET_GROUPS = {"food": ("Groceries", "Eating out", "Meal plan")}
+
+
+@dataclass
+class BudgetStatus:
+    month: tuple                 # (first day, last day)
+    categories: tuple            # the flexible categories asked about (all budgeted ones when none named)
+    rows: list                   # Progress per category
+    budget: Computed | None      # totals over `categories` (None: no budget set)
+    spent: Computed | None
+    left: Computed | None
+    pace: str | None
+    effect: BudgetEffect | None  # the forecast with the budget vs without
+    suggestion: Suggestion | None    # when no budget is set: what Runway would suggest for next month
+
+
+def budget_status(amounts, month=None, category=None, scenario=None, ds=None, ledger=None):
+    """Spent, budget, left and pace this month for one category, a group ("food") or the whole budget, and what
+    the budget does to the forecast. With no budget set: the suggested budget for next month instead."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    span = month_span(month or config.DEMO_TODAY)
+    cats = BUDGET_GROUPS.get((category or "").lower(), (category,) if category else tuple(normalize.FLEXIBLE))
+    amounts = {c: D(v) for c, v in (amounts or {}).items() if D(v) > 0}
+    if not amounts:
+        nxt = add_months(span[0])
+        return BudgetStatus(span, cats, [], None, None, None, None, None,
+                            suggest_budget(nxt, replace(scenario, budget=()), ds, ledger))
+    rows = [r for r in budget_progress({c: amounts.get(c, ZERO) for c in cats if c in amounts or category},
+                                       span[0], ds, ledger)]
+    name = category or "the whole budget"
+    b = ledger.add(f"budget for {name}", D(sum((r.budget for r in rows), ZERO)), "USD",
+                   " + ".join(f"{r.category} {fmt_money(r.budget)}" for r in rows) + ".", [])
+    spent = ledger.add(f"spent on {name} so far this month", D(sum((r.spent.value for r in rows), ZERO)), "USD",
+                       " + ".join(f"{r.category} {fmt_money(r.spent.value)}" for r in rows) + ".",
+                       [r.spent for r in rows])
+    left = ledger.add(f"left in the budget for {name}", b.value - spent.value, "USD",
+                      f"{fmt_money(b.value)} - {fmt_money(spent.value)} spent.", [b, spent])
+    expected = sum((r.expected.value for r in rows), ZERO)
+    pace = "over" if spent.value > b.value else "spending fast" if spent.value > expected else "on pace"
+    effect = budget_effect(replace(scenario, budget=tuple((c, D(v)) for c, v in amounts.items())), ds, ledger)
+    return BudgetStatus(span, cats, rows, b, spent, left, pace, effect, None)

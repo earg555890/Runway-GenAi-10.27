@@ -431,3 +431,98 @@ def test_check_rejects_copied_calculation_notes(ds):
 
 def test_five_suggested_questions():
     assert agent.SUGGESTED[4] == "What should I do this week?" and len(agent.SUGGESTED) == 5
+
+
+
+# --- budget_status: "How much is left in my food budget?", "What happens if I stick to my budget?" ------------
+
+BUDGET = {"Shopping": 227, "Groceries": 185, "Eating out": 96, "Transportation": 14}
+
+
+def _budget_pieces(args, ds, budget, scenario=None):
+    scenario = scenario or engine.Scenario()
+    plan = agent.parse_plan({"calls": [{"tool": "budget_status", "args": args}]}, SUBS)
+    results = agent.execute_all(plan, scenario, ds, (), budget)
+    pack = agent.build_pack(results, ds, plan, scenario)
+    required = agent.required_facts(plan, results, pack, ds, scenario)
+    quick = agent.quick_answer(plan, results, pack, ds, scenario, required)
+    check = agent.check_answer(quick, pack, require_format=True, names=agent.merchant_accounts(ds), required=required,
+                               events=agent.event_dates(ds, scenario))
+    assert check.ok, check.problems
+    assert not agent.missing_facts(quick, required)
+    return quick, {f.key for f in required}
+
+
+@pytest.mark.parametrize("args,budget,starts,keys", [
+    ({"category": "food"}, BUDGET, "ANSWER: You have $23.19 left in your food budget", {"left", "spent"}),
+    ({"category": "Shopping"}, BUDGET, "ANSWER: You're $234 over your shopping budget", {"left", "spent"}),
+    ({}, BUDGET, "ANSWER: Your money still runs out on Mon, Nov 9", {"effect", "spent"}),
+    ({}, {"Groceries": 60}, "ANSWER: If you stick to this budget, your money lasts until Sun, Nov 15 (6 days longer)",
+     {"effect", "spent"}),
+    ({"category": "food"}, None, "ANSWER: You haven't set a budget yet.", {"no_budget", "available"}),
+])
+def test_budget_status_quick_answers_pass_every_check(ds, args, budget, starts, keys):
+    quick, got = _budget_pieces(args, ds, budget)
+    assert quick.startswith(starts) and got == keys
+
+
+def test_no_budget_offers_the_suggestion(ds):
+    form_sent = engine.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY)
+    quick, _ = _budget_pieces({}, ds, None, form_sent)
+    assert "You have $1,363 to spend after rent and bills in November" in quick
+    assert "Based on your usual spending: Shopping $227" in quick and "Suggest a budget" in quick
+    quick, _ = _budget_pieces({}, ds, {"Groceries": 0}, engine.Scenario())        # all zero = no budget
+    assert "your rent and bills are $487 more than your pay" in quick
+
+
+def test_budget_status_validation_keywords_and_cache():
+    assert agent.validate_call("budget_status", {"category": "FOOD"}, SUBS)[0] == {"category": "food",
+                                                                                 "month": "2026-10"}
+    assert agent.validate_call("budget_status", {"category": "eating out"}, SUBS)[0]["category"] == "Eating out"
+    for bad in ({"category": "Rent"}, {"month": "2027-01"}):
+        with pytest.raises(ValueError):
+            agent.validate_call("budget_status", bad, SUBS)
+    assert agent.keyword_plan("How much is left in my food budget?", SUBS).args["category"] == "food"
+    assert agent.keyword_plan("What happens if I stick to my budget?", SUBS).tool == "budget_status"
+    assert agent.cache_path("q", engine.Scenario(), budget=BUDGET) != agent.cache_path("q", engine.Scenario())
+    assert agent.cache_path("q", engine.Scenario(), budget={"Groceries": 0}) == agent.cache_path("q", engine.Scenario())
+
+
+def test_run_passes_the_budget(ds):
+    llm = FakeLLM(plans=[plan_json([{"tool": "budget_status", "args": {"category": "food"}}])], answers=["x", "x"])
+    events = list(agent.run("How much is left in my food budget?", engine.Scenario(), ds=ds, mode="live", llm=llm,
+                            typing_s=0, budget=BUDGET))
+    assert events[-1][1].text.startswith("ANSWER: You have $23.19 left in your food budget")
+
+
+def test_invented_budget_check_allows_budgets_from_the_facts(ds):
+    plan = agent.parse_plan({"calls": [{"tool": "budget_status", "args": {"category": "food"}}]}, SUBS)
+    results = agent.execute_all(plan, engine.Scenario(), ds, (), BUDGET)
+    pack = agent.build_pack(results, ds, plan, engine.Scenario())
+    ok = "ANSWER: x.\nWHY:\n- y.\nDO THIS:\n1. Keep your food budget at $281 this month."
+    assert not agent.invented_budget_problems(ok, pack)
+    bad = "ANSWER: x.\nWHY:\n- y.\nDO THIS:\n1. Set a food budget of $150 a month."
+    assert agent.invented_budget_problems(bad, pack)
+
+
+def test_where_did_my_money_go_points_to_a_flexible_category(ds):
+    plan, results, pack, required = _pieces([{"tool": "spending_summary", "args": {"start": "2026-10-01",
+                                                                                    "end": "2026-10-31"}}], ds)
+    quick = agent.quick_answer(plan, results, pack, ds, engine.Scenario(), required)
+    assert "1. Look at shopping first: it's your biggest flexible category." in quick
+
+
+def test_check_rejects_minus_signs_on_money():
+    """Seen live (fast): "lowers your lowest checking balance to -$1,568.36"."""
+    assert agent.negative_money_problems("It goes to -$1,568.36 [C17].")
+    assert agent.negative_money_problems("It goes to −$59.84.")
+    assert not agent.negative_money_problems("It goes to $1,568 below zero [C17]. Ages 5-$10 aren't money.")
+
+
+def test_plain_restatement_of_a_breakdown_is_not_a_copied_note(ds):
+    """Seen live (fast): "Groceries $176.49 plus Eating out $81.32" was flagged; it's plain words, not a note."""
+    plan = agent.parse_plan({"calls": [{"tool": "budget_status", "args": {"category": "food"}}]}, SUBS)
+    results = agent.execute_all(plan, engine.Scenario(), ds, (), BUDGET)
+    pack = agent.build_pack(results, ds, plan, engine.Scenario())
+    ok = "ANSWER: x.\nWHY:\n- You spent Groceries $176.49 plus Eating out $81.32 plus Meal plan $0.00 [C2]."
+    assert not agent.copied_how_problems(ok, pack)

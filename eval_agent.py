@@ -28,6 +28,7 @@ import normalize
 
 SUBS = None
 FLIGHT = "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?"
+BUDGET = {"Shopping": 227, "Groceries": 185, "Eating out": 96, "Transportation": 14}   # the suggested budget
 
 
 @dataclass
@@ -37,6 +38,7 @@ class Case:
     args: dict = field(default_factory=dict)     # expected args of the first call (only the ones given are checked)
     after: str | None = None      # a follow-up to this earlier question (asked first, in the same run)
     new: bool = False             # one of the 10 questions added for the chat version
+    budget: dict | None = None    # the budget she set in the Budget tab (budget questions)
 
 
 CASES = [
@@ -64,6 +66,9 @@ CASES = [
     Case("What is FAFSA verification?", ("general_info",), new=True),
     Case("money stuff is stressing me out", ("runway",), new=True),
     Case("What should I do this week?", ("action_plan",), {"start": "2026-10-26", "end": "2026-11-01"}, new=True),
+    Case("Where did my money go in October?", ("spending_summary",), {"start": "2026-10-01"}, new=True),
+    Case("How much is left in my food budget?", ("budget_status",), {"category": "food"}, new=True, budget=BUDGET),
+    Case("What happens if I stick to my budget?", ("budget_status",), {"category": None}, new=True, budget=BUDGET),
 ]
 
 
@@ -107,7 +112,8 @@ def run_once(ds, run_no, think, cases=None):
     for i, case in enumerate(cases or CASES, start=1):
         start = time.perf_counter()
         history = [answers[case.after]] if case.after else []
-        a = agent.ask(case.question, engine.Scenario(), ds=ds, mode="live", history=history, think=think)
+        a = agent.ask(case.question, engine.Scenario(), ds=ds, mode="live", history=history, think=think,
+                      budget=case.budget)
         answers[case.question] = a
         want = expected_verdict(case, ds)
         tools = tuple(c["tool"] for c in a.plan.get("calls") or [])
@@ -123,6 +129,7 @@ def run_once(ds, run_no, think, cases=None):
         passed = tool_ok and verdict_ok and check_ok and facts_ok and model_answer
         r = dict(run=run_no, think=think, n=i, question=case.question, new=case.new, after=case.after,
                  expected_tools=list(case.tools), tools=list(tools), plan_source=a.plan["source"],
+                 calls=a.plan.get("calls"),
                  resolved=a.plan.get("resolved_question"), expected_verdict=want, verdict=a.verdict, tool_ok=tool_ok,
                  verdict_ok=verdict_ok, check_ok=check_ok, problems=a.check.get("problems"), facts_ok=facts_ok,
                  facts=len(facts), appended=appended, rewrites=a.retries.get("explain_rewrite", 0),
@@ -235,7 +242,7 @@ def main():
     modes = (sys.argv[1] if len(sys.argv) > 1 else "fast").split(",")
     gap_s = int(sys.argv[2]) if len(sys.argv) > 2 else 240
     only = sys.argv[3].lower() if len(sys.argv) > 3 else ""
-    picked = [c for c in CASES if only in c.question.lower()]
+    picked = [c for c in CASES if any(part in c.question.lower() for part in only.split("|"))]   # "a|b": either
     cases = [c for c in CASES if c in picked or any(p.after == c.question for p in picked)] if only else None
     ds = normalize.load()
     SUBS = [s.merchant for s in engine.subscriptions(ds)]

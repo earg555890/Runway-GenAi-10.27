@@ -263,7 +263,8 @@ def _ask(question, ds, scenario):
         box, caption = st.empty(), st.empty()
         earlier = list(reversed([a for a in s.history if a.mode != "event"][:3]))
         for kind, payload in agent.run(question, scenario, ds=ds, history=earlier, think=s.get("ask_think", False),
-                                       done=tuple(s.get("done") or {})):
+                                       done=tuple(s.get("done") or {}),
+                                       budget=state.budget() if state.has_budget() else None):
             if kind == "stage":
                 status.update(label=payload)
             elif kind == "quick":

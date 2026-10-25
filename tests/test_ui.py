@@ -585,3 +585,16 @@ def test_budget_switch_updates_the_forecast(at):
     at.toggle(key="wf_budget").set_value(False)
     run(at)
     assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)
+
+
+
+def test_chat_budget_question_uses_the_budget_tab_amounts(at, monkeypatch, tmp_path):
+    import json
+    plan = json.dumps({"calls": [{"tool": "budget_status", "args": {"category": "food"}}]})
+    _fake_models(monkeypatch, tmp_path, [plan], ["x", "x"])
+    at.number_input(key="bud_amt_Groceries").set_value(185)
+    at.number_input(key="bud_amt_Eating out").set_value(96)
+    run(at)
+    at.chat_input(key="ask_input").set_value("How much is left in my food budget?")
+    run(at)
+    assert at.session_state["history"][0].text.startswith("ANSWER: You have $23.19 left in your food budget")

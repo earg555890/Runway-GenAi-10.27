@@ -93,6 +93,12 @@ TOOLS = {
                                 "checking, next card payment, the held refund, the next paycheck.", args={}),
     "money_ideas": dict(does="Ways to get money before the money runs out (extra shifts paid in time, the "
                              "refund, cancellations), ranked by when the money arrives.", args={}),
+    "budget_status": dict(
+        does="Her budget: how much is left in one category (\"food\" = groceries + eating out) or in the whole "
+             "budget this month, the pace, and what sticking to it does to the forecast. Says so if no budget is set.",
+        args={"category": "Groceries, Eating out, Meal plan, Shopping, Entertainment, Transportation, Other, or "
+                          "\"food\"; leave it out for the whole budget",
+              "month": "YYYY-MM (optional; default this month)"}),
     "action_plan": dict(
         does="What the student should DO (this week, first, next): the items that need attention, most urgent "
              "first, each with its next step.",
@@ -311,6 +317,15 @@ def validate_call(tool, args, sub_names):
         if not args.get("date"):
             raise ValueError('balance_on needs "date"')
         clean = {"date": _any_date(args["date"], "date", config.SEMESTER_START).isoformat()}
+    elif tool == "budget_status":
+        cat = str(args.get("category") or "").strip()
+        names = {c.lower(): c for c in (*normalize.FLEXIBLE, *engine.BUDGET_GROUPS)}
+        if cat and cat.lower() not in names:
+            raise ValueError(f"unknown budget category {cat!r}; use one of {sorted(names.values())} or leave it out")
+        month = str(args.get("month") or f"{config.DEMO_TODAY:%Y-%m}")
+        if not re.fullmatch(r"2026-(0[89]|1[0-2])", month):
+            raise ValueError(f"month must be YYYY-MM between 2026-08 and 2026-12, got {month!r}")
+        clean = {"category": names.get(cat.lower()) if cat else None, "month": month}
     elif tool == "action_plan":
         start = max(_any_date(args["start"], "start"), config.DEMO_TODAY) if args.get("start") else config.DEMO_TODAY
         end = min(_any_date(args["end"], "end"), config.SEMESTER_END) if args.get("end") else config.SEMESTER_END
@@ -411,6 +426,10 @@ def plan_messages(question, scenario, sub_names, history=()):
         f'- What should I do this week? -> [{{"tool": "action_plan", "args": {{"start": "{config.DEMO_TODAY}", '
         f'"end": "{config.DEMO_TODAY + timedelta(days=6)}"}}}}]\n'
         '- What should I do first? / What do I need to do? -> [{"tool": "action_plan"}]\n'
+        '- Where did my money go in October? -> [{"tool": "spending_summary", "args": {"start": "2026-10-01", '
+        '"end": "2026-10-31"}}]\n'
+        '- How much is left in my food budget? -> [{"tool": "budget_status", "args": {"category": "food"}}]\n'
+        '- What happens if I stick to my budget? / Am I on budget? -> [{"tool": "budget_status"}]\n'
         '- Help me get through the semester -> [{"tool": "runway"}, {"tool": "money_ideas"}, {"tool": '
         '"find_leaks"}]\n'
         '- What is a credit score? / What is FAFSA verification? -> [{"tool": "general_info", "args": {"topic": '
@@ -487,6 +506,9 @@ def keyword_plan(question, sub_names):
                                                          sub_names)[0])
         except ValueError:
             return None
+    elif "budget" in q:
+        cat = next((c for c in (*engine.BUDGET_GROUPS, *normalize.FLEXIBLE) if c.lower() in q), None)
+        p = Plan("budget_status", "budget_status", validate_call("budget_status", {"category": cat}, sub_names)[0])
     elif "should i do" in q or "need to do" in q or "to-do" in q or "todo" in q:
         args = {"end": (config.DEMO_TODAY + timedelta(days=6)).isoformat()} if "week" in q else {}
         p = Plan("action_plan", "action_plan", validate_call("action_plan", args, sub_names)[0])
@@ -559,18 +581,19 @@ def execute(plan, scenario, ds):
     return execute_all(plan, scenario, ds)[0]
 
 
-def execute_all(plan, scenario, ds, done=()):
+def execute_all(plan, scenario, ds, done=(), budget=None):
     """Every call of the plan, in order. Each ToolResult remembers its tool and args."""
     out = []
     for c in plan.calls:
-        r = execute_call(c["tool"], c["args"], scenario, ds, done)
+        r = execute_call(c["tool"], c["args"], scenario, ds, done, budget)
         r.tool, r.args = c["tool"], c["args"]
         out.append(r)
     return out
 
 
-def execute_call(tool, a, scenario, ds, done=()):
-    """One tool call. done: check-in item kinds the student marked done (action_plan leaves them out)."""
+def execute_call(tool, a, scenario, ds, done=(), budget=None):
+    """One tool call. done: check-in item kinds the student marked done (action_plan leaves them out). budget:
+    {category: monthly dollars} she set in the Budget tab (budget_status)."""
     ledger = engine.Ledger()
     if tool == "can_afford":
         v = engine.can_afford(Decimal(a["cost"]), a["date"], a["account"], _without_fixes(scenario), ds, a["item"])
@@ -658,6 +681,18 @@ def execute_call(tool, a, scenario, ds, done=()):
         key = [deadline] + [c for i in ideas for c in (i.amount, i.arrives, i.detail) if c is not None]
         return ToolResult("covered" if p.lasts_through_semester else "runs_out", key, ledger,
                           facts={"ideas": ideas, "deadline": deadline, "projection": p})
+    if tool == "budget_status":
+        b = engine.budget_status(budget, a["month"], a.get("category"), scenario, ds, ledger)
+        if b.suggestion:
+            sg = b.suggestion
+            key = [sg.available.amount, sg.total, *(x.suggested for x in sg.lines), sg.available.money_in,
+                   sg.available.fixed]
+        else:
+            e = b.effect
+            key = [b.left, b.spent, b.budget, *(x for r in b.rows for x in (r.spent, r.left)), e.days_longer,
+                   e.with_budget.first_below_zero, e.without.first_below_zero, e.lowest_change, e.end_change,
+                   e.with_budget.lowest, e.with_budget.lowest_date]
+        return ToolResult(None, key, ledger, facts={"status": b})
     if tool == "action_plan":
         start, end = date.fromisoformat(a["start"]), date.fromisoformat(a["end"])
         every = [it for it in engine.attention_items(scenario, ds, ledger) if it.kind not in done]
@@ -748,8 +783,8 @@ def build_pack(results, ds, plan, scenario):
                       "duration_s": ev.duration_s, "original_duration_s": ev.original_duration_s})
     context = [f"Today is {w.day(config.DEMO_TODAY)}, {config.DEMO_TODAY.year}. The semester ends "
                f"{w.day(config.SEMESTER_END)}.", *CALENDAR,
-               (f"The student's current what-ifs: {scenario.describe()}." if scenario.describe() != "nothing changes"
-                else "The student isn't trying any what-ifs (no changes to her plans)."), *plan.assumptions]
+               *([f"The student's current what-ifs: {scenario.describe()}."] if scenario.describe() != "nothing changes"
+                 else []), *plan.assumptions]
     return Pack(items, context, cite_ids)
 
 
@@ -948,14 +983,26 @@ def copied_hint_problems(text):
     return [f"the answer copied an instruction: {m.group(0)}" for m in COPIED_HINT.finditer(text)][:1]
 
 
+NEGATIVE_MONEY = re.compile(r"(?<![\w.])[-\u2212]\s?\$\s?\d[\d,]*(?:\.\d{1,2})?")
+
+
+def negative_money_problems(text):
+    """A balance below zero is written "$1,568 below zero", never with a minus sign (readability rule)."""
+    return [f"{m.group(0)} has a minus sign; write it as \"{m.group(0).lstrip('-\u2212 ')} below zero\""
+            for m in NEGATIVE_MONEY.finditer(text)][:1]
+
+
 def copied_how_problems(text, pack):
     """The "How:" notes in the facts explain the math to the model ("Missing form submitted Tue Oct 27, 2026 + 7
     business days = Thu Nov 5, 2026."); copied into an answer they read like a spreadsheet. A sentence or bullet
-    that is mostly one of them (90% alike, or sharing a 35-character run) fails."""
+    that is mostly one of them (90% alike, or sharing a 35-character run) AND carries the notes' engine formatting
+    (a year, "=", " x ", " / ") fails. A plain restatement ("Groceries $176.49 plus Eating out $81.32") is fine."""
     hows = [h for it in pack.items if it.get("kind") == "calc"
             for h in re.split(r"(?<=[.;])\s+", it.get("how", "")) if len(h.split()) >= 6]
     norm = [" ".join(re.sub(r"[^a-z0-9$ ]", " ", h.lower()).split()) for h in hows]
     for shown, unit in _units(text):
+        if not re.search(r"\b20\d\d\b|=|\sx\s|\s/\s", shown):
+            continue
         for n in norm:
             m = difflib.SequenceMatcher(None, unit, n, autojunk=False)
             if m.ratio() >= 0.9 or m.find_longest_match(0, len(unit), 0, len(n)).size >= 35:
@@ -963,11 +1010,15 @@ def copied_how_problems(text, pack):
     return []
 
 
-def invented_budget_problems(text):
-    """A step that sets a budget or limit with a dollar amount invents a number the engine never computed."""
+def invented_budget_problems(text, pack=None):
+    """A step that sets a budget or limit with a dollar amount Runway never computed invents a number (a budget
+    amount from the facts, e.g. her own budget, is fine)."""
     sec = parse_sections(text) or {}
+    money = allowed_values(pack)[0] if pack is not None else set()
+    rounded = {_rounded(v) for v in money}
     return [f"\"{x[:50]}\" sets a budget or limit Runway didn't compute" for x in sec.get("do", [])
-            if BUDGET_RE.search(x)]
+            if BUDGET_RE.search(x) and not all(abs(v) in money or ("." not in s and abs(v) in rounded)
+                                               for s, v in find_amounts(x))]
 
 
 DANGLING = {"to", "the", "a", "an", "and", "or", "of", "for", "your", "on", "at", "with", "by", "from", "in", "is",
@@ -1076,8 +1127,9 @@ def check_answer(text, pack, require_format=False, *, names=None, finish_reason=
         problems += (event_date_problems(text, events) + copied_label_problems(text, required)
                      + copied_how_problems(text, pack))
     if text.strip():
-        problems += (repetition_problems(text) + cutoff_problems(text, finish_reason) + invented_budget_problems(text)
-                     + copied_hint_problems(text))
+        problems += (repetition_problems(text) + cutoff_problems(text, finish_reason)
+                     + invented_budget_problems(text, None if general else pack) + copied_hint_problems(text)
+                     + negative_money_problems(text))
     return Check(not problems, list(dict.fromkeys(problems)), len(amounts), len(found), len(cites))
 
 
@@ -1179,6 +1231,8 @@ def call_words(tool, a):
         return f"your checking balance on {w.day(date.fromisoformat(a['date']))}"
     if tool == "action_plan":
         return f"what needs your attention, {_span(a)}"
+    if tool == "budget_status":
+        return f"your {(a.get('category') or 'whole').lower()} budget, {date.fromisoformat(a['month'] + '-01'):%B}"
     if tool == "general_info":
         return f"general info: {a.get('topic') or 'your question'}"
     return {"runway": "how long your money lasts", "find_leaks": "where your money is leaking",
@@ -1430,6 +1484,15 @@ def _sentence(s):
     return s if s.rstrip().endswith((".", "!", "?")) else s.rstrip() + "."
 
 
+def _spending_step(sp):
+    """Where to look first: the biggest flexible category (rent and bills can't be trimmed), or merchant."""
+    if sp.group_by == "category":
+        flex = next((n for n, _, _ in sp.groups if n in normalize.FLEXIBLE), None)
+        return (f"Look at {flex.lower()} first: it's your biggest flexible category." if flex else
+                "Most of it was rent and bills, which you can't trim month to month.")
+    return f"Start with {_short(sp.groups[0][0])}, your biggest merchant."
+
+
 def lookup_template(tool, result, c):
     """(answer, why, do, note) for the data-lookup tools, built only from engine values, with citations."""
     f = result.facts
@@ -1440,7 +1503,7 @@ def lookup_template(tool, result, c):
                     ["Nothing was bought in that period."], [], "")
         return (f"You spent {w.dollars(sp.total.value)} from {w.day(sp.start)} to {w.day(sp.end)} {c(sp.total)}.",
                 [f"{_short(n)}: {w.dollars(g.value)} {c(g)}." for n, g, _ in sp.groups[:4]],
-                [f"Start with {_short(sp.groups[0][0]).lower()}, your biggest {'category' if sp.group_by == 'category' else 'merchant'}."],
+                [_spending_step(sp)],
                 "Card payments are not counted: they just move money between your accounts.")
     if tool == "find_transactions":
         m = f["matches"]
@@ -1510,6 +1573,38 @@ def lookup_template(tool, result, c):
         do = [f"Send the verification form. The refund comes around {w.day(t.refund_release.value)} "
               f"{c(t.refund_release)}."] if t.refund else []
         return (f"You have {w.dollars(t.checking.value)} in checking today {c(t.checking)}.", why, do, "")
+    if tool == "budget_status":
+        b = f["status"]
+        if b.suggestion:
+            sg = b.suggestion
+            m, month = sg.available, f"{sg.start:%B}"
+            if sg.fits:
+                return ("You haven't set a budget yet.",
+                        [f"You have {w.dollars(m.amount.value)} to spend after rent and bills in {month} "
+                         f"{c(m.amount)}.",
+                         "Based on your usual spending: " + ", ".join(f"{x.category} {w.dollars(x.suggested.value)} "
+                                                                       f"{c(x.suggested)}".strip() for x in sg.lines)
+                         + "."],
+                        ["Open the Budget tab and press Suggest a budget."], "")
+            return ("You haven't set a budget yet.",
+                    [f"In {month}, your rent and bills are {w.dollars(m.amount.value)} more than your pay "
+                     f"{c(m.amount)}.", "So no budget fits until more money comes in."],
+                    ["Send your verification form first. Then set a budget."], "")
+        name = (b.categories[0] if len(b.categories) == 1 else
+                next((g for g, cs in engine.BUDGET_GROUPS.items() if cs == b.categories), "whole"))
+        spent = (f"You've spent {w.dollars(b.spent.value)} {c(b.spent)} this month, against a budget of "
+                 f"{w.dollars(b.budget.value)}.")
+        pace = {"on pace": "You're on pace.", "spending fast": "You're spending faster than the budget allows.",
+                "over": "You're over budget."}[b.pace]
+        if name != "whole":
+            label = name.lower()
+            head = (f"You have {w.dollars(b.left.value)} left in your {label} budget {c(b.left)}." if b.left.value >= 0
+                    else f"You're {w.dollars(b.left.value)} over your {label} budget {c(b.left)}.")
+            return head, [spent, pace], [], ""
+        e = b.effect
+        over = [r for r in b.rows if r.left.value < 0]
+        why = [spent] + [f"{r.category} is {w.dollars(r.left.value)} over {c(r.left)}." for r in over[:2]]
+        return todo_effect(e, c(e.days_longer)), why, [], pace
     if tool == "action_plan":
         items, (start, end), nxt = f["items"], f["span"], f["next"]
         when = f"from {w.day(start.value)} to {w.day(end.value)}"
@@ -1548,6 +1643,13 @@ def lookup_template(tool, result, c):
         return (f"Here {'is 1 way' if k == 1 else f'are {k} ways'} to get money {when} {c(dl)}.", lines,
                 [lines[0].split(":")[0] + "."], "Ranked by when the money arrives.")
     return None
+
+
+def todo_effect(e, cite=""):
+    """What sticking to the budget does, in one sentence (the same words as the Budget tab), cited."""
+    import summary
+    first = summary.budget_effect_line(e).split(". ")[0].rstrip(".")
+    return f"{first} {cite}".rstrip() + "."
 
 
 def merge_sections(parts):
@@ -1631,6 +1733,33 @@ def lookup_facts(tool, result, c):
             e = t.next_paycheck
             out.append(Fact("paycheck", "the next paycheck", f"Your next paycheck is {w.dollars(e.amount)} on "
                             f"{w.day(e.date)} {c(e.computed)}.", money=(e.amount,), date=e.date))
+    elif tool == "budget_status":
+        b = f["status"]
+        if b.suggestion:
+            out.append(Fact("no_budget", "that no budget is set", "You haven't set a budget yet.",
+                            words=("haven't set", "no budget", "not set", "don't have a budget", "haven't made")))
+            m = b.suggestion.available
+            out.append(Fact("available", "what's left after rent and bills next month",
+                            f"You have {w.dollars(m.amount.value)} to spend after rent and bills {c(m.amount)}."
+                            if m.amount.value > 0 else
+                            f"Your rent and bills are {w.dollars(m.amount.value)} more than your pay {c(m.amount)}.",
+                            money=(m.amount.value,)))
+        else:
+            single = len(b.categories) == 1 or any(cs == b.categories for cs in engine.BUDGET_GROUPS.values())
+            if single:
+                out.append(Fact("left", "how much is left (or over) in that budget",
+                                f"You have {w.dollars(b.left.value)} left {c(b.left)}." if b.left.value >= 0 else
+                                f"You're {w.dollars(b.left.value)} over {c(b.left)}.", money=(b.left.value,),
+                                where="answer"))
+            else:
+                e = b.effect
+                d = e.with_budget.first_below_zero.value
+                out.append(Fact("effect", "what sticking to the budget does to the forecast",
+                                todo_effect(e, c(e.days_longer)), date=d,
+                                words=() if d else ("all semester",), where="answer"))
+            out.append(Fact("spent", "spent so far and the budget",
+                            f"You've spent {w.dollars(b.spent.value)} {c(b.spent)} this month, against a budget of "
+                            f"{w.dollars(b.budget.value)}.", money=(b.spent.value, b.budget.value)))
     elif tool == "action_plan":
         main = {"refund": ("refund", "arrives"), "rent": ("rent", None), "run_out": ("payment", None),
                 "subscriptions": ("saves", None), "tight_week": ("installment", None)}
@@ -1680,7 +1809,7 @@ def required_facts(plan, results, pack, ds, scenario):
 
 
 LOOKUP_TOOLS = ("spending_summary", "find_transactions", "upcoming_bills", "work_summary", "balance_on",
-                "accounts_today", "money_ideas", "action_plan", "general_info")
+                "accounts_today", "money_ideas", "action_plan", "budget_status", "general_info")
 
 
 def _core_facts(tool, result, pack, ds, scenario):
@@ -1807,16 +1936,19 @@ def missing_facts(text, facts):
 
 
 def append_facts(text, missing):
-    """Add a plain sentence for each missing fact: lead facts become the first WHY bullet, note facts go in NOTE,
+    """Add a plain sentence for each missing fact: an ANSWER fact becomes the ANSWER (the model's ANSWER didn't
+    say it, so it moves to the first WHY bullet), lead facts become the first WHY bullet, note facts go in NOTE,
     others are added as WHY bullets. Built from engine values only."""
     sec = parse_sections(text) or {"answer": text.strip(), "why": [], "do": [], "note": ""}
     moved = [f for f in missing if f.where in ("lead", "note")]            # stated, but in the wrong place: move it
     sec["why"] = [b for b in sec["why"] if not any(fact_present(f, b, {}) for f in moved)]
+    answer = [f.line for f in missing if f.where == "answer"]
     lead = [f.line for f in missing if f.where == "lead"]
-    rest = [f.line for f in missing if f.where in ("any", "answer", "why")]
+    rest = [f.line for f in missing if f.where in ("any", "why")]
     notes = [f.line for f in missing if f.where == "note"]
     note = " ".join(x for x in [sec.get("note", "")] + notes if x)
-    return _format(sec["answer"], lead + sec["why"] + rest, sec["do"], note)
+    old = [sec["answer"]] if answer and len(sec["answer"].split()) >= 4 else []     # a real sentence stays, as WHY
+    return _format(" ".join(answer) or sec["answer"], lead + old + sec["why"] + rest, sec["do"], note)
 
 
 def _strip_think(text, reasoning):
@@ -1893,12 +2025,14 @@ def normalize_question(q):
     return " ".join(re.sub(r"[^a-z0-9$.,\s]", " ", q.lower()).split()).rstrip(".,")
 
 
-def cache_path(question, scenario, folder=None, history=(), done=()):
+def cache_path(question, scenario, folder=None, history=(), done=(), budget=None):
     """Saved answers are keyed by the question, the what-ifs, for follow-ups the earlier questions, and the
     check-in items marked done (when there are any)."""
     key = f"{normalize_question(question)}|{scenario.describe()}"
     if done:
         key += "|done:" + ",".join(sorted(done))
+    if budget and any(budget.values()):
+        key += "|budget:" + ",".join(f"{c}={int(v)}" for c, v in sorted(budget.items()) if v)
     if history:
         key += "|" + "||".join(normalize_question(a.question) for a in history[-3:])
     return (folder or config.ANSWER_CACHE_DIR) / f"{hashlib.sha256(key.encode()).hexdigest()[:20]}.json"
@@ -1909,16 +2043,16 @@ def answer_folders(mode):
     return [config.DEMO_ANSWERS_DIR] if mode == "replay" else [config.ANSWER_CACHE_DIR, config.DEMO_ANSWERS_DIR]
 
 
-def load_cached(question, scenario, mode="cached", history=(), done=()):
+def load_cached(question, scenario, mode="cached", history=(), done=(), budget=None):
     for folder in answer_folders(mode):
-        path = cache_path(question, scenario, folder, history, done)
+        path = cache_path(question, scenario, folder, history, done, budget)
         if path.exists():
             return Answer.from_json(path.read_text(encoding="utf-8"))
     return None
 
 
-def save_cached(answer, scenario, folder=None, history=(), done=()):
-    path = cache_path(answer.question, scenario, folder, history, done)
+def save_cached(answer, scenario, folder=None, history=(), done=(), budget=None):
+    path = cache_path(answer.question, scenario, folder, history, done, budget)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(answer.to_json(), encoding="utf-8")
 
@@ -1953,17 +2087,19 @@ def _verdict_result(results):
     return next((r for r in results if r.verdict), results[0])
 
 
-def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, history=(), think=False, done=()):
+def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, history=(), think=False, done=(),
+        budget=None):
     """Answer one question. Yields ("stage" | "quick" | "text" | "restart" | "answer", payload); "answer" comes
     last. "quick" is the instant answer built from the engine (shown while the AI writes); "text" chunks are the
     AI answer streaming in. history: earlier Answers in this conversation (oldest first), for follow-ups.
     think: Nemotron Super with thinking on (slower, shows its reasoning); default: Lightning, thinking off.
-    done: check-in item kinds the student marked done (left out of "what should I do" answers)."""
+    done: check-in item kinds the student marked done (left out of "what should I do" answers). budget: the
+    amounts she set in the Budget tab (budget questions)."""
     scenario, ds = scenario or engine.Scenario(), ds or normalize.load()
     mode, llm = (mode or config.ANSWER_MODE).lower(), llm or llm_client
     question, history, done = question.strip(), list(history or [])[-3:], tuple(sorted(done or ()))
     if mode in ("cached", "replay"):
-        cached = load_cached(question, scenario, mode, history, done)
+        cached = load_cached(question, scenario, mode, history, done, budget)
         if cached and mode == "replay":
             yield from _replay(cached, "replay", typing_s)
             return
@@ -2023,7 +2159,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     yield "stage", STAGES["execute"]
     t = time.perf_counter()
     yield "stage", STAGES["math"]
-    results = execute_all(plan, scenario, ds, done)
+    results = execute_all(plan, scenario, ds, done, budget)
     pack = build_pack(results, ds, plan, scenario)
     lead = _verdict_result(results)
     label = verdict_label(lead)
@@ -2055,7 +2191,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
         except Exception as exc:
             errors.append(f"{model_name(model)}: {type(exc).__name__}")
             yield "restart", ""
-    if answered_by is not None and missing:              # still missing after the rewrite: add them ourselves
+    if answered_by is not None and missing and check.ok:  # passed every check but left facts out: add them ourselves
         text = append_facts(text, missing)
         retries["facts_appended"] = len(missing)
         check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
@@ -2093,7 +2229,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
                     ans_mode="fallback" if source == "template" or plan.source == "keywords" else "live",
                     source=source)
     if answer.mode == "live" and check.ok:
-        save_cached(answer, scenario, history=history, done=done)
+        save_cached(answer, scenario, history=history, done=done, budget=budget)
     yield "answer", answer
 
 

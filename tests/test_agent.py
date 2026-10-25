@@ -205,7 +205,8 @@ def test_check_passes_with_format_variants(flight_pack):
     c = agent.check_answer("Your $1,850 refund [C6] comes Nov 5 (Thursday, November 5th) [C6]. Without changes you'd "
                            "be $1,862.37 below zero [C2], or -$1,862.37 on 2026-12-17 [C3]. Thanksgiving is Nov 26.",
                            flight_pack)
-    assert c.ok, c.problems
+    # the numbers all match (signs are ignored); only the readability rule objects to the minus sign
+    assert c.problems == ['-$1,862.37 has a minus sign; write it as "$1,862.37 below zero"']
     assert agent.check_answer(GOOD_FLIGHT, flight_pack).ok
 
 
