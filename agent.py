@@ -46,7 +46,8 @@ STAGES = {"plan": "Understanding your question...", "execute": "Checking your ac
 # The two flight questions side by side show timing: bought tomorrow it's "Not right now"; bought Nov 10,
 # after the refund arrives, it's "Yes, if you do 2 things".
 SUGGESTED = ["Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?", "How long will my money last?",
-             "Where is my money leaking?", "Can I afford a $400 flight home for Thanksgiving?"]
+             "Where is my money leaking?", "Can I afford a $400 flight home for Thanksgiving?",
+             "What should I do this week?"]
 OFF_TOPIC = ("I can help with your money this semester: whether you can afford something, how long your money "
              "will last, where it's leaking, your refund, or what changes would help. Try asking one of those!")
 
@@ -947,6 +948,21 @@ def copied_hint_problems(text):
     return [f"the answer copied an instruction: {m.group(0)}" for m in COPIED_HINT.finditer(text)][:1]
 
 
+def copied_how_problems(text, pack):
+    """The "How:" notes in the facts explain the math to the model ("Missing form submitted Tue Oct 27, 2026 + 7
+    business days = Thu Nov 5, 2026."); copied into an answer they read like a spreadsheet. A sentence or bullet
+    that is mostly one of them (90% alike, or sharing a 35-character run) fails."""
+    hows = [h for it in pack.items if it.get("kind") == "calc"
+            for h in re.split(r"(?<=[.;])\s+", it.get("how", "")) if len(h.split()) >= 6]
+    norm = [" ".join(re.sub(r"[^a-z0-9$ ]", " ", h.lower()).split()) for h in hows]
+    for shown, unit in _units(text):
+        for n in norm:
+            m = difflib.SequenceMatcher(None, unit, n, autojunk=False)
+            if m.ratio() >= 0.9 or m.find_longest_match(0, len(unit), 0, len(n)).size >= 35:
+                return [f"the answer copied a calculation note (\"{shown[:50]}\"); say it in plain words"]
+    return []
+
+
 def invented_budget_problems(text):
     """A step that sets a budget or limit with a dollar amount invents a number the engine never computed."""
     sec = parse_sections(text) or {}
@@ -1057,7 +1073,8 @@ def check_answer(text, pack, require_format=False, *, names=None, finish_reason=
         problems += [f"[{c}] is not in the facts" for c in dict.fromkeys(cites) if c not in ids]
         if names:
             problems += reason_problems(text, pack, names)
-        problems += event_date_problems(text, events) + copied_label_problems(text, required)
+        problems += (event_date_problems(text, events) + copied_label_problems(text, required)
+                     + copied_how_problems(text, pack))
     if text.strip():
         problems += (repetition_problems(text) + cutoff_problems(text, finish_reason) + invented_budget_problems(text)
                      + copied_hint_problems(text))
@@ -1093,6 +1110,7 @@ EXPLAIN_SYSTEM = (
     "citation, in the place it asks for. The easy way: copy each quoted sentence as written (without the quotes "
     "or the words before it).\n"
     "- Never write record IDs such as HLD-01, CHK-0042 or RFD-01. Cite with [C#] or [E#] only.\n"
+    "- The \"How:\" notes explain the math to you. Never copy them; say things in plain words.\n"
     "- No jargon: never say scenario, projection, ledger, evidence or computed. No bold, no headings.")
 
 GENERAL_SYSTEM = (

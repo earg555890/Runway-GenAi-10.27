@@ -205,7 +205,7 @@ def test_chat_thread_follow_up_and_new_chat(at, monkeypatch, tmp_path):
     at.button(key="ask_new").click()
     run(at)
     assert not at.chat_message and at.session_state["history"] == []
-    assert len([b for b in at.button if str(b.key).startswith("ask_suggest_")]) == 4
+    assert len([b for b in at.button if str(b.key).startswith("ask_suggest_")]) == 5
 
 
 def test_think_harder_toggle_routes_to_super_with_thinking(at, monkeypatch, tmp_path):

@@ -29,6 +29,7 @@ The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester e
 | How long will my money last? | **Your money runs out on Mon, Nov 9**, when a $360 card payment is due. |
 | Where is my money leaking? | Two music subscriptions and a $35 overdraft fee from rent, and which of them is worth cancelling. |
 | Can I afford a $400 flight home for Thanksgiving? | **Not right now:** with no date, Runway assumes tomorrow, before the refund arrives, and says so. |
+| What should I do this week? | **2 things:** send the verification form (the $1,850 refund then arrives around Thu, Nov 5), and keep $725 in checking for rent on Sun, Nov 1, with the same buttons as the check-in. |
 
 **Ask anything about your money, in a chat with follow-ups.** Beyond the suggested questions, Runway answers spending ("How much did I spend on eating out in October?", "How much did I spend at Kroger?"), bills ("What's due next week?"), work ("How many hours did I work in October?"), balances on a date ("What will my balance be on Thanksgiving?"), what's pending today, ways to get money before you run out, and general questions ("What is FAFSA verification?", labelled General info). Follow-ups work: "what about Nov 17 instead?", "why?", "and if I also cancel Apple Music?". A broad request like "Help me get through the semester" runs several checks at once.
 

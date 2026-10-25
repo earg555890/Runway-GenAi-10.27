@@ -415,3 +415,19 @@ def test_action_plan_leaves_out_what_is_done(ds):
     a = events[-1][1]
     assert a.actions[0]["items"] == ["refund"] and "Rent" not in a.text
     assert agent.cache_path("q", engine.Scenario(), done=("rent",)) != agent.cache_path("q", engine.Scenario())
+
+
+def test_check_rejects_copied_calculation_notes(ds):
+    """Seen live (fast mode): a WHY bullet copied the refund date's How note word for word."""
+    plan, results, pack, required = _pieces([{"tool": "action_plan", "args": WEEK}], ds)
+    copied = ("ANSWER: Send your form.\nWHY:\n- Missing form submitted Tue Oct 27, 2026 + 7 business days = Thu Nov 5, "
+              "2026 [C3]\n- Rent of $725 [C6] is due Sun, Nov 1 [C5].\nDO THIS:\n1. Send the form.")
+    c = agent.check_answer(copied, pack, require_format=True)
+    assert any(p.startswith("the answer copied a calculation note") for p in c.problems)
+    plain = copied.replace("Missing form submitted Tue Oct 27, 2026 + 7 business days = Thu Nov 5, 2026 [C3]",
+                           "Your $1,850 refund [C2] arrives around Thu, Nov 5 [C3].")
+    assert not agent.copied_how_problems(plain, pack)
+
+
+def test_five_suggested_questions():
+    assert agent.SUGGESTED[4] == "What should I do this week?" and len(agent.SUGGESTED) == 5
