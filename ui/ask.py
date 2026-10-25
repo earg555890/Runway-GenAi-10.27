@@ -125,7 +125,7 @@ def _todo_cards(act, key, ds):
         if kind in done:
             st.caption(f":material/check: {fmt.md(done[kind]['label'])}: done.")
         elif kind in items:
-            checkin.card(items[kind], ds, f"chat{key}_{kind}")
+            checkin.card(items[kind], ds, f"chat{key}_{kind}", compact=True)
 
 
 def _actions(a, key, ds=None):

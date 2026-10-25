@@ -82,23 +82,21 @@ def _actions(item, ds, key):
                   help="Mark as done", on_click=state.mark_done, args=(item, ds))
 
 
-def card(item, ds, key):
+def card(item, ds, key, compact=False):
+    """Title, one sentence, actions. compact (under a chat answer that already says it): title and actions."""
     title, sentence = actions.text(item)
     with st.container(border=True, key=f"ci_card_{key}"):
         st.markdown(f'<div class="rw-ci-title">{fmt.html(title)}</div>'
-                    f'<div class="rw-ci-text">{fmt.html(sentence)}</div>', unsafe_allow_html=True)
+                    + ("" if compact else f'<div class="rw-ci-text">{fmt.html(sentence)}</div>'),
+                    unsafe_allow_html=True)
         _actions(item, ds, key)
 
 
-def _done_row():
-    done = st.session_state.get("done") or {}
-    if not done:
-        return
-    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="ci_done_row"):
-        st.markdown('<span class="rw-ci-done">Done:</span>', unsafe_allow_html=True)
-        for kind, d in done.items():
-            st.button(f"{d['label']} · Undo", key=f"ci_undo_{kind}", type="tertiary", icon=":material/undo:",
-                      on_click=state.undo, args=(kind,), help=f"Undo \"{d['label']}\"")
+def _done_buttons():
+    """What was marked done, each with Undo (in the row under the cards)."""
+    for kind, d in (st.session_state.get("done") or {}).items():
+        st.button(f"Done: {d['label']} · Undo", key=f"ci_undo_{kind}", type="tertiary", icon=":material/undo:",
+                  on_click=state.undo, args=(kind,), help=f"Undo \"{d['label']}\"")
 
 
 def _greeting_slot(items):
@@ -126,10 +124,11 @@ def render(ds, done_scenario):
         st.markdown(f'<div class="rw-ci-head">{fmt.html(heading(items))}</div>', unsafe_allow_html=True)
         if items:
             _greeting_slot(items)
-        cols = st.columns(TOP)
-        for i, it in enumerate(items[:TOP]):
-            with cols[i]:
-                card(it, ds, it.kind)
+        with st.container(key="ci_top"):              # on a phone: one row you swipe through (style.py)
+            cols = st.columns(TOP)
+            for i, it in enumerate(items[:TOP]):
+                with cols[i]:
+                    card(it, ds, it.kind)
         with st.container(horizontal=True, gap="small", vertical_alignment="center", key="ci_more"):
             if len(items) > TOP:
                 with st.expander(f"See all ({len(items) - TOP} more)"):
@@ -140,5 +139,5 @@ def render(ds, done_scenario):
                                    file_name="runway-deadlines.ics", mime=MIME_ICS, icon=":material/calendar_add_on:",
                                    type="tertiary", key="ci_cal_all", on_click=state.log,
                                    args=(f"Downloaded all {len(items)} deadlines as one calendar file",))
-        _done_row()
+            _done_buttons()
     return items

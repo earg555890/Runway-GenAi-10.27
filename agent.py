@@ -747,7 +747,8 @@ def build_pack(results, ds, plan, scenario):
                       "duration_s": ev.duration_s, "original_duration_s": ev.original_duration_s})
     context = [f"Today is {w.day(config.DEMO_TODAY)}, {config.DEMO_TODAY.year}. The semester ends "
                f"{w.day(config.SEMESTER_END)}.", *CALENDAR,
-               f"The student's current what-ifs: {scenario.describe()}.", *plan.assumptions]
+               (f"The student's current what-ifs: {scenario.describe()}." if scenario.describe() != "nothing changes"
+                else "The student isn't trying any what-ifs (no changes to her plans)."), *plan.assumptions]
     return Pack(items, context, cite_ids)
 
 

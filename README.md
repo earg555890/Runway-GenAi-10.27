@@ -12,6 +12,15 @@ A student's money is split across six places that never talk to each other: a ba
 
 Runway connects the six sources, projects the checking balance day by day to the end of the semester, and answers plain questions. Every answer shows its proof.
 
+**It speaks up first.** Under the status card, a check-in says "Hi Maya. 5 things need your attention." and shows the three most urgent as cards (most money at stake per day until it's due): send the verification form (her $1,850 refund then arrives around Thu, Nov 5), rent on Sun, Nov 1 leaves just $13.32 (rent before payday cost a $35 fee last time), and the $360 card payment on Mon, Nov 9 that takes her below zero; "See all" has the tight tuition week and the duplicate music apps. Each card has real actions, and every one is a click by the student:
+
+- **Remind:** a calendar file (.ics) for that deadline, or "Add all deadlines to my calendar" as one file.
+- **Email:** opens the drafted email to financial aid in her email app (a `mailto:` link), or copy it. The address is a demo one (`finaid@stateu.example`).
+- **Cancel page:** opens the service's official cancel page (Spotify's account page; for Apple Music, Apple's help page).
+- **Mark as done:** "Form sent" or "Cancelled Spotify" turns that fix on in the forecast right away (the status card, chart and check-in update) and Runway says what changed in the chat; Undo puts it back. Behind the scenes keeps a log of what Runway prepared and what she approved.
+
+Ask "What should I do this week?" and the answer comes with the same buttons.
+
 The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester ends Fri, Dec 18.
 
 | Suggested question | What Runway answers |
@@ -25,7 +34,7 @@ The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester e
 
 - **Fast:** a quick answer built from your numbers appears in about a second; the AI's explanation replaces it a few seconds later, only if it passes the checks. "Think harder" switches to the larger model and shows its reasoning.
 - **What-if panel:** turn fixes on and off (send the form, cancel a subscription, pick up an extra shift) and the balance chart and numbers update instantly, with no AI call.
-- **Drafted actions:** a ready-to-send email to the financial aid office and a to-do list. Runway never sends anything; you copy and send it yourself.
+- **Drafted actions:** a ready-to-send email to the financial aid office, calendar reminders and a to-do list. Runway never sends anything; you approve every action with a click.
 
 ## Watch the demo
 
@@ -59,7 +68,7 @@ Then open http://localhost:8501 and click a suggested question. Typed questions 
 
 On Windows, after the install you can also double-click **Start Runway.bat** (opens the browser; does nothing extra if Runway is already running), **Start Runway (Zetaris).bat** and **Stop Runway.bat**.
 
-**Live answers (NVIDIA key):** put your key from [build.nvidia.com](https://build.nvidia.com) in `.env` as `NVIDIA_API_KEY=...` and set `ANSWER_MODE=cached` (saved answers first, then live) or `ANSWER_MODE=live`. Restart the app.
+**Live answers (NVIDIA key):** put your key from [build.nvidia.com](https://build.nvidia.com) in `.env` as `NVIDIA_API_KEY=...` and set `ANSWER_MODE=cached` (saved answers first, then live) or `ANSWER_MODE=live`. Restart the app. With a key, the check-in's one-line greeting is written by the fast model (checked, never blocking the page); `AI_GREETING=off` keeps the fixed line.
 
 **Zetaris:** start the Zetaris Docker bundle, fill in the `ZETARIS_*` settings and `JAVA_HOME` in `.env`, load the data with `python load_zetaris.py`, then run with `DATA_BACKEND=zetaris`. The first load runs every query on Zetaris (about a minute on our laptop) and caches the results. More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 

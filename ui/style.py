@@ -45,11 +45,15 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 .rw-ci-title {font-size: 1.05rem; font-weight: 700; line-height: 1.3;}
 .rw-ci-text {font-size: 1rem; line-height: 1.45; margin-top: .25rem;}
 .st-key-checkin {margin-bottom: .6rem;}
-.rw-ci-done {font-size: .95rem; opacity: .85;}
 @media (max-width: 640px) {
   .st-key-badges {justify-content: flex-start !important;}
   .rw-status .rw-big {font-size: 1.45rem;}
   .rw-today {font-size: 2.8rem;}
+  .st-key-ci_top div[data-testid="stHorizontalBlock"] {flex-wrap: nowrap !important; overflow-x: auto;
+      scroll-snap-type: x mandatory; padding-bottom: .3rem;}
+  .st-key-ci_top div[data-testid="stColumn"] {min-width: 84% !important; flex: 0 0 84% !important;
+      scroll-snap-align: start;}
+  .st-key-ci_more > [data-testid="stLayoutWrapper"]:has([data-testid="stExpander"]) {min-width: 100%;}
 }
 .rw-fn {font-size: .65em; font-weight: 600; opacity: .8; margin-left: .12em; color: #3b82f6;}
 </style>
