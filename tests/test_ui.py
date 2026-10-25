@@ -545,3 +545,43 @@ def test_donut_has_top_five_plus_other(ds_local=None):
     rows = budget.donut_rows(sp)
     assert [n for n, _ in rows] == ["Rent", "Shopping", "School", "Groceries", "Eating out", "Other"]
     assert sum(v for _, v in rows) == sp.total.value                      # Other = Bills + Fees + Subscriptions
+
+
+
+def test_budget_section_base_case(at):
+    head = next(t for t in texts(at) if 'class="rw-bud-head"' in t)
+    assert ">In November, your rent and bills are $487 more than your pay. Nothing is left to budget until your " \
+           "refund comes.<" in head
+    assert at.button(key="bud_suggest").disabled and at.toggle(key="wf_budget").disabled
+
+
+def test_suggest_budget_left_to_assign_and_progress(at):
+    at.button(key="ci_done_refund").click()
+    run(at)
+    assert any(">You have $1,363 to spend after rent and bills in November.<" in t for t in texts(at))
+    at.button(key="bud_suggest").click()
+    run(at)
+    assert [at.number_input(key=f"bud_amt_{c}").value for c in ("Shopping", "Groceries", "Eating out",
+                                                                  "Transportation", "Meal plan")] == [227, 185, 96, 14, 0]
+    assert any(">Left to assign: $841<" in t for t in texts(at))
+    prog = next(t for t in texts(at) if 'class="rw-prog"' in t)
+    assert "Shopping</span><span>$234 over" in prog and "over budget" in prog          # $233.99
+    assert "Groceries</span><span>$8.51 left" in prog and "spending fast" in prog
+    at.number_input(key="bud_amt_Shopping").set_value(1500)
+    run(at)
+    left = next(t for t in texts(at) if 'class="rw-bud-left' in t)
+    assert "rw-red" in left and ">Left to assign: $432 over<" in left       # 1,363.17 - (1,500 + 185 + 96 + 14)
+    assert at.session_state["action_log"][-1]["what"] == "Filled in the suggested budget"
+
+
+def test_budget_switch_updates_the_forecast(at):
+    at.number_input(key="bud_amt_Groceries").set_value(60)
+    run(at)
+    at.toggle(key="wf_budget").set_value(True)
+    run(at)
+    assert ">Your money runs out in 2.8 weeks, on Sun, Nov 15.<" in status(at)
+    effect = next(t for t in texts(at) if 'class="rw-bud-effect"' in t)
+    assert ">If you stick to this budget, your money lasts until Sun, Nov 15 (6 days longer).<" in effect
+    at.toggle(key="wf_budget").set_value(False)
+    run(at)
+    assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)

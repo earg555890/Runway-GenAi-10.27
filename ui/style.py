@@ -54,6 +54,16 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 .rw-sw-dot {display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .5rem;
             vertical-align: baseline;}
 .rw-muted {opacity: .7;}
+.rw-bud-head {font-size: 1.15rem; font-weight: 600; margin: .1rem 0 .4rem; max-width: 64ch;}
+.rw-bud-left {font-size: 1.05rem; font-weight: 600;}
+.rw-bud-effect {font-size: 1.1rem; margin: .3rem 0 .6rem; max-width: 64ch;}
+.rw-prog {margin: .5rem 0 .7rem; max-width: 560px;}
+.rw-prog-top {display: flex; justify-content: space-between; font-size: 1rem; gap: 1rem;}
+.rw-prog-track {height: 10px; border-radius: 5px; background: rgba(128,128,128,.22); margin-top: .25rem;
+                overflow: hidden;}
+.rw-prog-fill {height: 100%; border-radius: 5px;}
+.rw-prog-sub {font-size: .9rem; opacity: .8; margin-top: .15rem;}
+.rw-pace-on-pace {opacity: .85;} .rw-pace-spending-fast, .rw-pace-over {font-weight: 600;}
 @media (max-width: 640px) {
   .st-key-badges {justify-content: flex-start !important;}
   .rw-status .rw-big {font-size: 1.45rem;}

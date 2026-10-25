@@ -35,7 +35,7 @@ tab1, tab_budget, tab2, tab3 = st.tabs(["My semester", "Budget", "Can I afford i
 with tab1:
     semester.render(ds, subs, base, current, changed, deltas)
 with tab_budget:
-    budget.render(ds)
+    budget.render(ds, scenario)
 with tab2:
     afford.render(ds, current)
 with tab3:

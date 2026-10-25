@@ -1646,3 +1646,43 @@ def budget_effect(scenario, ds=None, ledger=None):
                      f"{fmt_money(with_b.end_balance.value)} with the budget - {fmt_money(without.end_balance.value)} "
                      "without.", [with_b.end_balance, without.end_balance])
     return BudgetEffect(without, with_b, days_c, low, end)
+
+
+def budget_left(available, amounts, ledger):
+    """Money to budget minus what the budget assigns (negative: assigned more than there is)."""
+    assigned = D(sum((D(v) for v in amounts.values()), ZERO))
+    return ledger.add("left to assign", available.value - assigned, "USD",
+                      f"Money to budget {fmt_money(available.value)} - budgeted {fmt_money(assigned)} ("
+                      + ", ".join(f"{c} {fmt_money(v)}" for c, v in amounts.items() if v) + ").", [available])
+
+
+@dataclass
+class Progress:
+    category: str
+    budget: Decimal
+    spent: Computed
+    left: Computed               # budget - spent (negative: over)
+    expected: Computed           # the budget's share for the days gone so far
+    pace: str                    # "on pace", "spending fast", "over"
+
+
+def budget_progress(amounts, month=None, ds=None, ledger=None):
+    """Spent so far this month (to DEMO_TODAY) per budgeted category vs its budget, and the pace: on pace if
+    spending is within the budget's share of the days gone, spending fast if above it, over if past the budget."""
+    ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
+    start, end = month_span(month or config.DEMO_TODAY)
+    today = min(config.DEMO_TODAY, end)
+    gone, n = (today - start).days + 1, (end - start).days + 1
+    sp = spending_by_category(start, today, "both", ds, ledger)
+    out = []
+    for cat, amount in amounts.items():
+        b = D(amount)
+        c = sp.get(cat)
+        spent = c.spent if c else ledger.add(f"spent on {cat} {start} to {today}", ZERO, "USD", "No purchases.", [])
+        left = ledger.add(f"{cat}: budget left", b - spent.value, "USD",
+                          f"Budget {fmt_money(b)} - spent {fmt_money(spent.value)}.", [spent])
+        expected = ledger.add(f"{cat}: budget for the days so far", D(b * gone / n), "USD",
+                              f"{fmt_money(b)} x {gone} of {n} days.", [])
+        pace = "over" if spent.value > b else "spending fast" if spent.value > expected.value else "on pace"
+        out.append(Progress(cat, b, spent, left, expected, pace))
+    return out

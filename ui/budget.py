@@ -1,16 +1,20 @@
 """Tab 2, "Budget": where the money went (one sentence, a donut of the top categories, a table with the purchases
 one click away), then the budget for next month (task 4). The UI does no money math: every total, share base and
 budget comes from the engine; this module only formats and lays it out."""
+from dataclasses import replace
+
 import altair as alt
 import pandas as pd
 import streamlit as st
 
 import config
 import engine
+import normalize
 import summary
-from ui import background, fmt
+from ui import background, fmt, state
 
 TOP = 5
+BUDGET_MONTH = "2026-11"          # next month: the one she can still plan
 ACCOUNTS = {"both": "Both", "checking": "Checking", "card": "Card"}
 SURFACE = ("#ffffff", "#0e1117")       # Streamlit's light / dark page background (the 2px gap between slices)
 INK = ("#0b0b0b", "#f0efec")
@@ -119,17 +123,103 @@ def purchases(sp):
                    "Card payments aren't counted: they just move money between your accounts.")
 
 
-def render(ds, budget=None):
-    budget = budget or {}
+def _suggest(amounts):
+    state.set_budget(amounts)
+    state.log("Filled in the suggested budget", "approved")
+
+
+def _clear():
+    state.set_budget({})
+    st.session_state.wf_budget = False
+
+
+def _what(label):
+    """"rent 2026-11" -> "Rent", "paycheck 2026-11-03 (PAY-05)" -> "Paycheck", "Venmo 2026-11-05" -> "Venmo"."""
+    words = [x for x in fmt.strip_ids(label).split() if not x[:1].isdigit() and not x.startswith("(")]
+    return " ".join(words).capitalize() if words and words[0].islower() else " ".join(words)
+
+
+def _how(m):
+    with st.expander("How we worked this out"):
+        st.dataframe(pd.DataFrame([{"Date": fmt.day(d), "What": _what(label), "Amount": fmt.money(v)}
+                                   for label, d, v, _ in m.lines]),
+                     hide_index=True, width="stretch", column_config=fmt.PROOF_COLUMNS)
+        st.markdown(fmt.md(f"- Money in: {fmt.money(m.money_in.value)}.\n"
+                           f"- Rent and bills: {fmt.money(m.fixed.value)}.\n"
+                           "- Card payments aren't counted here: they pay for spending already in its category."))
+
+
+def progress(ds):
+    """This month so far: spent vs budget per category, with the pace."""
+    rows = engine.budget_progress({c: v for c, v in state.budget().items() if v}, None, ds)
+    if not rows:
+        return
+    _, end = engine.month_span(config.DEMO_TODAY)
+    st.markdown(f"**{config.DEMO_TODAY:%B} so far** (day {config.DEMO_TODAY.day} of {end.day})")
+    out = []
+    for r in rows:
+        fill = 100 if r.pace == "over" else int(r.spent.value / r.budget * 100) if r.budget else 0
+        left = (f"{fmt.dollars(r.left.value)} left" if r.left.value >= 0 else f"{fmt.dollars(r.left.value)} over")
+        note = {"on pace": "on pace", "spending fast": "spending fast", "over": "over budget"}[r.pace]
+        out.append(f'<div class="rw-prog"><div class="rw-prog-top"><span>{fmt.html(r.category)}</span>'
+                   f'<span>{fmt.html(left)} · <span class="rw-pace-{r.pace.replace(" ", "-")}">{note}</span></span>'
+                   f'</div><div class="rw-prog-track"><div class="rw-prog-fill" style="width:{fill}%;'
+                   f'background:{fmt.category_color(r.category)}"></div></div>'
+                   f'<div class="rw-prog-sub">{fmt.html(fmt.dollars(r.spent.value))} of '
+                   f'{fmt.html(fmt.dollars(r.budget))}</div></div>')
+    st.markdown("".join(out), unsafe_allow_html=True)
+
+
+def allocate(ds, scenario):
+    """Your budget for November: what's left after rent and bills, amounts per flexible category, a suggestion,
+    "Left to assign", this month's progress, and the switch that puts the budget in the forecast."""
+    sg = engine.suggest_budget(BUDGET_MONTH, replace(scenario, budget=()), ds)
+    m = sg.available
+    month = f"{m.start:%B}"
+    st.markdown(f"### Your budget for {month}")
+    if m.amount.value > 0:
+        head = f"You have {fmt.dollars(m.amount.value)} to spend after rent and bills in {month}."
+    else:
+        head = (f"In {month}, your rent and bills are {fmt.dollars(m.amount.value)} more than your pay."
+                + (" Nothing is left to budget until your refund comes." if not scenario.refund_released else ""))
+    st.markdown(f'<div class="rw-bud-head">{fmt.html(head)}</div>', unsafe_allow_html=True)
+    _how(m)
+    usual = {x.category: x.average.value for x in sg.lines}
+    cols = st.columns(3)
+    for i, c in enumerate(normalize.FLEXIBLE):
+        hint = f"usual {fmt.dollars(usual[c])}" if c in usual else "none so far"
+        cols[i % 3].number_input(f"{c} ({hint})", min_value=0, max_value=5000, step=5, key=state.budget_key(c))
+    left = engine.budget_left(m.amount, state.budget(), engine.Ledger())
+    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="bud_actions"):
+        st.button("Suggest a budget", icon=":material/auto_awesome:", key="bud_suggest", disabled=not sg.fits,
+                  on_click=_suggest, args=({c: int(v) for c, v in sg.amounts().items()},),
+                  help="Your usual spending, scaled down to fit if needed." if sg.fits else
+                  "Nothing is left after rent and bills, so no budget fits yet.")
+        st.button("Clear", key="bud_clear", type="tertiary", on_click=_clear)
+        tone = " rw-red" if left.value < 0 else ""
+        st.markdown(f'<span class="rw-bud-left{tone}">Left to assign: '
+                    f'{fmt.html(fmt.dollars(left.value) + (" over" if left.value < 0 else ""))}</span>',
+                    unsafe_allow_html=True)
+    progress(ds)
+    st.toggle("Use my budget in my forecast", key="wf_budget", disabled=not state.has_budget(),
+              help="The forecast uses your budget instead of your past spending.")
+    if scenario.budget:
+        effect = engine.budget_effect(scenario, ds)
+        st.markdown(f'<div class="rw-bud-effect">{fmt.html(summary.budget_effect_line(effect))}</div>',
+                    unsafe_allow_html=True)
+
+
+def render(ds, scenario):
     per, account = filters()
     sp = spending(ds, per, account)
     top_line(sp, per)
-    if per.future or not sp.categories:
-        return sp
-    left, right = st.columns([5, 6], vertical_alignment="center", gap="medium")
-    with left:
-        st.altair_chart(donut(sp), width="content", theme=None)
-    with right:
-        st.markdown(table_html(sp, per, budget), unsafe_allow_html=True)
-    purchases(sp)
+    if not (per.future or not sp.categories):
+        left, right = st.columns([5, 6], vertical_alignment="center", gap="medium")
+        with left:
+            st.altair_chart(donut(sp), width="content", theme=None)
+        with right:
+            st.markdown(table_html(sp, per, state.budget() if state.has_budget() else {}), unsafe_allow_html=True)
+        purchases(sp)
+    st.divider()
+    allocate(ds, scenario)
     return sp

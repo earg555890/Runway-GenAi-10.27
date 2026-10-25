@@ -122,3 +122,26 @@ def ai_summary(sp, per, llm=llm_client):
         return None
     text = " ".join((res.text or "").split()).strip().strip('"')
     return text if not check(text, sp) else None
+
+
+def budget_effect_line(effect):
+    """What sticking to the budget does to the forecast, in one or two sentences, from engine.budget_effect."""
+    w_out, w_in = effect.without, effect.with_budget
+    days = effect.days_longer.value
+    if w_in.lasts_through_semester and w_out.lasts_through_semester:
+        change = effect.end_change.value
+        more = (f"You'd end the semester with {w.dollars(change)} more." if change > 0 else
+                f"You'd end the semester with {w.dollars(change)} less, because your usual spending is more than "
+                "the forecast assumes." if change < 0 else "")
+        return f"Your money lasts all semester either way. {more}".strip()
+    if w_in.lasts_through_semester:
+        return "If you stick to this budget, your money lasts all semester."
+    when = w.day(w_in.first_below_zero.value)
+    if days and days > 0:
+        return f"If you stick to this budget, your money lasts until {when} ({days} days longer)."
+    if days and days < 0:
+        return f"With this budget, your money runs out on {when} ({-days} days sooner)."
+    low = effect.lowest_change.value
+    return (f"Your money still runs out on {when}." + (f" But your lowest point is {w.dollars(low)} higher." if low > 0
+                                                        else f" Your lowest point is {w.dollars(low)} lower." if low < 0
+                                                        else ""))

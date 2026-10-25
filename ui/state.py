@@ -9,6 +9,7 @@ import actions
 import agent
 import config
 import engine
+import normalize
 from ui import fmt
 
 MAX_TURNS = 10
@@ -32,9 +33,36 @@ def _defaults(subs):
         "buy_date": FLIGHT["date"],
         "buy_card": False,
         "buy_active": False,        # True once the student presses "Check": the purchase joins the plan
+        "wf_budget": False,         # "Use my budget in my forecast"
     }
     d.update({cancel_key(s.merchant): False for s in subs})
+    d.update({budget_key(c): 0 for c in normalize.FLEXIBLE})
     return d
+
+
+def budget_key(category):
+    return f"bud_amt_{category}"
+
+
+def budget():
+    """{flexible category: whole dollars} the student set (all zero: no budget yet)."""
+    return {c: int(st.session_state.get(budget_key(c)) or 0) for c in normalize.FLEXIBLE}
+
+
+def has_budget():
+    return any(budget().values())
+
+
+def set_budget(amounts):
+    for c in normalize.FLEXIBLE:
+        st.session_state[budget_key(c)] = int(amounts.get(c, 0))
+
+
+def budget_scenario_part():
+    """The budget for the forecast, when the switch is on and a budget is set."""
+    if st.session_state.get("wf_budget") and has_budget():
+        return tuple((c, Decimal(v)) for c, v in budget().items())
+    return ()
 
 
 def init(subs):
@@ -56,9 +84,11 @@ def _apply_done():
 
 
 def reset(subs):
-    """Start over: the what-ifs go back to "nothing changes" (what was marked done stays done)."""
+    """Start over: the what-ifs go back to "nothing changes" (what was marked done and the budget amounts stay)."""
+    keep = budget()
     for k, v in _defaults(subs).items():
         st.session_state[k] = v
+    set_budget(keep)
     _apply_done()
 
 
@@ -159,17 +189,18 @@ def scenario(subs):
     return engine.Scenario(
         refund_released=s.wf_refund or "refund" in s.done, refund_submit_date=submit_date(),
         cancel_subscriptions=tuple(dict.fromkeys(cancels + done_cancels())),
-        extra_shifts=base.extra_shifts, purchases=(p,) if p else ())
+        extra_shifts=base.extra_shifts, purchases=(p,) if p else (), budget=budget_scenario_part())
 
 
 def done_scenario():
     """What the student has actually done (marked done in the check-in), without the what-ifs being explored."""
     return engine.Scenario(refund_released="refund" in st.session_state.get("done", {}),
-                           refund_submit_date=submit_date(), cancel_subscriptions=done_cancels())
+                           refund_submit_date=submit_date(), cancel_subscriptions=done_cancels(),
+                           budget=budget_scenario_part())
 
 
 def changed(sc):
-    return bool(sc.refund_released or sc.cancel_subscriptions or sc.extra_shifts or sc.purchases)
+    return bool(sc.refund_released or sc.cancel_subscriptions or sc.extra_shifts or sc.purchases or sc.budget)
 
 
 def summary(sc):
@@ -180,4 +211,6 @@ def summary(sc):
     parts += [f"{m} cancelled" for m in sc.cancel_subscriptions]
     parts += [f"extra shift {fmt.day(x.date)} ({x.hours} hours)" for x in sc.extra_shifts]
     parts += [f"{p.label} ({fmt.money(p.cost)}, {fmt.day(p.date)})" for p in sc.purchases]
+    if sc.budget:
+        parts.append("your budget")
     return ", ".join(parts)

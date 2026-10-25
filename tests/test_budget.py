@@ -182,3 +182,33 @@ def test_ai_summary_is_checked(ds):
         assert summary.ai_summary(sp, per, fake(bad)) is None, bad
     boom = SimpleNamespace(chat=lambda *a, **k: (_ for _ in ()).throw(TimeoutError()))
     assert summary.ai_summary(sp, per, boom) is None
+
+
+# --- allocating: left to assign, progress and pace, the forecast line -------------------------------------------
+
+def test_left_to_assign_and_progress(ds):
+    m = engine.money_to_budget("2026-11", FORM_SENT, ds)
+    left = engine.budget_left(m.amount, dict(SUGGESTED), engine.Ledger())
+    assert left.value == Decimal("841.17")                                    # 1,363.17 - 522
+    assert engine.budget_left(m.amount, {"Shopping": 2000}, engine.Ledger()).value == Decimal("-636.83")
+    rows = {r.category: r for r in engine.budget_progress(dict(SUGGESTED), None, ds)}
+    # October so far, day 26 of 31: the budget's share for the days gone is budget x 26/31
+    assert rows["Shopping"].spent.value == Decimal("460.99") and rows["Shopping"].pace == "over"
+    assert rows["Shopping"].left.value == Decimal("-233.99")
+    assert rows["Groceries"].expected.value == Decimal("155.16") and rows["Groceries"].pace == "spending fast"
+    assert rows["Groceries"].left.value == Decimal("8.51")
+    assert rows["Transportation"].spent.value == 0 and rows["Transportation"].pace == "on pace"
+
+
+def test_budget_effect_lines(ds):
+    lean = engine.budget_effect(engine.Scenario(budget=(("Groceries", Decimal("60")),)), ds)
+    assert summary.budget_effect_line(lean) == \
+        "If you stick to this budget, your money lasts until Sun, Nov 15 (6 days longer)."
+    sent = engine.budget_effect(engine.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY,
+                                                budget=SUGGESTED), ds)
+    assert summary.budget_effect_line(sent) == ("Your money lasts all semester either way. You'd end the semester "
+                                                "with $106 less, because your usual spending is more than the "
+                                                "forecast assumes.")
+    same = engine.budget_effect(engine.Scenario(budget=(("Groceries", Decimal("185")), ("Eating out", Decimal("96")))),
+                                ds)
+    assert summary.budget_effect_line(same).startswith("Your money still runs out on Mon, Nov 9.")
