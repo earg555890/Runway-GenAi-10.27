@@ -1,45 +1,29 @@
 """The check-in, right under the status card: "Hi Maya. N things need your attention.", one friendly line, the
 top 3 items as compact cards (title, one sentence, actions), and "See all" for the rest. Built from
 engine.attention_items for what the student has actually done (not the what-ifs being explored)."""
-import threading
-
 import streamlit as st
 
 import actions
 import engine
 import greeting
-from ui import fmt, state
+from ui import background, fmt, state
 
 TOP = 3
 MIME_ICS = "text/calendar"
 
 
-@st.cache_resource(show_spinner=False)
-def _lines():
-    """{items signature: AI line or None} shared across reruns, filled by a background thread."""
-    return {}
-
-
-def _signature(items):
-    return "|".join(f"{it.kind}:{it.due.value}" for it in items[:TOP])
+def _key(items):
+    return "greeting|" + "|".join(f"{it.kind}:{it.due.value}" for it in items[:TOP])
 
 
 def _start_greeting(items):
-    store, sig = _lines(), _signature(items)
-    if sig in store or not greeting.enabled():
-        return
-    store[sig] = "pending"
-
-    def work():
-        store[sig] = greeting.ai_line(items)
-
-    threading.Thread(target=work, daemon=True).start()
+    if greeting.enabled() and items:
+        background.start(_key(items), lambda: greeting.ai_line(items))
 
 
 def line(items):
     """The AI line if it's ready and passed its check, else the fixed one. Never waits."""
-    got = _lines().get(_signature(items))
-    return got if got and got != "pending" else greeting.fallback(items)
+    return background.line(_key(items), greeting.fallback(items))
 
 
 def heading(items):
@@ -100,15 +84,8 @@ def _done_buttons():
 
 
 def _greeting_slot(items):
-    if _lines().get(_signature(items)) == "pending":
-        @st.fragment(run_every=1.5)
-        def poll():
-            if _lines().get(_signature(items)) != "pending":
-                st.rerun(scope="app")
-            st.markdown(f'<div class="rw-ci-line">{fmt.html(greeting.fallback(items))}</div>', unsafe_allow_html=True)
-        poll()
-    else:
-        st.markdown(f'<div class="rw-ci-line">{fmt.html(line(items))}</div>', unsafe_allow_html=True)
+    background.slot(_key(items), greeting.fallback(items),
+                    lambda t: st.markdown(f'<div class="rw-ci-line">{fmt.html(t)}</div>', unsafe_allow_html=True))
 
 
 def pending(ds, done_scenario):

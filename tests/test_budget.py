@@ -141,3 +141,44 @@ def test_budget_validation():
     with pytest.raises(ValueError):
         engine.Scenario(budget=(("Groceries", Decimal("-5")),))
     assert "budget Groceries $60.00/month" in engine.Scenario(budget=(("Groceries", Decimal("60")),)).describe()
+
+
+# --- the Budget tab's top line --------------------------------------------------------------------------------
+
+import summary  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+
+def _sp(ds, key, account="both"):
+    per = summary.period(key)
+    return engine.spending_by_category(per.start, min(per.end, config.DEMO_TODAY), account, ds), per
+
+
+def test_top_line_sentences(ds):
+    assert summary.sentence(*_sp(ds, "2026-10")) == \
+        "So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461)."
+    assert summary.sentence(*_sp(ds, "2026-09")) == \
+        "In September, you spent $1,291. Most went to Rent ($725) and School ($200)."
+    assert summary.sentence(*_sp(ds, "2026-10", "card")) == ("So far in October, you spent $544 on the card. Most went to "
+                                                             "Shopping ($461) and Eating out ($46.89).")
+    per = summary.period("2026-11")
+    assert summary.sentence(engine.spending_by_category(per.start, per.start, "both", ds), per) == \
+        "Nothing spent yet in November: it hasn't started."
+
+
+def test_ai_summary_is_checked(ds):
+    sp, per = _sp(ds, "2026-10")
+
+    def fake(text):
+        return SimpleNamespace(chat=lambda *a, **k: SimpleNamespace(text=text))
+
+    good = "You spent $1,757 so far. Shopping at $461 is the biggest flexible cost."
+    assert summary.ai_summary(sp, per, fake(good)) == good
+    for bad in ("You spent $1,800 so far.",                          # not a total
+                "Shopping was 26% of your spending.",                # percentages aren't in the data
+                "You spent $40 on Transportation.",                  # nothing on Transportation in October
+                "Most went to Rent on Oct 1.",                       # dates
+                "You spent $1,757 and most of it went to"):          # cut off
+        assert summary.ai_summary(sp, per, fake(bad)) is None, bad
+    boom = SimpleNamespace(chat=lambda *a, **k: (_ for _ in ()).throw(TimeoutError()))
+    assert summary.ai_summary(sp, per, boom) is None

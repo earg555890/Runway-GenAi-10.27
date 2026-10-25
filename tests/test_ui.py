@@ -498,3 +498,50 @@ def test_what_should_i_do_this_week_shows_the_same_buttons(at, monkeypatch, tmp_
     run(at)
     assert ">You're covered all semester.<" in status(at)
     assert "refund" in at.session_state["done"]
+
+
+# --- the Budget tab --------------------------------------------------------------------------------------------
+
+def budget_texts(at):
+    return [t for t in texts(at) if ('class="rw-bud' in t) and not t.startswith("<style>")]
+
+
+def test_budget_tab_spending_view(at):
+    assert [t.label for t in at.tabs] == ["My semester", "Budget", "Can I afford it?", "What we found"]
+    line = next(t for t in budget_texts(at) if "rw-bud-line" in t)
+    assert ">So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461).<" in line
+    table = next(t for t in budget_texts(at) if "rw-bud-table" in t)
+    names = [r.split("</span>")[1].split("<")[0] for r in table.split("<tr>")[2:]]
+    assert names == ["Rent", "Shopping", "School", "Groceries", "Eating out", "Bills & utilities", "Fees",
+                     "Subscriptions"]
+    assert "<td>41%</td><td>$725</td>" in table and ">fixed<" in table
+    at.segmented_control(key="bud_month").set_value("2026-09")
+    at.segmented_control(key="bud_account").set_value("card")
+    run(at)
+    line = next(t for t in budget_texts(at) if "rw-bud-line" in t)
+    assert "In September, you spent" in line and "on the card" in line
+    at.segmented_control(key="bud_month").set_value("2026-11")
+    run(at)
+    assert any("Nothing spent yet in November" in t for t in budget_texts(at))
+    assert not [t for t in budget_texts(at) if "rw-bud-table" in t]
+
+
+def test_budget_tab_purchases_are_the_proof(at):
+    at.pills(key="bud_pick").set_value("Shopping")
+    run(at)
+    df = at.dataframe[0].value
+    assert list(df.columns) == ["Date", "What", "Account", "Amount"]
+    assert df.to_dict("records") == [{"Date": "Sun, Oct 18", "What": "Burlington", "Account": "Card",
+                                      "Amount": "$171.99"},
+                                     {"Date": "Sat, Oct 3", "What": "uBreakiFix", "Account": "Card",
+                                      "Amount": "$289.00"}]
+
+
+def test_donut_has_top_five_plus_other(ds_local=None):
+    import engine as e
+    import normalize
+    from ui import budget
+    sp = e.spending_by_category("2026-10-01", "2026-10-26", "both", normalize.load("local"))
+    rows = budget.donut_rows(sp)
+    assert [n for n, _ in rows] == ["Rent", "Shopping", "School", "Groceries", "Eating out", "Other"]
+    assert sum(v for _, v in rows) == sp.total.value                      # Other = Bills + Fees + Subscriptions

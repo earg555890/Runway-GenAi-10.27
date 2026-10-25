@@ -45,6 +45,15 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 .rw-ci-title {font-size: 1.05rem; font-weight: 700; line-height: 1.3;}
 .rw-ci-text {font-size: 1rem; line-height: 1.45; margin-top: .25rem;}
 .st-key-checkin {margin-bottom: .6rem;}
+.rw-bud-line {font-size: 1.15rem; line-height: 1.45; margin: .2rem 0 .6rem; max-width: 64ch;}
+.rw-bud-table {width: 100%; border-collapse: collapse; font-size: 1rem;}
+.rw-bud-table th {text-align: left; font-weight: 600; font-size: .9rem; opacity: .8; padding: .3rem .5rem;
+                  border-bottom: 1px solid rgba(128,128,128,.35);}
+.rw-bud-table td {padding: .35rem .5rem; border-bottom: 1px solid rgba(128,128,128,.15);}
+.rw-bud-table td:not(:first-child), .rw-bud-table th:not(:first-child) {text-align: right; white-space: nowrap;}
+.rw-sw-dot {display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .5rem;
+            vertical-align: baseline;}
+.rw-muted {opacity: .7;}
 @media (max-width: 640px) {
   .st-key-badges {justify-content: flex-start !important;}
   .rw-status .rw-big {font-size: 1.45rem;}

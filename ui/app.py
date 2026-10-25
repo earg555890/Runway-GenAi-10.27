@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st  # noqa: E402
 
 import engine  # noqa: E402
-from ui import afford, ask, behind, checkin, data, found, semester, state, style, top  # noqa: E402
+from ui import afford, ask, behind, budget, checkin, data, found, semester, state, style, top  # noqa: E402
 
 st.set_page_config(page_title="Runway", page_icon=":material/flight_takeoff:", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -31,9 +31,11 @@ top.status(current)
 checkin.render(ds, state.done_scenario())
 ask.render(ds, scenario)
 
-tab1, tab2, tab3 = st.tabs(["My semester", "Can I afford it?", "What we found"])
+tab1, tab_budget, tab2, tab3 = st.tabs(["My semester", "Budget", "Can I afford it?", "What we found"])
 with tab1:
     semester.render(ds, subs, base, current, changed, deltas)
+with tab_budget:
+    budget.render(ds)
 with tab2:
     afford.render(ds, current)
 with tab3:
