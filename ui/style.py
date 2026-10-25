@@ -73,6 +73,7 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
   .st-key-ci_top div[data-testid="stColumn"] {min-width: 84% !important; flex: 0 0 84% !important;
       scroll-snap-align: start;}
   .st-key-ci_more > [data-testid="stLayoutWrapper"]:has([data-testid="stExpander"]) {min-width: 100%;}
+  .st-key-bud_month [data-testid="stButtonGroup"] > div:last-child {flex-wrap: wrap; row-gap: .3rem;}
 }
 .rw-fn {font-size: .65em; font-weight: 600; opacity: .8; margin-left: .12em; color: #3b82f6;}
 </style>

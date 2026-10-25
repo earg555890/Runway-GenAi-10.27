@@ -514,7 +514,13 @@ def test_budget_tab_spending_view(at):
     names = [r.split("</span>")[1].split("<")[0] for r in table.split("<tr>")[2:]]
     assert names == ["Rent", "Shopping", "School", "Groceries", "Eating out", "Bills & utilities", "Fees",
                      "Subscriptions"]
-    assert "<td>41%</td><td>$725</td>" in table and ">fixed<" in table
+    assert "<td>41%</td><td>$725</td>" in table and "<th>Budget</th>" not in table      # no budget yet
+    at.number_input(key="bud_amt_Groceries").set_value(185)
+    run(at)
+    table = next(t for t in budget_texts(at) if "rw-bud-table" in t)
+    assert "<th>Budget</th><th>Left</th>" in table and ">fixed<" in table
+    assert "Groceries</td><td>10%</td><td>$176</td><td>$185</td><td>$8.51 left</td>" in table
+    at.number_input(key="bud_amt_Groceries").set_value(0)
     at.segmented_control(key="bud_month").set_value("2026-09")
     at.segmented_control(key="bud_account").set_value("card")
     run(at)

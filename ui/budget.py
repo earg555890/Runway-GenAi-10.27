@@ -18,6 +18,7 @@ BUDGET_MONTH = "2026-11"          # next month: the one she can still plan
 ACCOUNTS = {"both": "Both", "checking": "Checking", "card": "Card"}
 SURFACE = ("#ffffff", "#0e1117")       # Streamlit's light / dark page background (the 2px gap between slices)
 INK = ("#0b0b0b", "#f0efec")
+FONT = "Source Sans Pro, Source Sans 3, sans-serif"       # Streamlit's own font, so the total matches the page
 
 
 def _mode(pair):
@@ -80,20 +81,22 @@ def donut(sp):
                  alt.Tooltip("share:N", title="Share")])
     arcs = base.mark_arc(innerRadius=68, outerRadius=108, stroke=_mode(SURFACE), strokeWidth=2, cornerRadius=2)
     big = alt.Chart(pd.DataFrame({"t": [fmt.dollars(total)]})).mark_text(
-        color=_mode(INK), fontSize=24, fontWeight="bold", dy=-8).encode(text="t:N")
+        color=_mode(INK), fontSize=24, fontWeight="bold", dy=-8, font=FONT).encode(text="t:N")
     small = alt.Chart(pd.DataFrame({"t": ["spent"]})).mark_text(
-        color=_mode(INK), fontSize=15, opacity=.8, dy=16).encode(text="t:N")
+        color=_mode(INK), fontSize=15, opacity=.8, dy=16, font=FONT).encode(text="t:N")
     return (arcs + big + small).properties(width=240, height=240).configure_view(stroke=None)
 
 
 def table_html(sp, per, budget):
     """Category, % of total, Amount, Budget, Left: one row per category, biggest first, with its color."""
-    monthly = per.key != "semester"
+    monthly = per.key != "semester" and bool(budget)          # Budget / Left only once she has a budget
     head = "<tr><th>Category</th><th>Share</th><th>Spent</th>" + ("<th>Budget</th><th>Left</th>" if monthly else "") + \
         "</tr>"
     rows = []
+    slices = {name for name, _ in donut_rows(sp)}          # the table is the donut's legend: folded rows are "Other"
     for c in sp.categories:
-        sw = f'<span class="rw-sw-dot" style="background:{fmt.category_color(c.name)}"></span>'
+        color = fmt.category_color(c.name if c.name in slices else fmt.OTHER)
+        sw = f'<span class="rw-sw-dot" style="background:{color}"></span>'
         cells = [f"{sw}{fmt.html(c.name)}", _pct(c.spent.value, sp.total.value), fmt.html(fmt.dollars(c.spent.value))]
         if monthly:
             b = budget.get(c.name)
@@ -196,10 +199,11 @@ def allocate(ds, scenario):
                   help="Your usual spending, scaled down to fit if needed." if sg.fits else
                   "Nothing is left after rent and bills, so no budget fits yet.")
         st.button("Clear", key="bud_clear", type="tertiary", on_click=_clear)
-        tone = " rw-red" if left.value < 0 else ""
-        st.markdown(f'<span class="rw-bud-left{tone}">Left to assign: '
-                    f'{fmt.html(fmt.dollars(left.value) + (" over" if left.value < 0 else ""))}</span>',
-                    unsafe_allow_html=True)
+        if m.amount.value > 0:                       # otherwise the sentence above already says how short it is
+            tone = " rw-red" if left.value < 0 else ""
+            st.markdown(f'<span class="rw-bud-left{tone}">Left to assign: '
+                        f'{fmt.html(fmt.dollars(left.value) + (" over" if left.value < 0 else ""))}</span>',
+                        unsafe_allow_html=True)
     progress(ds)
     st.toggle("Use my budget in my forecast", key="wf_budget", disabled=not state.has_budget(),
               help="The forecast uses your budget instead of your past spending.")

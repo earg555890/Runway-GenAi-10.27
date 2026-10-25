@@ -21,6 +21,8 @@ Runway connects the six sources, projects the checking balance day by day to the
 
 Ask "What should I do this week?" and the answer comes with the same buttons.
 
+**Budget tab.** One sentence on where the money went ("So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461)."), a donut of the top categories with the total in the middle, and a table whose rows open the purchases behind each category. Month (Aug to Dec, or this semester) and account filters. Below it, "Your budget for November" starts from what's left after rent and bills: for Maya that's $487 short until her refund comes, and $1,363 once the verification form is sent. "Suggest a budget" fills in her usual spending (Shopping $227, Groceries $185, Eating out $96, Transportation $14), scaled down if it doesn't fit; progress bars show this month's pace; and "Use my budget in my forecast" puts the budget into the balance forecast, so the status card and chart show how long the money lasts if she sticks to it. Ask "How much is left in my food budget?" or "What happens if I stick to my budget?" in the chat.
+
 The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester ends Fri, Dec 18.
 
 | Suggested question | What Runway answers |

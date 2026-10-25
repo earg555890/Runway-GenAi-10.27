@@ -1,0 +1,7 @@
+# Runway theme: the primary color (selected buttons, tabs, toggles) is blue, because red means "below $0" in
+# Runway (readability standard). Set per mode so the viewer can still pick light, dark or system.
+[theme.light]
+primaryColor = "#2563eb"
+
+[theme.dark]
+primaryColor = "#3b82f6"
