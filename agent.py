@@ -172,6 +172,13 @@ class Answer:
         return Answer(**json.loads(s))
 
 
+def event_answer(text):
+    """A message from Runway that isn't an answer to a question (e.g. after the student marks something done).
+    Built from the engine; no model call. mode "event": the chat shows it, PLAN never sees it."""
+    return Answer("", text, None, None, asdict(Plan("event", None, {}, source="none")), {"items": [], "context": []},
+                  {}, "", [], [], "event", "none", [], {}, {}, {}, "", time.time())
+
+
 # ---------------------------------------------------------------------------------------
 # PLAN
 # ---------------------------------------------------------------------------------------

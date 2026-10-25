@@ -1,12 +1,17 @@
-"""The student's what-if choices, kept in session state, turned into an engine.Scenario on every rerun."""
-from datetime import date, timedelta
+"""The student's what-if choices, kept in session state, turned into an engine.Scenario on every rerun. Also
+what the student marked done in the check-in (kept for the session) and the log of Runway's actions."""
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import streamlit as st
 
+import actions
+import agent
 import config
 import engine
 from ui import fmt
+
+MAX_TURNS = 10
 
 FLIGHT = dict(label="Flight home for Thanksgiving", cost=400.0, date=date(2026, 11, 10))
 
@@ -35,11 +40,68 @@ def _defaults(subs):
 def init(subs):
     for k, v in _defaults(subs).items():
         st.session_state.setdefault(k, v)
+    st.session_state.setdefault("done", {})          # item kind -> {"label", "title", "fix"}
+    st.session_state.setdefault("action_log", [])    # [{"when", "what", "kind"}]
+    st.session_state.setdefault("prepared", [])      # what Runway has prepared and logged already
+
+
+def _apply_done():
+    """Fixes marked done stay on in the what-if switches too."""
+    s = st.session_state
+    for d in s.done.values():
+        if d["fix"] == ["refund"]:
+            s.wf_refund, s.wf_submit = True, config.DEMO_TODAY
+        elif d["fix"][:1] == ["cancel"]:
+            s[cancel_key(d["fix"][1])] = True
 
 
 def reset(subs):
+    """Start over: the what-ifs go back to "nothing changes" (what was marked done stays done)."""
     for k, v in _defaults(subs).items():
         st.session_state[k] = v
+    _apply_done()
+
+
+def log(what, kind="approved"):
+    t = datetime.now()
+    st.session_state.action_log.append({"when": f"{t:%I:%M:%S %p}".lstrip("0"), "what": what, "kind": kind})
+
+
+def prepared(key, what):
+    """Log once that Runway prepared something (a draft, a reminder, a link) for the student to approve."""
+    if key not in st.session_state.prepared:
+        st.session_state.prepared.append(key)
+        log(what, "prepared")
+
+
+def mark_done(item, ds):
+    """The student marks an item done: fixes turn on in the forecast (the form counts as sent today), the
+    check-in drops it, and Runway says what changed in the chat."""
+    s = st.session_state
+    label, title = actions.done_label(item), actions.text(item)[0]
+    s.done[item.kind] = {"label": label, "title": title, "fix": list(item.fix)}
+    _apply_done()
+    log(f"Marked done: {label} ({title})", "done")
+    after = done_scenario()
+    remaining = len([i for i in engine.attention_items(after, ds) if i.kind not in s.done])
+    s.history = ([agent.event_answer(actions.done_message(item, ds, after, remaining))]
+                 + s.get("history", []))[:MAX_TURNS]
+
+
+def undo(kind):
+    s = st.session_state
+    d = s.done.pop(kind, None)
+    if not d:
+        return
+    if d["fix"] == ["refund"]:
+        s.wf_refund, s.wf_submit = False, config.DEMO_TODAY + timedelta(days=1)
+    elif d["fix"][:1] == ["cancel"]:
+        s[cancel_key(d["fix"][1])] = False
+    log(f"Undone: {d['label']} ({d['title']})", "undone")
+
+
+def is_done(fix):
+    return any(d["fix"] == list(fix) for d in st.session_state.get("done", {}).values())
 
 
 def apply_fixes(fixes):
@@ -74,24 +136,36 @@ def purchase():
                            s.buy_label.strip() or "this purchase")
 
 
+def submit_date():
+    """When the form is (or would be) sent: today once it's marked sent, else the date picked."""
+    s = st.session_state
+    return config.DEMO_TODAY if "refund" in s.get("done", {}) else s.wf_submit
+
+
 def choices():
     """What the student decided that Runway can't suggest as a fix: the form date and an extra shift."""
     sh = shift()
-    return engine.Scenario(refund_submit_date=st.session_state.wf_submit, extra_shifts=(sh,) if sh else ())
+    return engine.Scenario(refund_submit_date=submit_date(), extra_shifts=(sh,) if sh else ())
+
+
+def done_cancels():
+    return tuple(d["fix"][1] for d in st.session_state.get("done", {}).values() if d["fix"][:1] == ["cancel"])
 
 
 def scenario(subs):
     s, base = st.session_state, choices()
     p = purchase() if s.buy_active else None
+    cancels = tuple(x.merchant for x in subs if s[cancel_key(x.merchant)])
     return engine.Scenario(
-        refund_released=s.wf_refund, refund_submit_date=s.wf_submit,
-        cancel_subscriptions=tuple(x.merchant for x in subs if s[cancel_key(x.merchant)]),
+        refund_released=s.wf_refund or "refund" in s.done, refund_submit_date=submit_date(),
+        cancel_subscriptions=tuple(dict.fromkeys(cancels + done_cancels())),
         extra_shifts=base.extra_shifts, purchases=(p,) if p else ())
 
 
 def done_scenario():
     """What the student has actually done (marked done in the check-in), without the what-ifs being explored."""
-    return engine.Scenario(refund_submit_date=st.session_state.wf_submit)
+    return engine.Scenario(refund_released="refund" in st.session_state.get("done", {}),
+                           refund_submit_date=submit_date(), cancel_subscriptions=done_cancels())
 
 
 def changed(sc):

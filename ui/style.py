@@ -45,6 +45,7 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 .rw-ci-title {font-size: 1.05rem; font-weight: 700; line-height: 1.3;}
 .rw-ci-text {font-size: 1rem; line-height: 1.45; margin-top: .25rem;}
 .st-key-checkin {margin-bottom: .6rem;}
+.rw-ci-done {font-size: .95rem; opacity: .85;}
 @media (max-width: 640px) {
   .st-key-badges {justify-content: flex-start !important;}
   .rw-status .rw-big {font-size: 1.45rem;}

@@ -448,3 +448,36 @@ def test_checkin_under_the_status_card(at):
     assert see_all.label == "See all (2 more)"
     order = [t for t in texts(at) if 'class="rw-status' in t or 'class="rw-ci-head' in t]
     assert "rw-status" in order[0] and "rw-ci-head" in order[1]                               # right under it
+
+
+def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
+    assert len([b for b in at.button if str(b.key).startswith("ci_done_")]) == 5          # top 3 + "See all"
+    at.button(key="ci_done_refund").click()
+    run(at)
+    assert ">You're covered all semester.<" in status(at)                                 # the form counts as sent today
+    assert any(">Hi Maya. 3 things need your attention.<" in t for t in checkin_texts(at))
+    titles = [t.split('rw-ci-title">')[1].split("<")[0] for t in checkin_texts(at) if 'class="rw-ci-title"' in t]
+    assert titles == ["Rent is due Sun, Nov 1", "A tight week is coming", "You pay for 2 music apps"]
+    said = [plain(m.value) for m in at.chat_message[0].markdown]
+    assert said == ["Nice. With the form sent, your refund should arrive around Wed, Nov 4. Your money now lasts "
+                    "all semester. Your lowest point is $5.81 on Mon, Nov 2."]
+    assert at.toggle(key="wf_refund").value is True and at.toggle(key="wf_refund").disabled
+    log = at.session_state["action_log"]
+    assert [x["kind"] for x in log].count("prepared") >= 4 and log[-1]["kind"] == "done"
+    assert log[-1]["what"] == "Marked done: Form sent (Send your verification form)"
+    at.button(key="ci_undo_refund").click()
+    run(at)
+    assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)
+    assert any(">Hi Maya. 5 things need your attention.<" in t for t in checkin_texts(at))
+    assert at.toggle(key="wf_refund").value is False and not at.toggle(key="wf_refund").disabled
+    assert at.session_state["action_log"][-1]["kind"] == "undone"
+
+
+def test_cancel_spotify_done_and_all_caught_up(at):
+    for key in ("ci_done_refund", "ci_done_rent", "ci_done_tight_week", "ci_done_subscriptions"):
+        at.button(key=key).click()
+        run(at)
+    assert any(">Hi Maya. You're all caught up.<" in t for t in checkin_texts(at))
+    assert at.session_state[f"wf_cancel_Spotify"] is True
+    assert "Nice. With Spotify cancelled, you keep $23.98 this semester." in plain(at.chat_message[-1].markdown[0].value)
+    assert not [b for b in at.button if str(b.key) == "ci_cal_all"]                        # nothing left to remind

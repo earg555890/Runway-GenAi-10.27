@@ -26,7 +26,7 @@ def answers():
                "for the same question and what-ifs; replay = saved answers only, typed out). PLAN model: "
                f"`{config.NVIDIA_PLAN_MODEL}` (thinking off). EXPLAIN model: `{config.NVIDIA_EXPLAIN_MODEL}` "
                "(thinking on). At most two model calls per question, plus one rewrite if the number check fails.")
-    history = st.session_state.get("history") or []
+    history = [a for a in st.session_state.get("history") or [] if a.mode != "event"]
     if not history:
         st.caption("No questions asked yet.")
         return
@@ -47,9 +47,26 @@ def answers():
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
 
+def action_log():
+    st.markdown("#### Actions")
+    st.caption("What Runway prepared for Maya, and what she approved or marked done. Runway never sends, buys or "
+               "cancels anything itself: every action is a click by the student.")
+    log = st.session_state.get("action_log") or []
+    if not log:
+        st.caption("Nothing yet.")
+        return
+    words = {"prepared": "Runway prepared", "approved": "Maya approved", "done": "Maya marked done",
+             "undone": "Maya undid"}
+    st.dataframe(pd.DataFrame([{"when": x["when"], "who": words.get(x["kind"], x["kind"]), "what": x["what"]}
+                               for x in reversed(log)]), hide_index=True, width="stretch",
+                 column_config={"what": st.column_config.TextColumn(width="large")})
+
+
 def render(ledger, ds):
     with st.expander("Behind the scenes", icon=":material/engineering:"):
         sources(ds)
+        st.divider()
+        action_log()
         st.divider()
         answers()
         st.divider()

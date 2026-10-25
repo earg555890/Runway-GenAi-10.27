@@ -13,7 +13,7 @@ import agent
 from ui import fmt, state
 
 CITE = re.compile(r"\[((?:[CE]\d+)(?:\s*[,;]\s*[CE]\d+)*)\]")
-MAX_TURNS = 10
+MAX_TURNS = state.MAX_TURNS
 
 
 def _queue(q):
@@ -244,7 +244,7 @@ def _ask(question, ds, scenario):
     with st.chat_message("assistant"):
         status = st.status(agent.STAGES["plan"], expanded=False)
         box, caption = st.empty(), st.empty()
-        earlier = list(reversed(s.history[:3]))
+        earlier = list(reversed([a for a in s.history if a.mode != "event"][:3]))
         for kind, payload in agent.run(question, scenario, ds=ds, history=earlier, think=s.get("ask_think", False)):
             if kind == "stage":
                 status.update(label=payload)
@@ -274,6 +274,10 @@ def render(ds, scenario):
     s.setdefault("ask_think", False)
     with st.container(key="ask_thread"):
         for i, a in enumerate(reversed(s.history)):
+            if a.mode == "event":                         # Runway speaking up (e.g. after "mark as done")
+                with st.chat_message("assistant"):
+                    st.markdown(fmt.md(a.text))
+                continue
             student(a.question, _resolved(a))
             with st.chat_message("assistant"):
                 reply(a, latest=(i == len(s.history) - 1), ds=ds)

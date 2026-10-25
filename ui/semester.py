@@ -8,12 +8,15 @@ import engine
 from ui import chart, fmt, state
 
 
-def _card(title, sentence, key, more=None, more_label="Change"):
-    """A fix card: a toggle with the title, one sentence, and any detail behind "Change"."""
+def _card(title, sentence, key, more=None, more_label="Change", done=False):
+    """A fix card: a toggle with the title, one sentence, and any detail behind "Change". Done (marked in the
+    check-in): the switch stays on and locked."""
     with st.container(border=True):
-        st.toggle(f"**{fmt.md(title)}**", key=key)
+        st.toggle(f"**{fmt.md(title)}**", key=key, disabled=done)
         st.markdown(fmt.md(sentence))
-        if more:
+        if done:
+            st.caption("Done. You marked this in your check-in.")
+        elif more:
             with st.expander(more_label):
                 more()
 
@@ -63,15 +66,15 @@ def render(ds, subs, base, current, changed, deltas=None):
             held = next(r for r in ds.refunds if r.status == "HELD")
 
             def change_date():
-                st.date_input("I'll send it on", key="wf_submit", min_value=config.DEMO_TODAY + timedelta(days=1),
+                st.date_input("I'll send it on", key="wf_submit", min_value=config.DEMO_TODAY,
                               max_value=config.SEMESTER_END, format="MM/DD/YYYY")
 
             _card("Send the verification form", f"Releases your {fmt.dollars(held.amount)} refund around "
-                  f"{fmt.day(rel)}.", "wf_refund", change_date, "Change date")
+                  f"{fmt.day(rel)}.", "wf_refund", change_date, "Change date", done=state.is_done(("refund",)))
     for sub in helpful[:1]:
         with cols[1]:
             _card(f"Cancel {sub.merchant}", f"Saves {fmt.dollars(fixes[sub.merchant].savings.value)} this semester.",
-                  state.cancel_key(sub.merchant))
+                  state.cancel_key(sub.merchant), done=state.is_done(("cancel", sub.merchant)))
     with cols[2]:
         sh = engine.ExtraShift(s.wf_shift_date, engine.Decimal(f"{s.wf_shift_hours:.1f}"))
         pay, added = engine.extra_shift_pay(sh, ds, state.choices())
