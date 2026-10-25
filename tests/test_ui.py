@@ -60,8 +60,8 @@ def test_base_status_and_fix_cards(at):
     assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in s                  # first_below_zero Nov 9
     assert ">A $360 card payment is due that day. You'll only have $307.<" in s    # $359.53, $307.20
     assert not at.chat_input[0].disabled
-    assert [b.label for b in at.button if str(b.key).startswith("ask_suggest_")][3] == \
-        "Can I afford a $400 flight home for Thanksgiving?"
+    assert [b.label for b in at.button if str(b.key).startswith("ask_suggest_")][3:] == \
+        ["Can I afford a $400 flight home for Thanksgiving?", "What should I do this week?"]
     assert [t.label for t in at.toggle if t.key != "ask_think"][:3] == [
         "**Send the verification form**", "**Cancel Spotify**", "**Pick up an extra shift**"]
     body = "\n".join(texts(at))
@@ -269,7 +269,7 @@ def test_judge_setup_no_key_replay_mode(monkeypatch):
             at.toggle(key="wf_refund").set_value(True)
             at.toggle(key="wf_cancel_Spotify").set_value(True)
             run(at)
-        for i in range(4):
+        for i in range(5):                                # all 5 suggested questions have saved answers
             at.button(key=f"ask_suggest_{i}").click()
             run(at)
             a = at.session_state["history"][0]
