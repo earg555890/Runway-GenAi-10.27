@@ -28,7 +28,7 @@ def test_item_wording_for_maya(items):
         ("Card payment on Mon, Nov 9", "The $360 payment takes you to $59.84 below zero."),
         ("You may qualify for a $500 emergency grant", "It's decided in about 3 days. Apply by Mon, Nov 2 and, if "
                                                        "approved, it arrives before Mon, Nov 9."),
-        ("A tight week is coming", "A $200 tuition payment is due Fri, Nov 20, $85.30 more than your Wed, Nov 18 "
+        ("A tight week is coming", "A $200 tuition payment is due Fri, Nov 20. That's $85.30 more than your Wed, Nov 18 "
                                    "paycheck."),
         ("You pay for 2 music apps", "Cancel Spotify before Sat, Nov 14 to keep $23.98 this semester."),
         ("Your dining dollars run out around Sun, Nov 22", "You'll have about 40 swipes left on Fri, Dec 18. Use 2 "

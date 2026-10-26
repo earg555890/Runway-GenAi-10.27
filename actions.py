@@ -75,8 +75,8 @@ def text(item, cite=_none):
     if k == "tight_week":
         return ("A tight week is coming",
                 f"A {w.dollars(f['installment'].value)} tuition payment{_c(cite, f['installment'])} is due "
-                f"{w.day(f['installment_due'].value)}, {w.dollars(f['shortfall'].value)}{_c(cite, f['shortfall'])} "
-                f"more than your {w.day(f['paycheck_date'].value)} paycheck.")
+                f"{w.day(f['installment_due'].value)}. That's {w.dollars(f['shortfall'].value)}"
+                f"{_c(cite, f['shortfall'])} more than your {w.day(f['paycheck_date'].value)} paycheck.")
     return (k, "")
 
 

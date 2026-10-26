@@ -54,7 +54,7 @@ def render(ds, subs, base, current, changed, deltas=None):
     st.altair_chart(chart.build(base, current, changed), width="stretch")
     st.caption("Your balance at the end of each day. Hover for details.")
 
-    st.markdown("### Ways to fix it")
+    st.markdown("#### Ways to fix it")
     fixes = {f.name: f for f in engine.available_fixes(engine.Scenario(refund_submit_date=s.wf_submit), ds,
                                                        engine.Ledger())}
     helpful = [x for x in subs if x.merchant in fixes and fixes[x.merchant].savings.value > 0]

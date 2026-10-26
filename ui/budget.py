@@ -193,7 +193,7 @@ def allocate(ds, scenario):
     sg = engine.suggest_budget(budget_month(), replace(scenario, budget=()), ds)
     m = sg.available
     month = f"{m.start:%B}"
-    st.markdown(f"### Your budget for {month}")
+    st.markdown(f"#### Your budget for {month}")
     if m.amount.value > 0:
         head = f"You have {fmt.dollars(m.amount.value)} to spend after rent and bills in {month}."
     elif not scenario.refund_released:
@@ -208,8 +208,9 @@ def allocate(ds, scenario):
             checkin.actions_row(refund, ds, "bud_refund")
     _how(m)
     usual = {x.category: x.average.value for x in sg.lines}
-    cols = st.columns(3)
     for i, c in enumerate(normalize.FLEXIBLE):
+        if i % 3 == 0:                               # one row of 3 at a time: same order on a phone (stacked)
+            cols = st.columns(3)
         hint = f"usual {fmt.dollars(usual[c])}" if c in usual else "none so far"
         cols[i % 3].number_input(f"{c} ({hint})", min_value=0, max_value=5000, step=5, key=state.budget_key(c))
     left = engine.budget_left(m.amount, state.budget(), engine.Ledger())

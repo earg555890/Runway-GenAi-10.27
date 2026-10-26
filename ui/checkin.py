@@ -26,11 +26,11 @@ def line(items):
     return background.line(_key(items), greeting.fallback(items))
 
 
-def heading(items, name="Maya"):
+def heading(items, name="Maya", runs_out=False):
     hi = f"Hi {name}." if name else "Hi."
     n = len(items)
     if not n:
-        return f"{hi} You're all caught up."
+        return f"{hi} See the ways to fix it below." if runs_out else f"{hi} You're all caught up."
     return f"{hi} {fmt.things(n)} need{'s' if n == 1 else ''} your attention."
 
 
@@ -89,18 +89,25 @@ def _greeting_slot(items):
                     lambda t: st.markdown(f'<div class="rw-ci-line">{fmt.html(t)}</div>', unsafe_allow_html=True))
 
 
-def pending(ds, done_scenario):
-    """Items still open: fixes marked done are already out (the scenario has them); others are filtered here."""
+SHOWN_ABOVE = ("run_out",)        # the status card right above already says when the money runs out
+
+
+def pending(ds, done_scenario, shown_above=SHOWN_ABOVE):
+    """Items still open: fixes marked done are already out (the scenario has them); others are filtered here.
+    Items the status card already shows are left out (one fact, once per screen)."""
     done = st.session_state.get("done") or {}
-    return [it for it in engine.attention_items(done_scenario, ds) if it.kind not in done]
+    return [it for it in engine.attention_items(done_scenario, ds) if it.kind not in done
+            and it.kind not in shown_above]
 
 
 def render(ds, done_scenario):
     items = pending(ds, done_scenario)
+    runs_out = not items and any(it.kind == "run_out" for it in pending(ds, done_scenario, ()))
     _start_greeting(items)
     with st.container(key="checkin"):
         name = None if state.mine() else "Maya"
-        st.markdown(f'<div class="rw-ci-head">{fmt.html(heading(items, name))}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="rw-ci-head">{fmt.html(heading(items, name, runs_out))}</div>',
+                    unsafe_allow_html=True)
         if items:
             _greeting_slot(items)
         with st.container(key="ci_top"):              # on a phone: one row you swipe through (style.py)

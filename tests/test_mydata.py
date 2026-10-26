@@ -167,7 +167,7 @@ def test_every_tab_renders_in_my_data_mode(userdir, monkeypatch):
     ts = _texts(at)
     assert [t.label for t in at.tabs] == ["Semester", "Budget", "Afford it?", "Find money", "Findings"]
     assert any(">Your money runs out in 1.1 weeks, on Sun, Nov 1.<" in t for t in ts)       # 8 days
-    assert any(">Hi. 1 thing needs your attention.<" in t for t in ts)
+    assert any(">Hi. See the ways to fix it below.<" in t for t in ts)        # run-out is the status card
     assert any("Connect your school data to see grants and scholarships" in t for t in ts)
     assert any("Connect your school data to see your financial aid" in t for t in ts)
     assert any("Connect your work schedule" in t for t in ts)

@@ -29,7 +29,7 @@ def arrival_words(x):
     if o.type == "work_study":
         return f"If you're hired, your first paycheck comes {when}."
     if x.this_semester and not x.this_semester.value:
-        return f"If approved, it's paid {when}, after the semester, so it adds $0.00 this semester."
+        return f"If approved, it's paid {when}, after the semester. So it adds $0.00 this semester."
     return f"If approved, it arrives around {when}."
 
 
@@ -75,7 +75,7 @@ def card(x, ds, scenario):
         if x.status != "eligible":
             return
         to, subject, body = actions.application(x, ds, situation(ds, x))
-        with st.container(horizontal=True, gap="xsmall", key=f"fm_acts_{key}"):
+        with st.container(horizontal=True, gap="xsmall", vertical_alignment="center", key=f"fm_acts_{key}"):
             with st.popover("Draft my application", icon=":material/edit_note:", type="tertiary"):
                 st.markdown(f"**To:** {fmt.md(to)}  \n**Subject:** {fmt.md(subject)}")
                 st.caption("A demo address: Maya's data is made up. Use your school's real address.")
@@ -151,7 +151,7 @@ def render(ds, scenario):
     head = (f"You may qualify for {len(with_amount)} opportunit{'ies' if len(with_amount) != 1 else 'y'} worth up to "
             f"{fmt.dollars(total.value)}" + (", plus a work-study job" if extra else "") + ".")
     st.markdown(f'<div class="rw-bud-line">{fmt.html(head)}</div>', unsafe_allow_html=True)
-    st.caption("Nothing here is certain until it's approved, so none of it is in your forecast unless you switch on "
+    st.caption("Nothing here is certain until it's approved. It's not in your forecast unless you switch on "
                "\"If approved\".")
     groups = [("Could help before you run out", [x for x in eligible if x.before_run_out]),
               ("Helps later", [x for x in eligible if not x.before_run_out]),

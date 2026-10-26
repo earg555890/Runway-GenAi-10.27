@@ -134,7 +134,7 @@ def test_find_aid_answer_says_if_approved(ds):
     quick, pack, required = _quick([{"tool": "find_aid", "args": {}}], ds)
     assert quick.startswith("ANSWER: You may qualify for 3 awards worth up to $1,750")
     assert "Student Emergency Grant: up to $500" in quick and "if approved, it arrives around Mon, Nov 2" in quick
-    assert "after the semester, so it adds $0.00 this semester" in quick                  # the spring scholarship
+    assert "after the semester. So it adds $0.00 this semester" in quick                  # the spring scholarship
     assert "it's the only one that could arrive before Mon, Nov 9" in quick
     assert "You'd need a 3.50 GPA (yours is 3.40) for the Dean's Merit Scholarship." in quick
     assert "if_approved" in {f.key for f in required}

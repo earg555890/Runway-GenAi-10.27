@@ -28,8 +28,9 @@ def _proof(ds, key, row_ids, how):
 
 
 def _card(title, sentence):
-    st.markdown(f"#### {fmt.md(title)}")
-    st.markdown(fmt.md(sentence))
+    """The same card head as the check-in and Find money: a bold title, then one sentence."""
+    st.markdown(f'<div class="rw-card-title">{fmt.html(title)}</div><div class="rw-card-text">{fmt.html(sentence)}</div>',
+                unsafe_allow_html=True)
 
 
 def refund(ds, scenario):

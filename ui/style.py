@@ -42,8 +42,8 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 [class*="st-key-ask_suggest_"] button p {font-size: .92rem;}
 .rw-ci-head {font-size: 1.25rem; font-weight: 700; margin: .2rem 0 0;}
 .rw-ci-line {font-size: 1rem; opacity: .85; margin: .1rem 0 .5rem;}
-.rw-ci-title {font-size: 1.05rem; font-weight: 700; line-height: 1.3;}
-.rw-ci-text {font-size: 1rem; line-height: 1.45; margin-top: .25rem;}
+.rw-ci-title, .rw-card-title {font-size: 1.05rem; font-weight: 700; line-height: 1.3;}
+.rw-ci-text, .rw-card-text {font-size: 1rem; line-height: 1.45; margin-top: .25rem;}
 .st-key-checkin {margin-bottom: .6rem;}
 .rw-bud-line {font-size: 1.15rem; line-height: 1.45; margin: .2rem 0 .6rem; max-width: 64ch;}
 .rw-bud-table {width: 100%; border-collapse: collapse; font-size: 1rem;}
@@ -77,6 +77,9 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
   .st-key-ci_more > [data-testid="stLayoutWrapper"]:has([data-testid="stExpander"]) {min-width: 100%;}
   .st-key-bud_month [data-testid="stButtonGroup"] > div:last-child {flex-wrap: wrap; row-gap: .3rem;}
 }
+[class*="st-key-ci_acts_"] button p, [class*="st-key-fm_acts_"] button p, [class*="st-key-bud_refund"] button p,
+[class*="st-key-fm_acts_"] label p {font-size: .95rem !important;}
+[data-testid="stMarkdownContainer"] h4 {font-size: 1.3rem; font-weight: 700; margin: 1rem 0 .4rem;}
 .rw-fn {font-size: .65em; font-weight: 600; opacity: .8; margin-left: .12em; color: #3b82f6;}
 </style>
 """

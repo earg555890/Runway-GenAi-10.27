@@ -135,7 +135,7 @@ def test_found_cards_and_proof(at):
                             ("Rent caused a $35 overdraft fee", "Rent is due the 1st. Your paycheck came Fri, Oct 2."),
                             ("Money is tight the week of Nov 16",
                              "A $200 tuition payment is due right after a small paycheck.")]:
-        assert f"#### {title}" in body and sentence in body, title
+        assert f'rw-card-title">{title}<' in body and sentence in body, title      # the shared card style
     assert "(estimated)" in body
     proof = [e for e in at.expander if e.label == "Show proof"]
     assert len(proof) == 4
@@ -426,21 +426,21 @@ def checkin_texts(at):
 
 def test_checkin_under_the_status_card(at):
     ts = checkin_texts(at)
-    assert any(">Hi Maya. 7 things need your attention.<" in t for t in ts)
+    assert any(">Hi Maya. 6 things need your attention.<" in t for t in ts)        # run-out: the status card
     assert any(">Start with the first one. It's the most urgent.<" in t for t in ts)        # the fixed line
     cards = [t for t in ts if 'class="rw-ci-title"' in t]
     assert [c.split('rw-ci-title">')[1].split("<")[0] for c in cards] == [
-        "Send your verification form", "Rent is due Sun, Nov 1", "Card payment on Mon, Nov 9",
+        "Send your verification form", "Rent is due Sun, Nov 1",
         "You may qualify for a $500 emergency grant", "A tight week is coming", "You pay for 2 music apps",
         "Your dining dollars run out around Sun, Nov 22"]
     see_all = next(e for e in at.expander if e.label.startswith("See all"))
-    assert see_all.label == "See all (4 more)"
+    assert see_all.label == "See all (3 more)"
     order = [t for t in texts(at) if 'class="rw-status' in t or 'class="rw-ci-head' in t]
     assert "rw-status" in order[0] and "rw-ci-head" in order[1]                               # right under it
 
 
 def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
-    assert len([b for b in at.button if str(b.key).startswith("ci_done_") and "bud" not in str(b.key)]) == 7
+    assert len([b for b in at.button if str(b.key).startswith("ci_done_") and "bud" not in str(b.key)]) == 6
     at.button(key="ci_done_refund").click()
     run(at)
     assert ">You're covered all semester.<" in status(at)                                 # the form counts as sent today
@@ -458,7 +458,7 @@ def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
     at.button(key="ci_undo_refund").click()
     run(at)
     assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)
-    assert any(">Hi Maya. 7 things need your attention.<" in t for t in checkin_texts(at))
+    assert any(">Hi Maya. 6 things need your attention.<" in t for t in checkin_texts(at))
     assert at.toggle(key="wf_refund").value is False and not at.toggle(key="wf_refund").disabled
     assert at.session_state["action_log"][-1]["kind"] == "undone"
 
@@ -606,14 +606,15 @@ def test_chat_budget_question_uses_the_budget_tab_amounts(at, monkeypatch, tmp_p
 def test_find_money_tab(at):
     assert [t.label for t in at.tabs] == ["Semester", "Budget", "Afford it?", "Find money", "Findings"]
     assert any(">You may qualify for 3 opportunities worth up to $1,750, plus a work-study job.<" in t for t in texts(at))
-    heads = [plain(m.value) for m in at.markdown if m.value.startswith("#### ")]
+    heads = [plain(m.value) for m in at.markdown if m.value.startswith("#### ")
+             and m.value not in ("#### Ways to fix it",) and not m.value.startswith("#### Your budget")]
     assert heads[:3] == ["#### Could help before you run out", "#### Helps later", "#### Almost (what you'd need)"]
     cards = {t.split('rw-fm-title">')[1].split("<")[0]: t for t in texts(at)
              if 'class="rw-fm-meta"' in t and 'rw-fm-title">' in t}
     grant = cards["Student Emergency Grant"]
     assert "Grant · Up to $500 · Apply anytime" in grant and "If approved, it arrives around Mon, Nov 2." in grant
     spring = cards["Spring Opportunity Scholarship"]
-    assert "paid Fri, Jan 15, 2027, after the semester, so it adds $0.00 this semester." in spring
+    assert "paid Fri, Jan 15, 2027, after the semester. So it adds $0.00 this semester." in spring
     assert "You'd need a 3.50 GPA (yours is 3.40)." in cards["Dean's Merit Scholarship"]
     assert at.toggle(key="wf_approved_OPP-04").disabled and not at.toggle(key="wf_approved_OPP-01").disabled
     assert any("1 more you don't qualify for: Engineering Senior Design Grant." in plain(c.value) for c in at.caption)

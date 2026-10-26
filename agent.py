@@ -1946,7 +1946,7 @@ def aid_line(x, c):
     amount = f"up to {w.dollars(x.amount.value)}" if o.max_amount and not o.amount else w.dollars(x.amount.value)
     if x.this_semester is not None and not x.this_semester.value:
         return (f"{o.name}: {amount} {c(x.amount)}; if approved, it's paid {w.day(x.arrives.value)} {c(x.arrives)}, "
-                f"after the semester, so it adds {w.dollars(0)} this semester.")
+                f"after the semester. So it adds {w.dollars(0)} this semester.")
     return f"{o.name}: {amount} {c(x.amount)}; if approved, it arrives around {w.day(x.arrives.value)} {c(x.arrives)}."
 
 
