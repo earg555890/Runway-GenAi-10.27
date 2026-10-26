@@ -404,7 +404,7 @@ def _turn_summary(a):
             f"Runway answered: {strip_citations(said)[:200]}")
 
 
-def plan_messages(question, scenario, sub_names, history=()):
+def plan_messages(question, scenario, sub_names, history=(), memory_context=""):
     tools = "\n".join(f"- {name}: {t['does']}" + ("".join(f"\n    {a}: {d}" for a, d in t["args"].items()))
                       for name, t in TOOLS.items())
     recent = ""
@@ -412,6 +412,10 @@ def plan_messages(question, scenario, sub_names, history=()):
         recent = ("\nRecent conversation (oldest first). Resolve follow-ups like \"what about Nov 17 instead?\", "
                   "\"why?\" or \"and if I also cancel Apple Music?\" against it:\n"
                   + "\n\n".join(_turn_summary(a) for a in history[-3:]) + "\n")
+    if memory_context:
+        recent += ("\nWhat Runway remembers from earlier sessions (H-MEM). Use it only to understand what the "
+                   "student means (\"the flight\", \"my budget\", \"the form\"); never as numbers:\n"
+                   + memory_context + "\n")
     system = (
         "You are the planner for Runway, a money app for one college student. Pick the tool(s) for the student's "
         "question and their arguments. You never do math and never answer the question yourself.\n"
@@ -1374,6 +1378,7 @@ EXPLAIN_SYSTEM = (
     "DO THIS:\n1. <concrete next step>\n2. <optional second step>\n"
     "NOTE: <optional: one line for an assumption or a timing insight>\n"
     "Rules:\n"
+    "- Use only the evidence pack in this message. Ignore any other context or remembered answers.\n"
     "- Use ONLY numbers and dates from the facts below. Never calculate or invent a number or date.\n"
     "- Money: from $100 up, round to whole dollars (\"$1,850\", \"$360\"). Under $100, keep the cents "
     "(\"$23.98\", \"$5.81\").\n"
@@ -2495,14 +2500,15 @@ def _verdict_result(results):
 
 
 def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, history=(), think=False, done=(),
-        budget=None, private=False):
+        budget=None, private=False, memory=None):
     """Answer one question. Yields ("stage" | "quick" | "text" | "restart" | "answer", payload); "answer" comes
     last. "quick" is the instant answer built from the engine (shown while the AI writes); "text" chunks are the
     AI answer streaming in. history: earlier Answers in this conversation (oldest first), for follow-ups.
     think: Nemotron Super with thinking on (slower, shows its reasoning); default: Lightning, thinking off.
     done: check-in item kinds the student marked done (left out of "what should I do" answers). budget: the
     amounts she set in the Budget tab (budget questions). private: her own data (My data mode): never read or
-    write saved answers, always answer live (rule 7)."""
+    write saved answers, always answer live (rule 7). memory: an H-MEM recall (hmem.QueryResult) of what Runway
+    remembers from earlier sessions; it goes to PLAN only, never to EXPLAIN."""
     scenario, ds = scenario or engine.Scenario(), ds or normalize.load()
     mode, llm = (mode or config.ANSWER_MODE).lower(), llm or llm_client
     question, history, done = question.strip(), list(history or [])[-3:], tuple(sorted(done or ()))
@@ -2522,7 +2528,9 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     timings, retries, notes = {}, {"plan_json": 0, "explain_rewrite": 0, "facts_appended": 0}, []
     chain = explain_chain(think)
     models = {"plan": config.NVIDIA_PLAN_MODEL, "explain": chain[0][0] if chain else None, "think": think,
-              "provider": config.AI_PROVIDER, "calls": []}
+              "provider": config.AI_PROVIDER, "calls": [],
+              "memories": [{"id": r.memory.id, "content": r.memory.content, "relevance": round(r.relevance, 3)}
+                           for r in (memory.memories if memory and not own_data else [])]}
     if mode == "replay" or (llm is llm_client and not config.ai_configured()):    # nothing saved, no models
         text = no_live_answer_text(mode)
         yield "text", text
@@ -2538,7 +2546,8 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     t = time.perf_counter()
     plan = None
     try:
-        res = llm.chat_json(plan_messages(question, scenario, sub_names, history), thinking=False,
+        res = llm.chat_json(plan_messages(question, scenario, sub_names, history,
+                                          memory.context if memory and not own_data else ""), thinking=False,
                             validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
         models["calls"].append(call_record(res, "plan"))
         plan = parse_plan(res.data, sub_names)
@@ -2672,6 +2681,7 @@ def trace_record(a):
                      "rows": len(s.get("row_ids") or []), "duration_s": s.get("duration_s"),
                      "original_duration_s": s.get("original_duration_s")} for s in sources],
         "computed": len([it for it in a.pack.get("items", []) if it.get("kind") == "calc"]),
+        "memories_recalled_for_plan": a.models.get("memories") or [],
         "model_calls": a.models.get("calls") or [], "answered_by": a.models.get("answered_by"),
         "answered_by_routed": (a.models.get("answered_by_call") or {}).get("routed_model"),
         "explain_errors": a.models.get("explain_errors") or [],

@@ -6,7 +6,7 @@ import streamlit as st
 import actions
 import engine
 import greeting
-from ui import background, fmt, state
+from ui import background, fmt, memory, state
 
 TOP = 3
 MIME_ICS = "text/calendar"
@@ -34,13 +34,14 @@ def heading(items, name="Maya", runs_out=False):
     return f"{hi} {fmt.things(n)} need{'s' if n == 1 else ''} your attention."
 
 
-def _email(act, key):
+def _email(act, key, kind):
     with st.popover("Email", icon=":material/mail:", type="tertiary"):
         st.markdown(f"**To:** {fmt.md(act.extra['to'])}  \n**Subject:** {fmt.md(act.extra['subject'])}")
         st.caption("A demo address: Maya's data is made up. Use your real financial aid office's address.")
         st.link_button(act.label, act.url, icon=":material/open_in_new:", key=f"ci_mail_{key}",
-                       on_click=state.log, args=(f"Opened the email to {act.extra['to']} in the email app "
-                                                 "(not sent by Runway)",))
+                       on_click=state.opened, args=(kind, "email", act.extra["subject"],
+                                                    f"Opened the email to {act.extra['to']} in the email app "
+                                                    "(not sent by Runway)"))
         st.code(act.data, language=None, wrap_lines=True)
         st.caption("Or copy it with the button above. Runway never sends anything.")
 
@@ -51,18 +52,20 @@ def actions_row(item, ds, key):
         for act in actions.for_item(item, ds):
             if act.kind == "email":
                 state.prepared(f"email-{key}", f"Email to {act.extra['to']}: \"{act.extra['subject']}\" (draft)")
-                _email(act, key)
+                _email(act, key, item.kind)
             elif act.kind == "cancel":
                 state.prepared(f"cancel-{key}", f"Link to {act.extra['name']}'s official cancel page")
                 st.link_button("Cancel page", act.url, icon=":material/open_in_new:", key=f"ci_cancel_{key}",
-                               help=act.label, type="tertiary", on_click=state.log,
-                               args=(f"Opened {act.extra['name']}'s cancel page",))
+                               help=act.label, type="tertiary", on_click=state.opened,
+                               args=(item.kind, "cancel", f"cancel {act.extra['name']}",
+                                     f"Opened {act.extra['name']}'s cancel page"))
             elif act.kind == "calendar":
                 state.prepared(f"cal-{key}", f"Calendar reminder: {act.extra['title']} ({fmt.day(act.extra['day'])})")
                 st.download_button("Remind", act.data, file_name=act.file_name, mime=MIME_ICS, type="tertiary",
                                    icon=":material/event:", key=f"ci_cal_{key}", help="Add a reminder to your calendar",
-                                   on_click=state.log,
-                                   args=(f"Downloaded the calendar reminder: {act.extra['title']}",))
+                                   on_click=state.opened,
+                                   args=(item.kind, "reminder", act.extra["title"],
+                                         f"Downloaded the calendar reminder: {act.extra['title']}"))
         st.button(actions.done_label(item), key=f"ci_done_{key}", icon=":material/check:",
                   help="Mark as done", on_click=state.mark_done, args=(item, ds))
 
@@ -70,9 +73,11 @@ def actions_row(item, ds, key):
 def card(item, ds, key, compact=False):
     """Title, one sentence, actions. compact (under a chat answer that already says it): title and actions."""
     title, sentence = actions.text(item)
+    recalled = None if compact else memory.last_time(item.kind)
     with st.container(border=True, key=f"ci_card_{key}"):
         st.markdown(f'<div class="rw-ci-title">{fmt.html(title)}</div>'
-                    + ("" if compact else f'<div class="rw-ci-text">{fmt.html(sentence)}</div>'),
+                    + ("" if compact else f'<div class="rw-ci-text">{fmt.html(sentence)}</div>')
+                    + (f'<div class="rw-ci-memory">{fmt.html(recalled)}</div>' if recalled else ""),
                     unsafe_allow_html=True)
         actions_row(item, ds, key)
 

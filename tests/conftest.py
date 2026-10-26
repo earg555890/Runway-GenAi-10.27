@@ -29,6 +29,18 @@ def _no_real_meterless(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _memory_to_tmp(monkeypatch, tmp_path):
+    """Runway's H-MEM memory lives in a temp folder per test, never the real .cache/memory/."""
+    import runway_memory
+    monkeypatch.setattr(runway_memory, "DIR", tmp_path / "memory")
+    try:
+        from ui import memory
+        memory._memory.clear()
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
 def _traces_to_tmp(monkeypatch, tmp_path):
     """Per-question traces go to a temp folder, never the real logs/."""
     monkeypatch.setattr(config, "LOGS_DIR", tmp_path / "logs")

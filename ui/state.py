@@ -140,6 +140,18 @@ def log(what, kind="approved"):
     st.session_state.action_log.append({"when": f"{t:%I:%M:%S %p}".lstrip("0"), "what": what, "kind": kind})
 
 
+def opened(kind, how, title, what):
+    """She opened something Runway prepared (the email draft, a reminder, a cancel page): logged and remembered."""
+    log(what)
+    from ui import memory
+    memory.intent(kind, how, title)
+
+
+def _remember_shifts():
+    from ui import memory
+    memory.shifts(shifts())
+
+
 def prepared(key, what):
     """Log once that Runway prepared something (a draft, a reminder, a link) for the student to approve."""
     if key not in st.session_state.prepared:
@@ -155,6 +167,8 @@ def mark_done(item, ds):
     s.done[item.kind] = {"label": label, "title": title, "fix": list(item.fix)}
     _apply_done()
     log(f"Marked done: {label} ({title})", "done")
+    from ui import memory
+    memory.done(item.kind, label, title)
     after = done_scenario()
     remaining = len([i for i in engine.attention_items(after, ds) if i.kind not in s.done])
     s.history = ([agent.event_answer(actions.done_message(item, ds, after, remaining))]
@@ -171,6 +185,8 @@ def undo(kind):
     elif d["fix"][:1] == ["cancel"]:
         s[cancel_key(d["fix"][1])] = False
     log(f"Undone: {d['label']} ({d['title']})", "undone")
+    from ui import memory
+    memory.undone(kind, d["label"], d["title"])
 
 
 def is_done(fix):
@@ -223,6 +239,7 @@ def add_shift(day, hours):
                        "Pick fewer hours.")
     else:
         s.wf_shifts = [*s.wf_shifts, {"date": day, "hours": hours}]
+        _remember_shifts()
 
 
 def add_typed_shift():
@@ -242,12 +259,14 @@ def add_shifts(items):
 def remove_shift(day):
     st.session_state.wf_shifts = [x for x in st.session_state.wf_shifts if x["date"] != day]
     st.session_state.shift_msg = None
+    _remember_shifts()
 
 
 def reset_shifts():
     """Clears only the planned shifts ("Start over" clears everything)."""
     st.session_state.wf_shifts = []
     st.session_state.shift_msg = None
+    _remember_shifts()
 
 
 def purchase():

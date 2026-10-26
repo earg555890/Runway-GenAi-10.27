@@ -12,7 +12,7 @@ import streamlit as st
 
 import agent
 import engine
-from ui import checkin, fmt, state
+from ui import checkin, fmt, memory, state
 
 CITE = re.compile(r"\[((?:[CE]\d+)(?:\s*[,;]\s*[CE]\d+)*)\]")
 MAX_TURNS = state.MAX_TURNS
@@ -115,6 +115,10 @@ def _thinking(a, key):
             st.markdown(f"**Required facts:** {len(facts) - len(added)} of {len(facts)} written by the model"
                         + (f"; Runway added the rest from your numbers ({fmt.md(', '.join(added))})." if added
                            else ".") + (" One rewrite was needed." if a.retries.get("explain_rewrite") else ""))
+        recalled = a.models.get("memories") or []
+        if recalled:
+            st.markdown("**Remembered from earlier (used to understand your question, not for numbers):** "
+                        + fmt.md("; ".join(f"“{x['content']}”" for x in recalled)))
         if a.retries.get("repaired"):
             st.markdown(f"**Repaired:** {a.retries['repaired']} (no words were added or changed).")
         if a.reasoning:
@@ -300,7 +304,8 @@ def _ask(question, ds, scenario):
         earlier = list(reversed([a for a in s.history if a.mode != "event"][:3]))
         for kind, payload in agent.run(question, scenario, ds=ds, history=earlier, think=s.get("ask_think", False),
                                        done=tuple(s.get("done") or {}),
-                                       budget=state.budget() if state.has_budget() else None, private=state.mine()):
+                                       budget=state.budget() if state.has_budget() else None, private=state.mine(),
+                                       memory=memory.recall(question)):
             if kind == "stage":
                 status.update(label=payload)
             elif kind == "quick":
@@ -325,6 +330,8 @@ def _ask(question, ds, scenario):
                 answer = payload
         status.update(label="Done", state="complete")
     s.history = ([answer] + s.history)[:MAX_TURNS]
+    if answer and answer.mode not in ("no_key", "event") and not state.mine():
+        memory.conversation(answer)
 
 
 def render(ds, scenario):
@@ -351,10 +358,12 @@ def render(ds, scenario):
                               icon=":material/chat_bubble:")
         typed = st.chat_input("Ask about your money", key="ask_input")
         with st.container(horizontal=True, gap="small", key="ask_tools"):
-            st.toggle("Think harder", key="ask_think",
-                      help="Uses Nemotron Super with thinking on. Slower (about a minute), and shows its reasoning.")
+            st.toggle("Think harder", key="ask_think", on_change=lambda: memory.think_harder(s.get("ask_think")),
+                      help="Uses the bigger Nemotron model with thinking on. Slower (a minute or more), and shows "
+                           "its reasoning.")
             if s.history:
                 st.button("New chat", key="ask_new", icon=":material/add_comment:", type="tertiary", on_click=new_chat)
+        memory.render()
         if typed:
             _queue(typed)
             st.rerun()

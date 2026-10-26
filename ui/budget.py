@@ -12,7 +12,7 @@ import config
 import engine
 import normalize
 import summary
-from ui import background, checkin, fmt, state
+from ui import background, checkin, fmt, memory, state
 
 TOP = 5
 def budget_month():
@@ -140,6 +140,7 @@ def purchases(sp):
 def _suggest(amounts):
     state.set_budget(amounts)
     state.log("Filled in the suggested budget", "approved")
+    memory.budget(state.budget())
 
 
 def _clear():
@@ -187,6 +188,11 @@ def progress(ds):
     st.markdown("".join(out), unsafe_allow_html=True)
 
 
+def _remember_budget():
+    if st.session_state.get("wf_budget") and state.has_budget():
+        memory.budget(state.budget())
+
+
 def allocate(ds, scenario):
     """Your budget for November: what's left after rent and bills, amounts per flexible category, a suggestion,
     "Left to assign", this month's progress, and the switch that puts the budget in the forecast."""
@@ -227,7 +233,7 @@ def allocate(ds, scenario):
                         unsafe_allow_html=True)
     progress(ds)
     st.toggle("Use my budget in my forecast", key="wf_budget", disabled=not state.has_budget(),
-              help="The forecast uses your budget instead of your past spending.")
+              help="The forecast uses your budget instead of your past spending.", on_change=_remember_budget)
     if scenario.budget:
         effect = engine.budget_effect(scenario, ds)
         st.markdown(f'<div class="rw-bud-effect">{fmt.html(summary.budget_effect_line(effect))}</div>',

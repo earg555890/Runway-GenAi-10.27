@@ -44,6 +44,7 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 .rw-ci-line {font-size: 1rem; opacity: .85; margin: .1rem 0 .5rem;}
 .rw-ci-title, .rw-card-title {font-size: 1.05rem; font-weight: 700; line-height: 1.3;}
 .rw-ci-text, .rw-card-text {font-size: 1rem; line-height: 1.45; margin-top: .25rem;}
+.rw-ci-memory {font-size: .95rem; line-height: 1.4; margin-top: .35rem; color: var(--primary-color, #1f6feb);}
 .st-key-checkin {margin-bottom: .6rem;}
 .rw-bud-line {font-size: 1.15rem; line-height: 1.45; margin: .2rem 0 .6rem; max-width: 64ch;}
 .rw-bud-table {width: 100%; border-collapse: collapse; font-size: 1rem;}
