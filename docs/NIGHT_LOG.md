@@ -142,3 +142,20 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
   slow, one question took 7.5 min and was answered by the Lightning fallback) when a new session took over. Its
   answers are only in the local log (.cache/eval_night.log); eval_results.json / .md hold the two complete fast
   runs (22/28 each). eval_summary.md was not regenerated (it still shows the earlier 20-question results).
+
+## Session Oct 26: Parts 0-5
+### Part 0
+- eval_summary.md regenerated from the two complete fast runs (44/56 full answers) with a clearly marked note on
+  the partial Think harder run (26 of 28 asked, 25 full answers, 3 written by the Lightning fallback).
+### Part 1: fast-mode answer quality
+- Repetition repair: when the ONLY check problem is a repeated or near-identical sentence, `agent.remove_repeats()`
+  drops the later copy (same rule as the check, first kept, no words added or changed; a bullet or NOTE left empty
+  is dropped), then the full check runs again. If it passes, the answer is used with `retries["repaired"] =
+  "removed duplicate line"`, shown in "How Runway thought about this" and counted in the eval.
+- Headphones: the EXPLAIN rules now say to write the assumption ONCE, in NOTE only, and that a negative fact value
+  is a balance "below zero". New check `assumption_place_problems` fails an answer with the assumption in ANSWER,
+  WHY or DO THIS. The rewrite request now spells out the "$144 below zero" wording and where the assumption goes.
+  Tests use the exact failing texts from the overnight eval (tests/test_answer_repairs.py).
+- Targeted re-run (fast, twice): headphones, "Will my dining dollars last?", "How many meal swipes...".
+  Before (overnight runs 1-2): 0/6 full answers. After: 5/6. The one miss: headphones run 1 copied a calculation
+  note ("-$1,612.37") - the checker caught it and the quick answer stood in. No answer needed the repair in this run.
