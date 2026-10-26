@@ -1,4 +1,4 @@
-"""Live evaluation of Ask Runway: 28 realistic questions against the real NVIDIA models (not part of pytest).
+"""Live evaluation of Ask Runway: 29 realistic questions against the real NVIDIA models (not part of pytest).
 
     .venv/Scripts/python eval_agent.py                       # one fast run -> eval_results.md / eval_results.json
     .venv/Scripts/python eval_agent.py fast,fast,think 240   # 3 runs (fast, fast, Think harder), 240 s apart
@@ -39,6 +39,7 @@ class Case:
     after: str | None = None      # a follow-up to this earlier question (asked first, in the same run)
     new: bool = False             # added after the first 10 (chat version and later features)
     budget: dict | None = None    # the budget she set in the Budget tab (budget questions)
+    shifts: tuple = ()            # what-if shifts the plan must pick: (("YYYY-MM-DD", hours), ...)
 
 
 CASES = [
@@ -73,6 +74,8 @@ CASES = [
     Case("Will my dining dollars last?", ("meal_plan",), new=True),
     Case("If I apply for the emergency grant, when would the money come?", ("find_aid",), new=True),
     Case("How many meal swipes will I have left at the end of the semester?", ("meal_plan",), new=True),
+    Case("What if I work 4 hours this Saturday and next Saturday?", ("what_if",), new=True,
+         shifts=(("2026-10-31", 4), ("2026-11-07", 4))),
 ]
 
 
@@ -81,7 +84,8 @@ def expected_verdict(case, ds):
         return None
     calls = [{"tool": t, "args": dict(case.args) if i == 0 else {}} for i, t in enumerate(case.tools)]
     if case.tools[0] == "what_if":
-        calls[0]["args"] = {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}
+        calls[0]["args"] = {"extra_shifts": [{"date": d, "hours": h} for d, h in case.shifts]
+                            or [{"date": "2026-11-07", "hours": 5}]}
     if case.tools[0] == "can_afford":
         calls[0]["args"] = {"item": "it", **{k: v for k, v in case.args.items()}}
     plan = agent.parse_plan({"calls": calls}, SUBS)
@@ -90,6 +94,10 @@ def expected_verdict(case, ds):
 
 
 def _args_ok(case, plan):
+    if case.shifts:                                   # the shift planner question: both Saturdays, 4 hours each
+        got = sorted((s["date"], float(s["hours"])) for c in plan.get("calls") or [] if c["tool"] == "what_if"
+                     for s in c["args"].get("extra_shifts") or [])
+        return got == sorted((d, float(h)) for d, h in case.shifts)
     if not case.args or not plan.get("calls"):
         return True
     got = plan["calls"][0]["args"]
@@ -229,7 +237,8 @@ def summary(runs):
              f"We asked Runway {len(CASES)} realistic student questions (the original 10, plus "
              f"{sum(c.new for c in CASES)} new ones: spending, transactions, bills, work hours, a balance on a date, "
              "two follow-ups, a multi-step plan, a general question, a vague one, \"what should I do this week?\", "
-             "two budget questions, two about grants and scholarships and two about the meal plan), "
+             "two budget questions, two about grants and scholarships, two about the meal plan and the shift "
+             "planner), "
              f"{len(runs)} separate times ({total} answers in all), using the "
              "real NVIDIA Nemotron models. Every answer was graded automatically against numbers that Runway's money "
              "engine computes on its own. Follow-ups were asked after the question they follow, in the same chat.",
