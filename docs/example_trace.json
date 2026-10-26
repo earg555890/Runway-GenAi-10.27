@@ -1,6 +1,6 @@
 {
   "trace": "runway.trace.v1",
-  "at": "2026-10-26T15:42:42",
+  "at": "2026-10-26T16:29:39",
   "question": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?",
   "resolved_question": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?",
   "mode": "live",
@@ -26,109 +26,110 @@
     {
       "id": "E1",
       "query": "checking_account",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
-      "duration_s": 0.001,
-      "original_duration_s": null
+      "duration_s": 0.0,
+      "original_duration_s": 11.432
     },
     {
       "id": "E2",
       "query": "checking_transactions",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 6,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 4.77
     },
     {
       "id": "E3",
       "query": "card_transactions",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 7,
-      "duration_s": 0.009,
-      "original_duration_s": null
+      "duration_s": 0.0,
+      "original_duration_s": 5.092
     },
     {
       "id": "E4",
       "query": "card_statements",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 4.717
     },
     {
       "id": "E5",
       "query": "aid_requirements",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 5.147
     },
     {
       "id": "E6",
       "query": "bursar_active_holds",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 1.542
     },
     {
       "id": "E7",
       "query": "bursar_refunds",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 3.427
     },
     {
       "id": "E8",
       "query": "bursar_payment_plan",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 4.482
     },
     {
       "id": "E9",
       "query": "lease_terms",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 3.507
     },
     {
       "id": "E10",
       "query": "rent_schedule",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 2,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 1.532
     },
     {
       "id": "E11",
       "query": "job_info",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 1,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 4.198
     },
     {
       "id": "E12",
       "query": "pay_periods",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 3,
       "duration_s": 0.0,
-      "original_duration_s": null
+      "original_duration_s": 1.752
     },
     {
       "id": "E13",
       "query": "shifts",
-      "backend": "local",
+      "backend": "zetaris-cached",
       "rows": 10,
-      "duration_s": 0.001,
-      "original_duration_s": null
+      "duration_s": 0.0,
+      "original_duration_s": 7.593
     }
   ],
   "computed": 24,
+  "memories_recalled_for_plan": [],
   "model_calls": [
     {
       "role": "plan",
@@ -136,9 +137,9 @@
       "fallback": false,
       "requested_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "routed_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
-      "receipt_id": "rcpt_req_sn0vnlub",
+      "receipt_id": "rcpt_req_g949uvyo",
       "thinking": false,
-      "duration_s": 1.52,
+      "duration_s": 1.26,
       "retries": 0,
       "prompt_tokens": 2539,
       "completion_tokens": 90,
@@ -150,31 +151,53 @@
       "fallback": false,
       "requested_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "routed_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
-      "receipt_id": "rcpt_req_kdnqmh7m",
+      "receipt_id": "rcpt_req_mcf6czp6",
       "thinking": false,
-      "duration_s": 3.11,
+      "duration_s": 1.55,
+      "retries": 0,
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "finish_reason": "stop"
+    },
+    {
+      "role": "explain",
+      "requested_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "error": "APIError"
+    },
+    {
+      "role": "explain",
+      "provider": "meterless",
+      "fallback": false,
+      "requested_model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "receipt_id": "rcpt_req_zn00d4re",
+      "thinking": false,
+      "duration_s": 5.0,
       "retries": 0,
       "prompt_tokens": null,
       "completion_tokens": null,
       "finish_reason": "stop"
     }
   ],
-  "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
-  "answered_by_routed": "nvidia/nemotron-3.5-lightning-30b-a3b",
-  "explain_errors": [],
+  "answered_by": "nvidia/nemotron-3-ultra-550b-a55b",
+  "answered_by_routed": "nvidia/nemotron-3-ultra-550b-a55b",
+  "explain_errors": [
+    "Nemotron Lightning: APIError"
+  ],
   "verdict": "yes_if",
   "explain_source": "llm",
   "timings": {
-    "plan_s": 1.52,
+    "plan_s": 1.26,
     "execute_s": 0.008,
-    "quick_s": 1.53,
-    "explain_s": 3.13,
-    "total_s": 4.66
+    "quick_s": 1.26,
+    "explain_s": 17.71,
+    "total_s": 18.98
   },
   "retries": {
     "plan_json": 0,
-    "explain_rewrite": 0,
-    "facts_appended": 0
+    "explain_rewrite": 1,
+    "facts_appended": 0,
+    "repaired": "removed duplicate line"
   },
   "check": {
     "ok": true,
@@ -204,6 +227,8 @@
       "appended": false
     }
   ],
-  "notes": [],
-  "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\n- Without fixes you would be $1,862 below zero by Dec 17 [C2].\nDO THIS:\n1. Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n2. Cancelling Spotify saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends."
+  "notes": [
+    "Nemotron Lightning wasn't available (Nemotron Lightning: APIError), so Nemotron Ultra wrote this answer."
+  ],
+  "answer": "ANSWER: Yes, if you do 2 things [C1].\n\nWHY:\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n\nDO THIS:\n1. Submit the verification form by Tue, Oct 27 to release the $1,850 refund [C6].\n\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends."
 }

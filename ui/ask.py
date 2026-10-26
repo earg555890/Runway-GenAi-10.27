@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 
 import agent
+import config
 import engine
 from ui import checkin, fmt, memory, state
 
@@ -80,7 +81,8 @@ def _proof(item, a, key, ds=None):
 
 
 def _mode_words(a):
-    return ("Think harder: Nemotron Super, thinking on" if getattr(a, "think", False) else
+    big = agent.model_name((a.models or {}).get("explain") or config.think_model())
+    return (f"Think harder: {big}, thinking on" if getattr(a, "think", False) else
             "Fast: Nemotron Lightning, thinking off")
 
 

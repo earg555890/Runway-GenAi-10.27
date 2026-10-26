@@ -120,7 +120,7 @@ def suggest(page, llm):
     res = llm.chat([{"role": "system", "content": "From this scholarship page, copy the award amount and the "
                      "application deadline exactly as written. Reply with JSON only: {\"amount\": \"...\", "
                      "\"deadline\": \"...\"}; use null when the page doesn't say."},
-                    {"role": "user", "content": page[:6000]}], thinking=False, model=config.NVIDIA_PLAN_MODEL,
+                    {"role": "user", "content": page[:6000]}], thinking=False, model=config.general_model(),
                    timeout=30, retries=0, max_tokens=120)
     data = llm_client.parse_json(res.text)
     return data if isinstance(data, dict) else {}

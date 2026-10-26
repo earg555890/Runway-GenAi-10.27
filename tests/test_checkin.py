@@ -56,7 +56,7 @@ class FakeChat:
 
 def test_greeting_ai_line_is_checked_and_falls_back(items):
     good = FakeChat("You've got this. Start with the form and take it one step at a time.")
-    assert greeting.ai_line(items, good) == good.text and good.calls == [(False, greeting.config.NVIDIA_PLAN_MODEL)]
+    assert greeting.ai_line(items, good) == good.text and good.calls == [(False, greeting.config.general_model())]
     for bad in ("Send the form so your $1,850 arrives Thu, Nov 5.",                 # numbers: the cards show them
                 "Send it, and your refund arrives around soon.",                    # copies the first card
                 "Start with the form because the refund is " + "really " * 30 + "great.",   # too long

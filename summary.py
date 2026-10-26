@@ -121,7 +121,7 @@ def ai_summary(sp, per, llm=llm_client):
     if per.future or not sp.categories:
         return None
     try:
-        res = llm.chat(messages(sp, per), thinking=False, model=config.NVIDIA_PLAN_MODEL, timeout=TIMEOUT_S,
+        res = llm.chat(messages(sp, per), thinking=False, model=config.general_model(), timeout=TIMEOUT_S,
                        retries=0, max_tokens=160)
     except Exception:
         return None

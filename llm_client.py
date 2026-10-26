@@ -84,9 +84,12 @@ def runtime_down(exc):
 
 
 def fallback_model(model, provider):
-    """The model to ask on the direct NVIDIA fallback: the Think harder model maps to NVIDIA_EXPLAIN_MODEL."""
+    """The model to ask on the direct NVIDIA fallback: the Think harder model maps to NVIDIA_EXPLAIN_MODEL, and a
+    Meterless routing mode (meterless/auto...) to Lightning."""
     if provider == "nvidia" and model == config.THINK_MODEL and config.NVIDIA_EXPLAIN_MODEL:
         return config.NVIDIA_EXPLAIN_MODEL
+    if provider == "nvidia" and model and model.startswith("meterless/"):
+        return config.NVIDIA_PLAN_MODEL
     return model
 
 

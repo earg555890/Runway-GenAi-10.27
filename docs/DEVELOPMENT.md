@@ -58,7 +58,7 @@ Each number is a `Computed` record (`C#`: label, value, unit, how, inputs = row 
 - **PLAN:** one call (`NVIDIA_PLAN_MODEL`, thinking off, JSON). It picks up to 3 tool calls and their arguments, validated strictly in Python (`validate_call`). It gets the last 3 turns of the chat, so follow-ups resolve, and returns the question it answered (`resolved_question`). If it fails, `keyword_plan` takes over.
 - **EXECUTE:** the engine does all the math. Results from every call merge into one pack of calculations (C1..) and source records (E1..).
 - **QUICK:** a quick answer built from the engine (template + every required fact) is yielded at once.
-- **EXPLAIN:** one streamed call. Fast mode (default): Lightning, thinking off, then Super, thinking off. "Think harder": Super, thinking on, then Lightning, thinking on.
+- **EXPLAIN:** one streamed call, through Meterless Nightshift (the AI provider, `llm_client.py`). Fast mode (default): Lightning, thinking off, then the Think harder model, thinking off. "Think harder": `THINK_MODEL` (Nemotron Ultra, `nvidia/nemotron-3-ultra-550b-a55b`), thinking on, then Lightning, thinking on. On the direct NVIDIA fallback, Think harder uses `NVIDIA_EXPLAIN_MODEL` (Super).
 - **CHECK:** the checker covers amounts, dates, citations, format, record IDs, required facts, reason claims (`merchant_accounts`), repetition, cut-off answers (`finish_reason`) and invented budgets. One rewrite; if the answer still fails, the quick answer stays.
 
 General questions (`general_info`) get no facts and no number check, but must not state her numbers. Drafts (email to financial aid, checklist) come from templates and are never sent. The answer records which model wrote it and its timings (`quick_s`, `total_s`).

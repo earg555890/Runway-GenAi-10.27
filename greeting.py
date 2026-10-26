@@ -81,7 +81,7 @@ def ai_line(items, llm=llm_client):
     if not items:
         return None
     try:
-        res = llm.chat(messages(items), thinking=False, model=config.NVIDIA_PLAN_MODEL, timeout=TIMEOUT_S, retries=0,
+        res = llm.chat(messages(items), thinking=False, model=config.general_model(), timeout=TIMEOUT_S, retries=0,
                        max_tokens=120)
     except Exception:                       # slow, down, or no key: the fixed line stays
         return None

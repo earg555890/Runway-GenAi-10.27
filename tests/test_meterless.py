@@ -244,3 +244,13 @@ def test_her_own_data_answers_are_never_saved(tmp_path, monkeypatch):
     agent.ask("Can I afford a $400 flight home?", engine.Scenario(), ds=normalize.load(), mode="live",
               llm=FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT]), typing_s=0, private=True)
     assert not (tmp_path / "answers").exists() or not any((tmp_path / "answers").iterdir())
+
+
+def test_general_requests_use_the_routing_mode_and_map_to_lightning_on_the_fallback(on_meterless, monkeypatch):
+    monkeypatch.setattr(config, "METERLESS_ROUTING_MODE", "meterless/auto")
+    monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "nvidia/lightning")
+    assert config.general_model() == "meterless/auto"
+    assert llm_client.fallback_model("meterless/auto", "nvidia") == "nvidia/lightning"
+    assert llm_client.fallback_model("meterless/auto", "meterless") == "meterless/auto"
+    monkeypatch.setattr(config, "AI_PROVIDER", "nvidia")
+    assert config.general_model() == "nvidia/lightning"

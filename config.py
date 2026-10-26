@@ -114,6 +114,13 @@ NVIDIA_BASE_URL = get("NVIDIA_BASE_URL")
 THINK_MODEL = get("THINK_MODEL") or "nvidia/nemotron-3-ultra-550b-a55b"
 
 
+def general_model():
+    """The model id for general requests (the check-in greeting, the Budget line, web-search extraction): the
+    routing mode through Nightshift (meterless/auto), Lightning on the direct provider. PLAN and the answers use the
+    explicit Nemotron ids."""
+    return METERLESS_ROUTING_MODE if AI_PROVIDER == "meterless" else NVIDIA_PLAN_MODEL
+
+
 def think_model(provider=None):
     """The Think harder model for this provider."""
     return NVIDIA_EXPLAIN_MODEL if (provider or AI_PROVIDER) == "nvidia" else THINK_MODEL

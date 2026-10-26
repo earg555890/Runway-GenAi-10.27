@@ -52,6 +52,70 @@ The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester e
 - **Drafted actions:** a ready-to-send email to the financial aid office, calendar reminders and a to-do list. Runway never sends anything; you approve every action with a click.
 - **What Runway remembers (Meterless H-MEM):** what you marked done, what you opened (the email draft, a reminder), your budget, the shifts you plan and short notes from your chats, each with where it came from and when. In your next session the check-in picks up where you left off ("Last time you clicked "Form sent". Still true? Click it again."), and follow-up questions across sessions work. Memory helps Runway understand your question; the numbers in an answer still come only from your records. Forget one memory, mark it "not right", or forget everything.
 
+## Sample inputs and outputs
+
+Real answers, recorded on Oct 26, 2026 through Meterless Nightshift by `nvidia/nemotron-3-ultra-550b-a55b` (Think
+harder). Each passed every check on the first try. They are the files in `demo_answers/` that sample mode replays,
+and each one carries its Meterless receipt id. `[C#]` marks a citation; in the app each becomes a proof chip that
+opens the calculation and the source rows.
+
+**1. "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?"** (receipt `rcpt_req_hovpd7lc`, 68 s)
+
+```text
+ANSWER: Yes, if you do 2 things [C1].
+WHY:
+- Your lowest point would be $5.81 [C4] on Mon, Nov 2.
+- Without fixes you would be $1,862 below zero by Dec 17 [C2][C3].
+DO THIS:
+1. Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].
+2. Cancelling Spotify saves $23.98 this semester [C8].
+NOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Apple Music is billed to the credit card, paid after semester ends.
+```
+
+**2. "Can I afford a $400 flight home for Thanksgiving?"** (no date; receipt `rcpt_req_sgkdv326`, 105 s)
+
+```text
+ANSWER: Not right now [C1].
+WHY:
+- Your lowest point would be $394 below zero [C4] on Mon, Nov 2.
+- Without fixes you would be $1,862 below zero by Thu, Dec 17 [C2][C3].
+DO THIS:
+1. Submit the verification form to release the $1,850 refund by Thu, Nov 5 [C6].
+2. Cancel Spotify to save $23.98 this semester [C8].
+NOTE: You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27. Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.
+```
+
+**3. "How long will my money last?"** (receipt `rcpt_req_e11u9i51`, 40 s)
+
+```text
+ANSWER: Your money runs out on Mon, Nov 9 [C4].
+WHY:
+- A $360 card payment [C1] is due Mon, Nov 9, when you'll have $307.
+- The lowest balance later is $1,462 below zero on Thu, Dec 17 [C2][C3].
+DO THIS:
+1. Track daily spending to stay above zero.
+2. Plan for the $360 card payment on Mon, Nov 9.
+NOTE: Next paycheck arrives Tue, Nov 3 [C13].
+```
+
+**4. "Where is my money leaking?"** (receipt `rcpt_req_9215k3eu`, 18 s)
+
+```text
+ANSWER: You have two music subscriptions and an overdraft fee from rent.
+WHY:
+- You pay for Apple Music [C3].
+- You pay for Spotify [C3].
+- Together they cost $22.98 a month [C3].
+- Rent caused a $35 overdraft fee [C9].
+DO THIS:
+1. Cancel Spotify to save $23.98 by Dec 18 [C7].
+2. Set a reminder to pay rent before the 1st to avoid fees [C13].
+NOTE: Apple Music charges your card, so canceling it doesn't help checking until after the semester [C6].
+```
+
+How Runway reached answer 1, step by step (plan, queries, model calls with routed model and receipt, checks):
+[docs/example_trace.json](docs/example_trace.json).
+
 ## Watch the demo
 
 Video: *coming soon* (link to be added)
