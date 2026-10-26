@@ -345,14 +345,15 @@ def render(ds, scenario):
     s.setdefault("history", [])
     s.setdefault("ask_think", False)
     with st.container(key="ask_thread"):
-        for i, a in enumerate(reversed(s.history)):
+        newest = next((a for a in s.history if a.mode != "event"), None)   # its buttons stay live under events
+        for a in reversed(s.history):
             if a.mode == "event":                         # Runway speaking up (e.g. after "mark as done")
                 with st.chat_message("assistant"):
                     st.markdown(fmt.md(a.text))
                 continue
             student(a.question, _resolved(a))
             with st.chat_message("assistant"):
-                reply(a, latest=(i == len(s.history) - 1), ds=ds)
+                reply(a, latest=a is newest, ds=ds)
         question = s.get("ask_pending")
         if question:                                  # kept until answered: closing the panel mid-reply loses nothing
             _ask(question, ds, scenario)

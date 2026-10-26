@@ -245,7 +245,8 @@ def test_ask_flight_question_shows_structured_answer(asked):
     assert at.toggle(key="wf_refund").value and at.toggle(key="wf_cancel_Spotify").value
     assert not at.session_state["wf_cancel_Apple Music"]
     assert 'rw-green">$5.81' in figures(at)[0]
-    assert at.session_state["history"][0].mode == "live" and at.session_state["history"][0].sections
+    assert at.session_state["history"][0].text == "Done. Your forecast is updated."      # said in the panel
+    assert at.session_state["history"][1].mode == "live" and at.session_state["history"][1].sections
 
 
 def test_how_runway_thought_shows_the_plan_json(asked):
@@ -287,6 +288,8 @@ def test_judge_setup_no_key_replay_mode(monkeypatch):
         if fixes:
             at.toggle(key="wf_refund").set_value(True)
             at.toggle(key="wf_cancel_Spotify").set_value(True)
+            run(at)
+            at.button(key="ask_new").click()          # the panel said "Done. Your forecast is updated.": clear it
             run(at)
         for i in range(5):                                # all 5 suggested questions have saved answers
             at.button(key=f"ask_suggest_{i}").click()
