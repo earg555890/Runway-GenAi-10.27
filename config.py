@@ -112,6 +112,7 @@ NVIDIA_PLAN_MODEL = get("NVIDIA_PLAN_MODEL") or "nvidia/nemotron-3.5-lightning-3
 NVIDIA_EXPLAIN_MODEL = get("NVIDIA_EXPLAIN_MODEL")
 NVIDIA_BASE_URL = get("NVIDIA_BASE_URL")
 THINK_MODEL = get("THINK_MODEL") or "nvidia/nemotron-3-ultra-550b-a55b"
+FAST_EXPLAIN_MODEL = get("FAST_EXPLAIN_MODEL")       # optional: the fast-answer model through Nightshift
 
 
 def general_model():
@@ -119,6 +120,14 @@ def general_model():
     routing mode through Nightshift (meterless/auto), Lightning on the direct provider. PLAN and the answers use the
     explicit Nemotron ids."""
     return METERLESS_ROUTING_MODE if AI_PROVIDER == "meterless" else NVIDIA_PLAN_MODEL
+
+
+def fast_explain_model(provider=None):
+    """The model that writes fast answers (thinking off): FAST_EXPLAIN_MODEL through Nightshift, else Lightning.
+    On the direct provider always Lightning."""
+    if (provider or AI_PROVIDER) == "nvidia":
+        return NVIDIA_PLAN_MODEL
+    return FAST_EXPLAIN_MODEL or NVIDIA_PLAN_MODEL
 
 
 def think_model(provider=None):

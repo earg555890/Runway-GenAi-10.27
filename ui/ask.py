@@ -81,9 +81,10 @@ def _proof(item, a, key, ds=None):
 
 
 def _mode_words(a):
-    big = agent.model_name((a.models or {}).get("explain") or config.think_model())
-    return (f"Think harder: {big}, thinking on" if getattr(a, "think", False) else
-            "Fast: Nemotron Lightning, thinking off")
+    think = getattr(a, "think", False)
+    name = agent.model_name((a.models or {}).get("explain")
+                            or (config.think_model() if think else config.fast_explain_model()))
+    return f"Think harder: {name}, thinking on" if think else f"Fast: {name}, thinking off"
 
 
 def _thinking(a, key):
@@ -358,6 +359,9 @@ def render(ds, scenario):
                 for i, q in enumerate(agent.MYDATA_SUGGESTED if state.mine() else agent.SUGGESTED):
                     st.button(q, key=f"ask_suggest_{i}", on_click=_queue, args=(q,), type="tertiary",
                               icon=":material/chat_bubble:")
+        if state.mine() and config.AI_PROVIDER == "meterless" and not config.SAMPLE_MODE:
+            st.caption(":material/lock: Your questions go through Meterless Nightshift on this computer, which keeps "
+                       "a local log of requests.")
         typed = st.chat_input("Ask about your money", key="ask_input")
         with st.container(horizontal=True, gap="small", key="ask_tools"):
             st.toggle("Think harder", key="ask_think", on_change=lambda: memory.think_harder(s.get("ask_think")),

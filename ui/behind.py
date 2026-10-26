@@ -29,8 +29,9 @@ def answers():
     st.markdown("#### Ask Runway")
     st.caption(f"Answer mode: **{config.ANSWER_MODE}** (live = always ask the models; cached = reuse a saved answer "
                "for the same question and what-ifs; replay = saved answers only, typed out). PLAN model: "
-               f"`{config.NVIDIA_PLAN_MODEL}` (thinking off). EXPLAIN model: the same, thinking off (fast, the "
-               f"default); with Think harder, `{config.think_model()}` (thinking on). All through "
+               f"`{config.NVIDIA_PLAN_MODEL}` (thinking off). EXPLAIN model: `{config.fast_explain_model()}`, "
+               f"thinking off (fast, the default); with Think harder, `{config.think_model()}` (thinking on). All "
+               "through "
                + ("Meterless Nightshift. " if config.AI_PROVIDER == "meterless" else "the NVIDIA API. ")
                + "At most two model calls per question, plus one rewrite if the number check fails.")
     history = [a for a in st.session_state.get("history") or [] if a.mode != "event"]

@@ -174,6 +174,16 @@ def test_every_tab_renders_in_my_data_mode(userdir, monkeypatch):
     assert any("Most went to Rent" in t for t in ts)                       # Budget tab, her categories
     assert [b.label for b in at.button if str(b.key).startswith("ask_suggest_")] == agent.MYDATA_SUGGESTED
     assert any("Your bank file" in t for t in ts) and not any("Maya's 8 data sources" in t for t in ts)
+    notice = "Your questions go through Meterless Nightshift on this computer, which keeps a local log of requests."
+    assert any(notice in t for t in ts) == (config.AI_PROVIDER == "meterless")
+    assert not any(notice in t for t in _texts(_maya(monkeypatch)))                       # only in My data mode
+
+
+def _maya(monkeypatch):
+    monkeypatch.setattr(config, "DATA_BACKEND", "local")
+    at = AppTest.from_file("../ui/app.py", default_timeout=90)
+    at.run()
+    return at
 
 
 def test_import_screen_when_no_data(userdir, monkeypatch):

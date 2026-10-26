@@ -1653,11 +1653,13 @@ FAST_TIMEOUT_S = 60
 
 
 def explain_chain(think=False):
-    """EXPLAIN (model, thinking) pairs to try in order. Fast (default): Lightning with thinking off, then the Think
-    harder model with thinking off. Think harder: config.think_model() with thinking on (through Nightshift; Super on
-    the direct provider), then Lightning with thinking on."""
+    """EXPLAIN (model, thinking) pairs to try in order. Fast (default): config.fast_explain_model() with thinking off
+    (Lightning unless FAST_EXPLAIN_MODEL says otherwise), then the other of Lightning / the Think harder model, thinking
+    off. Think harder: config.think_model() with thinking on (through Nightshift; Super on the direct provider), then
+    Lightning with thinking on."""
     fast, big = config.NVIDIA_PLAN_MODEL, config.think_model()
-    order = [(big, True), (fast, True)] if think else [(fast, False), (big, False)]
+    first = config.fast_explain_model()
+    order = [(big, True), (fast, True)] if think else [(first, False), (big if first == fast else fast, False)]
     return list(dict.fromkeys((m, t) for m, t in order if m))
 
 

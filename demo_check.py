@@ -13,7 +13,7 @@ import engine
 import normalize
 
 QUESTION = "How long will my money last?"
-SLOW_S = 10
+SLOW_S = 25                  # demo-friendly: a full answer within ~25 s
 
 
 def main():

@@ -14,6 +14,9 @@ if not exist ".venv\Scripts\python.exe" (
   exit /b 1
 )
 
+rem Fast answers on Nemotron Ultra (thinking off) through Nightshift: 5 of 5 full answers in 2-13 s in the Oct 26
+rem spot check, against 2 of 5 for Lightning (Nightshift's own memory leaks earlier answers into Lightning's).
+set "FAST_EXPLAIN_MODEL=nvidia/nemotron-3-ultra-550b-a55b"
 echo Checking Meterless Nightshift and asking one real question...
 set "DATA_BACKEND=local"
 ".venv\Scripts\python.exe" demo_check.py
