@@ -181,3 +181,18 @@ def test_deadlines_must_be_the_opportunitys_own(ds):
     assert agent.deadline_problems("Apply for the book scholarship by Nov 15.", ds.opportunities) == []
     assert agent.deadline_problems("Apply for the Textbook & Supplies Scholarship by Sun, Nov 15.", ds.opportunities) == []
     assert agent.deadline_problems("The Spring Opportunity Scholarship deadline is Sun, Nov 15.", ds.opportunities) ==         ["the Spring Opportunity Scholarship's deadline is Tue, Dec 1, not Sun, Nov 15"]
+
+
+def test_generator_reproduces_every_committed_file_byte_for_byte(tmp_path, monkeypatch, capsys):
+    """Regenerate all eight sources into a temp folder: every file (the six original sources' CSVs and PDFs, the
+    two new sources, the answer key) must match the committed copy exactly. Sources 7 and 8 use their own random
+    streams after everything else, so adding them changed nothing that was there before."""
+    import generate_maya_data as g
+    monkeypatch.setattr(g, "OUT", tmp_path / "maya")
+    g.main()
+    capsys.readouterr()
+    committed = sorted(p.relative_to(config.DATA_DIR) for p in config.DATA_DIR.rglob("*") if p.is_file())
+    fresh = sorted(p.relative_to(tmp_path / "maya") for p in (tmp_path / "maya").rglob("*") if p.is_file())
+    assert committed == fresh and len(committed) == 25
+    for rel in committed:
+        assert (config.DATA_DIR / rel).read_bytes() == (tmp_path / "maya" / rel).read_bytes(), rel
