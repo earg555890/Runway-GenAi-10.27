@@ -10,8 +10,9 @@ import importer
 import mydata
 from ui import fmt
 
-PRIVACY = ("Your file stays on this computer (in user_data/). Importing it sends nothing anywhere. When you ask "
-           "Runway a question, only that question and the numbers it needs go to NVIDIA to write the answer.")
+PRIVACY = ("Your file stays on this computer, in user_data/. Nothing from it is committed or uploaded. When you ask "
+           "Runway a question, it goes through Meterless Nightshift on this computer. Nightshift keeps a local log of "
+           "requests. It sends only that question and the numbers it needs to NVIDIA to write the answer.")
 
 
 @st.cache_resource(show_spinner=False)

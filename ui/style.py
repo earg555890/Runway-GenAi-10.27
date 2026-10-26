@@ -24,7 +24,8 @@ PALETTE = {
              "bad_bg": "rgba(200,64,47,.14)", "shadow": "rgba(0,0,0,.40)", "axis": "#A4AFC2",
              "band_top": "#0B1525", "band": "#070E19", "band_border": "rgba(243,238,228,.14)"},
 }
-HEADING, BODY, MONO = "'Bricolage Grotesque', sans-serif", "'Atkinson Hyperlegible', sans-serif", "'DM Mono', monospace"
+# Runway Body / Runway Mono (config.toml fontFaces): Atkinson Hyperlegible and DM Mono with DM Sans digits (plain zero)
+HEADING, BODY, MONO = "'Bricolage Grotesque', sans-serif", "'Runway Body', sans-serif", "'Runway Mono', monospace"
 CARDS = ('[class*="st-key-card_"], [class*="st-key-ci_card_"], [class*="st-key-fm_card_"], .st-key-balance_card, '
          '.st-key-shift_planner, .st-key-meal_card')
 HOVERED = ", ".join(s + ":hover" for s in CARDS.split(", "))
@@ -135,7 +136,8 @@ button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-pri
   opacity: .9; margin-top: .4rem;}}
 .rw-note {{font-size: .95rem; opacity: .85; margin: .3rem 0 .4rem; max-width: 64ch;}}
 .rw-fn {{font-size: .65em; font-weight: 700; margin-left: .12em; color: var(--rw-link);}}
-[class*="st-key-ask_suggest_"] button p {{font-size: .95rem; white-space: normal; text-align: left;}}
+[class*="st-key-ask_suggest_"] button p {{font-size: .95rem; white-space: normal; text-align: left !important;}}
+[class*="st-key-ask_suggest_"] button > div {{justify-content: flex-start !important;}}
 [class*="st-key-ask_suggest_"] button {{height: auto; min-height: 2.4rem;}}
 
 /* the check-in */
@@ -171,6 +173,15 @@ button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-pri
 .rw-pace-on-pace {{opacity: .85;}} .rw-pace-spending-fast, .rw-pace-over {{font-weight: 700;}}
 [class*="st-key-ci_acts_"] button p, [class*="st-key-fm_acts_"] button p, [class*="st-key-bud_refund"] button p,
 [class*="st-key-fm_acts_"] label p {{font-size: .95rem !important;}}
+
+/* the chat panel: a solid card over a dimmed, blurred page (a see-through overlay made the page under the panel's
+   edge look like part of the panel) */
+[data-testid="stDialog"] {{background: rgba(9,16,28,.62) !important; backdrop-filter: blur(3px);}}
+[data-testid="stDialog"] div:has(> [role="dialog"]) {{background: var(--rw-card) !important;
+  border: 1px solid var(--rw-card-border); box-shadow: 0 30px 80px -24px rgba(0,0,0,.6);}}
+@media (min-width: 641px) {{
+  [data-testid="stDialog"] [role="dialog"] {{min-height: min(76vh, 760px);}}
+}}
 
 /* the floating "Ask Runway" button: fixed bottom-left on every tab; the page keeps room below its last element */
 .st-key-chat_fab {{position: fixed; left: 24px; bottom: 24px; z-index: 999990; width: auto !important;}}

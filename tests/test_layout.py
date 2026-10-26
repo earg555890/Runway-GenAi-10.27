@@ -89,3 +89,55 @@ def test_forecast_signature_sees_what_ifs_done_items_and_budget():
     assert ask.forecast_sig() != base
     st.session_state["done"] = {"refund": {}}
     assert ask.forecast_sig() != base
+
+
+def test_the_panel_holds_only_the_chat_never_page_content(page):
+    """The chat panel's own element tree: chat elements only. (The bug report showed the graph under "What Runway
+    remembers": a see-through overlay made the page under the panel's edge look like part of it; style.py now dims
+    and blurs the page and gives the panel a solid card.)"""
+    page.button(key="chat_fab_btn").click()
+    page.run()
+
+    def dialogs(n):
+        for c in getattr(n, "children", {}).values():
+            if getattr(c, "type", None) == "dialog":
+                yield c
+            yield from dialogs(c)
+
+    def kinds(n, out):
+        for c in getattr(n, "children", {}).values():
+            out.add((type(c).__name__, getattr(c, "key", None)))
+            kinds(c, out)
+        return out
+
+    (panel,) = list(dialogs(page._tree))
+    inside = kinds(panel, set())
+    names = {k for k, _ in inside}
+    assert not names & {"Tab", "VegaLiteChart", "ArrowVegaLiteChart", "UnknownElement"}, names
+    assert not any(key in ("balance_card", "balance_chart", "notices", "checkin") for _, key in inside)
+    assert any(key == "ask_input" for _, key in inside)
+    from ui import style
+    css = style.css("light")
+    assert '[data-testid="stDialog"] {background: rgba(9,16,28,.62)' in css and "backdrop-filter: blur" in css
+    assert 'div:has(> [role="dialog"]) {background: var(--rw-card)' in css
+
+
+def test_demo_config_hides_the_toolbar_and_numbers_use_a_plain_zero():
+    import tomllib
+    from pathlib import Path
+    cfg = tomllib.loads((Path(__file__).resolve().parent.parent / ".streamlit" / "config.toml").read_text(encoding="utf-8"))
+    assert cfg["client"]["toolbarMode"] == "minimal"                       # no Deploy button, no top-right menu
+    assert cfg["theme"]["font"].startswith("Runway Body") and cfg["theme"]["codeFont"].startswith("Runway Mono")
+    faces = cfg["theme"]["fontFaces"]
+    for fam in ("Runway Body", "Runway Mono"):
+        letters = [f for f in faces if f["family"] == fam and f["unicodeRange"] != "U+0030-0039"]
+        digits = [f for f in faces if f["family"] == fam and f["unicodeRange"] == "U+0030-0039"]
+        assert letters and all("dmsans" in f["url"] for f in digits)               # digits: DM Sans, a plain zero
+        # every letter face has a digit face with the same weight and style (browsers match weight first)
+        assert {(f["weight"], f["style"]) for f in letters} == {(f["weight"], f["style"]) for f in digits}
+
+
+def test_my_data_privacy_says_nightshift_not_nvidia():
+    from ui import myimport
+    assert "Meterless Nightshift on this computer" in myimport.PRIVACY and "local log" in myimport.PRIVACY
+    assert "committed or uploaded" in myimport.PRIVACY and "go to NVIDIA" not in myimport.PRIVACY

@@ -24,7 +24,7 @@ from ui import fmt
 
 # One palette, shared with style.py's CSS variables (readable on the paper and the night-navy backgrounds).
 LINE, STEPS, RED, ZERO, GRID, LABEL = "#3F78C0", "#2E8F62", "#C8402F", "#8A94A6", "#8A94A6", "#7A8599"
-FONT, MONO = "Atkinson Hyperlegible, sans-serif", "DM Mono, monospace"     # loaded by style.py
+FONT, MONO = "Runway Body, sans-serif", "Runway Mono, monospace"     # config.toml fontFaces (plain-zero digits)
 SHORT = {"rent": "Rent", "card_autopay": "Card payment", "installment": "Tuition payment", "paycheck": "Paycheck",
          "refund": "Refund"}
 

@@ -1,13 +1,87 @@
 # Runway theme, "night runway": night navy, warm paper, one amber accent (runway lights). Red means "below $0" only,
 # green "covered / good news" only (readability standard). Set per mode so the viewer can still pick light, dark or
 # system. Fonts load from Google Fonts: Atkinson Hyperlegible (body, chosen for readability), Bricolage Grotesque
-# (headings), DM Mono (numbers and dates, tabular). style.py adds the rest (cards, the header band, motion).
+# (headings), DM Mono (numbers and dates, tabular), with DM Sans digits (plain zero). style.py adds the rest (cards, the header band, motion).
 [theme]
-font = "Atkinson Hyperlegible:https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap"
+font = "Runway Body, sans-serif"
 headingFont = "Bricolage Grotesque:https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap"
-codeFont = "DM Mono:https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap"
+codeFont = "Runway Mono, monospace"
 baseRadius = "0.9rem"
 buttonRadius = "0.7rem"
+
+# Runway Body = Atkinson Hyperlegible for everything but digits + DM Sans digits; Runway Mono = DM Mono for everything
+# but digits + DM Sans digits. Atkinson and DM Mono draw a slashed zero ("$4ØØ") and have no OpenType feature to turn
+# it off; DM Sans (DM Mono's sibling) has a plain zero and tabular figures. Files from Google Fonts (latin subset).
+# Each digit face has exactly the weight and style of its letter face: browsers match weight before unicode-range.
+[[theme.fontFaces]]
+family = "Runway Body"
+url = "https://fonts.gstatic.com/s/atkinsonhyperlegible/v12/9Bt23C1KxNDXMspQ1lPyU89-1h6ONRlW45G04pIo.woff2"
+weight = "400"
+style = "normal"
+unicodeRange = "U+0000-002F, U+003A-FFFF"
+
+[[theme.fontFaces]]
+family = "Runway Body"
+url = "https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHQ.woff2"
+weight = "400"
+style = "normal"
+unicodeRange = "U+0030-0039"
+
+[[theme.fontFaces]]
+family = "Runway Body"
+url = "https://fonts.gstatic.com/s/atkinsonhyperlegible/v12/9Bt73C1KxNDXMspQ1lPyU89-1h6ONRlW45G8Wbc9dCWP.woff2"
+weight = "700"
+style = "normal"
+unicodeRange = "U+0000-002F, U+003A-FFFF"
+
+[[theme.fontFaces]]
+family = "Runway Body"
+url = "https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHQ.woff2"
+weight = "700"
+style = "normal"
+unicodeRange = "U+0030-0039"
+
+[[theme.fontFaces]]
+family = "Runway Body"
+url = "https://fonts.gstatic.com/s/atkinsonhyperlegible/v12/9Bt43C1KxNDXMspQ1lPyU89-1h6ONRlW45G056IqUwA.woff2"
+weight = "400"
+style = "italic"
+unicodeRange = "U+0000-002F, U+003A-FFFF"
+
+[[theme.fontFaces]]
+family = "Runway Body"
+url = "https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHQ.woff2"
+weight = "400"
+style = "italic"
+unicodeRange = "U+0030-0039"
+
+[[theme.fontFaces]]
+family = "Runway Mono"
+url = "https://fonts.gstatic.com/s/dmmono/v16/aFTU7PB1QTsUX8KYthqQBA.woff2"
+weight = "400"
+style = "normal"
+unicodeRange = "U+0000-002F, U+003A-FFFF"
+
+[[theme.fontFaces]]
+family = "Runway Mono"
+url = "https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHQ.woff2"
+weight = "400"
+style = "normal"
+unicodeRange = "U+0030-0039"
+
+[[theme.fontFaces]]
+family = "Runway Mono"
+url = "https://fonts.gstatic.com/s/dmmono/v16/aFTR7PB1QTsUX8KYvumzEYOtbQ.woff2"
+weight = "500"
+style = "normal"
+unicodeRange = "U+0000-002F, U+003A-FFFF"
+
+[[theme.fontFaces]]
+family = "Runway Mono"
+url = "https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHQ.woff2"
+weight = "500"
+style = "normal"
+unicodeRange = "U+0030-0039"
 
 [theme.light]
 primaryColor = "#F2A33A"
@@ -22,3 +96,7 @@ backgroundColor = "#0F1B2D"
 secondaryBackgroundColor = "#18283F"
 textColor = "#F3EEE4"
 borderColor = "#2A3D58"
+
+# The demo hides Streamlit's own toolbar items (Deploy, the top-right menu); theme follows the system setting.
+[client]
+toolbarMode = "minimal"
