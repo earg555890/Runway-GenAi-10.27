@@ -40,7 +40,7 @@ checked.
     shifts she plans, her Think harder preference and one-line notes of her questions. Each has where it came from
     and when.
   - **Across sessions:** next session the check-in asks "Last time you clicked "Form sent". Still true? Click it
-    again." (screenshot `docs/images/deck-1-status-and-check-in.png`).
+    again." (shown in the app's check-in after a reload).
   - **Planner only:** recall goes to the planner (PLAN) so follow-ups across sessions work. It never goes into the
     answer's numbers.
   - **Forgetting:** Forget one memory, "This isn't right" (H-MEM's `wrong` feedback), Forget everything (screenshot
@@ -96,8 +96,8 @@ checked.
 
 | File | Shows |
 |---|---|
-| `deck-1-status-and-check-in.png` | "Your money runs out in 2 weeks, on Mon, Nov 9." and the check-in, with the memory line "Last time you clicked "Form sent". Still true?" |
-| `deck-2-answer-with-proof.png` | The streamed flight answer: "Yes, if you do 2 things.", DO THIS, "Do these", the Apple Music $0.00 note, the proof chips |
+| `deck-1-notices-and-graph.png` | The top of the page: the board label RUNS OUT · MON, NOV 9, "Your money runs out in 2 weeks, on Mon, Nov 9.", the check-in (6 things), the tabs, and the graph card "Your money through Dec 18": solid "What's happening" (red below $0), dotted green "If you follow the steps", "With the steps: lowest $5.81" |
+| `deck-2-chat-panel-answer.png` | The chat panel (opened by the round Ask Runway button): "Yes, if you do 2 things.", DO THIS with "Do these", the Apple Music $0.00 note, the proof chips, and "Planned by: Nemotron Lightning ... / Written by: Nemotron Ultra ... through Meterless Nightshift, receipt rcpt_..." |
 | `deck-3-shift-planner.png` | "These 2 shifts add $115 and you're covered all semester.", each shift's pay and payday |
 | `deck-4-budget.png` | October spending: $1,757, the donut and the category table |
 | `deck-5-find-money.png` | School aid, "if approved" switches: the $500 emergency grant arriving around Mon, Nov 2 |

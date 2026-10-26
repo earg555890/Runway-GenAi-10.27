@@ -126,12 +126,12 @@ Maya's demo data.
 
 | | |
 |---|---|
-| ![Status card and check-in](docs/images/1-status-and-check-in.jpg) | ![The flight answer with proof](docs/images/2-flight-answer.jpg) |
-| **It speaks up first:** the status card and the check-in, with real actions. | **Yes, if you do 2 things:** every number cited, Apple Music saves $0.00. |
-| ![Balance chart](docs/images/3-semester-chart.jpg) | ![Budget tab](docs/images/4-budget.jpg) |
-| **Semester:** the balance day by day to Dec 18, and ways to fix it. | **Budget:** where the money went, by category. |
-| ![Found online](docs/images/5-found-online.jpg) | |
-| **Find money:** the school's grants, then "Found online - check before applying". | |
+| ![The status card, the check-in and the graph](docs/images/deck-1-notices-and-graph.png) | ![The chat panel with an answer](docs/images/deck-2-chat-panel-answer.png) |
+| **It speaks up first:** the status card and the check-in, then the graph: what's happening (solid) and if you follow the steps (dotted). | **Ask Runway** (the round button, bottom-left): every number cited, and which model answered, through Meterless Nightshift. |
+| ![Shift planner](docs/images/deck-3-shift-planner.png) | ![Budget tab](docs/images/deck-4-budget.png) |
+| **Shift planner:** each shift's pay and payday. | **Budget:** where the money went, by category. |
+| ![Find money](docs/images/deck-5-find-money.png) | ![What Runway remembers](docs/images/deck-6-what-runway-remembers.png) |
+| **Find money:** the school's grants, "if approved" only. | **What Runway remembers** (Meterless H-MEM): each memory with where it came from. |
 
 ## Dependencies
 
