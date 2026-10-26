@@ -175,3 +175,22 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
 - Readability: split the long sentences found by a scan of every visible sentence (Find money intro, "...after the
   semester. So it adds $0.00 this semester.", the tight-week card, the online-results caption).
 - README: check-in paragraph (6 items) and two refreshed images (status + check-in, Semester with the planner).
+### Part 3: memory and startup
+- Measured with a script that starts the server on a spare port, times the health check and the first rendered
+  page in headless Chrome ("Your money runs out" on screen), reads the server's memory and whether jvm.dll is
+  loaded, then stops it:
+  | Mode | Health | First page | Second visitor | Memory after page (working set / private) | JVM |
+  |---|---|---|---|---|---|
+  | Local | 1.6 s | 11.3 s | 4.4 s | 234 MB / 484 MB | no |
+  | Zetaris, cold (query cache moved aside) | 1.6 s | 89.9 s | 4.5 s | 346 MB / 639 MB | yes |
+  | Zetaris, cached | 1.7 s | 11.0 s | 4.8 s | 231 MB / 480 MB | no |
+- What was already true (verified, not changed): the JDBC bridge is imported lazily, so local and Zetaris-cached
+  runs never start Java; data loads once per server (st.cache_resource) - a second visitor doesn't reload it.
+  One warm page run is 0.5-1.0 s in Python (0.33 s of it is Altair validating the chart); most of the 4.4 s second
+  visit is the browser loading Streamlit's JavaScript. The only big extra cost is the cold Zetaris load (about
+  90 s for 21 queries under emulation, plus the JVM's ~110 MB), which happens once and then is cached on disk.
+- Added: a test that runs the whole app in local mode in a fresh process and checks jpype/zetaris_db were never
+  imported. Checked: after the full test suite, no Java, Streamlit or test Python processes are left (only the app
+  on 8501). The eval runs in one process with the local backend and exits with it.
+- Before = after: no safe change left that would move these numbers (I didn't touch Altair validation or the
+  sequential Zetaris loading the night before the deadline).

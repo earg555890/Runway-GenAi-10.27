@@ -177,3 +177,18 @@ def test_is_cached_validates_and_reports(tmp_path, monkeypatch):
     assert not da.is_cached("bursar_ledger", term="FA26")
     with pytest.raises(da.QueryError):
         da.is_cached("bursar_ledger", term="XX99")
+
+
+def test_local_mode_never_starts_java():
+    """The whole app in local mode (a fresh process) never imports the JDBC bridge, so no JVM starts."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    code = ("import sys, config; config.DATA_BACKEND = 'local'; config.AI_GREETING = False\n"
+            "from streamlit.testing.v1 import AppTest\n"
+            "at = AppTest.from_file('ui/app.py', default_timeout=120); at.run()\n"
+            "assert not at.exception\n"
+            "print('jpype' in sys.modules, 'zetaris_db' in sys.modules)")
+    root = Path(__file__).resolve().parent.parent
+    out = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, timeout=300)
+    assert out.stdout.strip().splitlines()[-1] == "False False", out.stderr[-2000:]
