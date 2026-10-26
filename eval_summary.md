@@ -51,6 +51,16 @@ We then asked only the two shift questions again ("What if I pick up a 5 hour sh
   but NVIDIA's Super model returned a server error (InternalServerError) and Lightning failed too, so the quick
   answer from the engine stood in.
 
+### After fix: "What happens if I stick to my budget?"
+
+In all 3 runs above, the planner picked the "food" category for this question, though it names no category.
+Runway now keeps a budget category only if the student's question names it or a clear synonym ("food" for
+groceries and eating out, "restaurants", "shopping", "Uber"...). Otherwise it answers for the whole budget.
+(On a follow-up, the planner's rewritten question counts too.) We then asked only the two budget questions again:
+
+- **Fast, twice:** 4/4 full answers. "Stick to my budget" used the whole budget every time.
+- **Think harder, once:** 2/2 full answers (60.7 s and 147.9 s). No rewrites in any of the 6 answers.
+
 ## Run 1 (Fast): 24/29 full answers
 
 | # | Question | Tools / right? | Verdict / right? | Checks passed | Required facts by model | Written by | Retries (plan+rewrite) | Quick answer s | Full answer s | Result |

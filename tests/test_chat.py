@@ -497,6 +497,52 @@ def test_run_passes_the_budget(ds):
     assert events[-1][1].text.startswith("ANSWER: You have $23.19 left in your food budget")
 
 
+# The exact plan from the final eval (all 3 runs): no category named, the planner picked "food" anyway.
+STICK_PLAN = {"resolved_question": "What happens if I stick to my budget?",
+              "calls": [{"tool": "budget_status", "args": {"category": "food", "month": "2026-10"}}]}
+
+
+@pytest.mark.parametrize("question,category,kept", [
+    ("What happens if I stick to my budget?", "food", None),
+    ("Am I on budget?", "Shopping", None),
+    ("How much is left in my food budget?", "food", "food"),
+    ("How's my grocery budget?", "Groceries", "Groceries"),
+    ("How much can I still spend on food?", "Eating out", "Eating out"),
+    ("Am I over on restaurants this month?", "Eating out", "Eating out"),
+    ("Is my shopping budget OK?", "Shopping", "Shopping"),
+    ("How much is left for Uber and gas?", "Transportation", "Transportation"),
+    ("How many dining dollars are left in my budget?", "Meal plan", "Meal plan"),
+    ("How's my budget for fun stuff?", "Entertainment", "Entertainment"),
+    ("How much is left in my shopping budget?", "food", None),           # a different category: dropped
+])
+def test_budget_category_must_come_from_the_question(question, category, kept):
+    plan = agent.parse_plan({"calls": [{"tool": "budget_status", "args": {"category": category}}]}, SUBS)
+    plan = agent.ground_budget_category(plan, question)
+    assert plan.args["category"] == kept and plan.calls[0]["args"]["category"] == kept
+
+
+def test_resolved_question_counts_only_for_a_follow_up():
+    invented = {"resolved_question": "What happens if I stick to my food budget?",
+                "calls": [{"tool": "budget_status", "args": {"category": "food"}}]}
+    first = agent.ground_budget_category(agent.parse_plan(invented, SUBS), "What happens if I stick to my budget?")
+    assert first.args["category"] is None                      # first question: only her own words count
+    follow = {"resolved_question": "How much is left in my shopping budget?",
+              "calls": [{"tool": "budget_status", "args": {"category": "Shopping"}}]}
+    later = agent.ground_budget_category(agent.parse_plan(follow, SUBS), "and that one?", follow_up=True)
+    assert later.args["category"] == "Shopping"                # follow-up: the resolved question counts
+
+
+def test_stick_to_my_budget_answers_for_the_whole_budget(ds):
+    plan = agent.ground_budget_category(agent.parse_plan(STICK_PLAN, SUBS), "What happens if I stick to my budget?")
+    assert plan.args == {"category": None, "month": "2026-10"} and plan.calls == [{"tool": "budget_status",
+                                                                                 "args": plan.args}]
+    llm = FakeLLM(plans=[json.dumps(STICK_PLAN)], answers=["x", "x"])
+    events = list(agent.run("What happens if I stick to my budget?", engine.Scenario(), ds=ds, mode="live", llm=llm,
+                            typing_s=0, budget=BUDGET))
+    a = events[-1][1]
+    assert a.plan["calls"][0]["args"]["category"] is None and "food budget" not in a.text
+
+
 def test_invented_budget_check_allows_budgets_from_the_facts(ds):
     plan = agent.parse_plan({"calls": [{"tool": "budget_status", "args": {"category": "food"}}]}, SUBS)
     results = agent.execute_all(plan, engine.Scenario(), ds, (), BUDGET)

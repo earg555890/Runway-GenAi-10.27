@@ -495,6 +495,35 @@ def ground_purchase_date(plan, question):
     return plan
 
 
+_FOOD = r"food|eat(?:ing)?|meals?"
+_CATEGORY_WORDS = {      # budget category -> words that name it in a question
+    "groceries": rf"grocer(?:y|ies)|supermarket|{_FOOD}",
+    "eating out": rf"eat(?:ing)? out|restaurants?|take ?out|fast food|dining out|{_FOOD}",
+    "meal plan": r"meal plan|dining dollars|swipes?",
+    "shopping": r"shop(?:ping)?|clothes|clothing",
+    "entertainment": r"entertainment|fun|movies?|concerts?|games?|streaming",
+    "transportation": r"transport(?:ation)?|gas|uber|lyft|bus|rides?|parking",
+    "other": r"other (?:budget|category|spending|stuff)",
+    "food": _FOOD,
+}
+
+
+def ground_budget_category(plan, question, follow_up=False):
+    """A budget category must come from the question. "What happens if I stick to my budget?" names none, so a
+    category the planner picked anyway ("food", seen live) is dropped and the answer covers the whole budget.
+    The planner's resolved question counts only for a follow-up ("and for shopping?"); a first question is
+    checked in the student's own words."""
+    if follow_up:
+        question = f"{question} {plan.resolved_question or ''}"
+    for call in plan.calls:
+        cat = (call["args"].get("category") or "").lower() if call["tool"] == "budget_status" else ""
+        if cat and not re.search(rf"\b(?:{_CATEGORY_WORDS.get(cat, re.escape(cat))})\b", question, re.I):
+            call["args"]["category"] = None
+    if plan.calls:
+        plan.args = plan.calls[0]["args"]
+    return plan
+
+
 BROAD_RE = re.compile(r"\b(?:get through|make (?:me )?a plan|help me (?:out|with my money|survive)|"
                       r"survive (?:the|this) semester|help me (?:get|make it))\b", re.I)
 BROAD_CALLS = ("runway", "money_ideas", "find_leaks")
@@ -2484,6 +2513,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
                             validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
         plan = parse_plan(res.data, sub_names)
         plan = ground_purchase_date(plan, f"{question} {plan.resolved_question or ''}")
+        plan = ground_budget_category(plan, question, follow_up=bool(history))
         plan = widen_broad_plan(plan, question)
         retries["plan_json"] = res.json_retries + res.retries
     except Exception as exc:                                       # slow, down, or unusable: keywords
