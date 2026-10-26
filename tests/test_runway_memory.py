@@ -112,6 +112,8 @@ def test_the_check_in_remembers_across_sessions(monkeypatch):
     assert not first.exception
     second = AppTest.from_file("../ui/app.py", default_timeout=60)                    # a new session, same computer
     second.run()
+    second.button(key="chat_fab_btn").click()                # "What Runway remembers" is in the chat panel
+    second.run()
     texts = [m.value for m in second.markdown]
     assert any("Last time you clicked “Form sent”. Still true? Click it again." in t for t in texts)
     remembers = next(e for e in second.expander if e.label.startswith("What Runway remembers"))

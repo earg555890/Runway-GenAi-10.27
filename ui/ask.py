@@ -1,10 +1,13 @@
-"""Ask Runway: a chat thread under the status card. The student's messages and Runway's replies (newest at the
-bottom), the question box below them, suggested questions while the thread is empty, "New chat" and "Think harder".
+"""Ask Runway: a floating chat button (bottom-left, on every tab) opens a chat panel (st.dialog) with the thread
+(newest at the bottom), suggested questions while it's empty, the question box, "Think harder", "New chat" and "What
+Runway remembers". The thread lives in session state, so closing and reopening the panel keeps it, and a question
+still being answered when the panel closes is asked again when it reopens.
 
 Each reply first shows the instant quick answer (built from the engine), then the AI answer streams in over it;
 if the AI answer doesn't pass the checks, the quick answer stays."""
 import json
 import re
+import time
 from types import SimpleNamespace
 
 import pandas as pd
@@ -350,9 +353,10 @@ def render(ds, scenario):
             student(a.question, _resolved(a))
             with st.chat_message("assistant"):
                 reply(a, latest=(i == len(s.history) - 1), ds=ds)
-        question = s.pop("ask_pending", None)
-        if question:
+        question = s.get("ask_pending")
+        if question:                                  # kept until answered: closing the panel mid-reply loses nothing
             _ask(question, ds, scenario)
+            s.pop("ask_pending", None)
             st.rerun()
         if not s.history:
             with st.container(horizontal=True, gap="small"):
@@ -373,3 +377,55 @@ def render(ds, scenario):
         if typed:
             _queue(typed)
             st.rerun()
+
+
+# --- the floating button and the panel --------------------------------------------------------------------------------
+UPDATED = "Done. Your forecast is updated."
+
+
+def forecast_sig():
+    """Everything the main page's forecast depends on (what-ifs, done items, budget): a button in the panel that
+    changes it needs the whole page to rerun."""
+    s = st.session_state
+    keys = sorted(str(k) for k in s.keys() if str(k).startswith(("wf_", "bud_amt_", "opp_")))
+    return repr([(k, s.get(k)) for k in keys] + [("done", sorted((s.get("done") or {}).keys()))])
+
+
+def _open():
+    st.session_state.chat_open = True
+    st.session_state.pop("panel_sig", None)
+
+
+def _closed():
+    st.session_state.chat_open = False
+    st.session_state.pop("panel_sig", None)
+
+
+def fab():
+    """The round "Ask Runway" button, fixed bottom-left by style.py (keyed container, not a fragile selector)."""
+    with st.container(key="chat_fab"):
+        st.button("Ask Runway", key="chat_fab_btn", icon=":material/forum:", on_click=_open, type="primary",
+                  help="Ask Runway about your money")
+
+
+@st.dialog("Ask Runway", width="large", on_dismiss=_closed)
+def _panel(ds, scenario):
+    s = st.session_state
+    sig = forecast_sig()
+    if s.get("panel_sig") not in (None, sig):                              # a button here changed the forecast
+        last = (s.get("history") or [None])[0]
+        if not (last and last.mode == "event" and time.time() - last.created < 10):   # mark_done says it already
+            s.history = ([agent.event_answer(UPDATED)] + s.get("history", []))[:MAX_TURNS]
+    s.panel_sig = sig
+    if s.get("page_sig") is not None and sig != s.page_sig:                # only the panel reran: update the page
+        st.rerun()                                                          # (the panel reopens itself)
+    with st.container(key="chat_panel"):
+        render(ds, scenario)
+
+
+def panel(ds, scenario):
+    """Call at the end of every full page run: records the forecast inputs and reopens the panel if it's open."""
+    st.session_state.page_sig = forecast_sig()
+    fab()
+    if st.session_state.get("chat_open"):
+        _panel(ds, scenario)

@@ -152,6 +152,9 @@ def _app(monkeypatch):
     at = AppTest.from_file("../ui/app.py", default_timeout=90)
     at.session_state["data_mode"] = "mine"
     at.run()
+    if any(b.key == "chat_fab_btn" for b in at.button):          # no chat button on the import screen
+        at.button(key="chat_fab_btn").click()
+        at.run()
     assert not at.exception, [e.value for e in at.exception]
     return at
 

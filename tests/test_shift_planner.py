@@ -77,6 +77,8 @@ def at(monkeypatch):
     monkeypatch.setattr(config, "DATA_BACKEND", "local")
     app = AppTest.from_file("../ui/app.py", default_timeout=60)
     app.run()
+    app.button(key="chat_fab_btn").click()            # the chat lives in the panel behind the floating button
+    app.run()
     assert not app.exception, [e.value for e in app.exception]
     return app
 

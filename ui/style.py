@@ -82,6 +82,19 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 [class*="st-key-fm_acts_"] label p {font-size: .95rem !important;}
 [data-testid="stMarkdownContainer"] h4 {font-size: 1.3rem; font-weight: 700; margin: 1rem 0 .4rem;}
 .rw-fn {font-size: .65em; font-weight: 600; opacity: .8; margin-left: .12em; color: #3b82f6;}
+/* the floating "Ask Runway" button: fixed bottom-left on every tab; the page keeps room below its last element */
+.block-container {padding-bottom: 8rem !important;}
+.st-key-chat_fab {position: fixed; left: 24px; bottom: 24px; z-index: 999990; width: auto !important;}
+.st-key-chat_fab button {width: 64px; height: 64px; min-height: 64px; border-radius: 50%; padding: 0;
+    box-shadow: 0 6px 18px rgba(15, 27, 45, .28);}
+.st-key-chat_fab button [data-testid="stIconMaterial"] {font-size: 30px; margin: 0;}
+.st-key-chat_fab button p {position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap;}
+@media (max-width: 640px) {
+  .st-key-chat_fab {left: 16px; bottom: 16px;}
+  [data-testid="stDialog"] [role="dialog"] {width: 100vw !important; max-width: 100vw !important; min-height: 92vh; margin: 0 !important;
+      border-radius: 16px 16px 0 0;}
+}
 </style>
 """
 

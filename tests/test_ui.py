@@ -17,6 +17,8 @@ def at(monkeypatch):
     monkeypatch.setattr(config, "DATA_BACKEND", "local")
     app = AppTest.from_file("../ui/app.py", default_timeout=60)
     app.run()
+    app.button(key="chat_fab_btn").click()            # the chat lives in the panel behind the floating button
+    app.run()
     assert not app.exception, [e.value for e in app.exception]
     return app
 
@@ -277,6 +279,8 @@ def test_judge_setup_no_key_replay_mode(monkeypatch):
     monkeypatch.setattr(config, "NVIDIA_API_KEY", None)
     monkeypatch.setattr(agent, "run", functools.partial(agent.run, typing_s=0))     # no typing delay
     at = AppTest.from_file("../ui/app.py", default_timeout=60)
+    at.run()
+    at.button(key="chat_fab_btn").click()
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     for fixes in (False, True):

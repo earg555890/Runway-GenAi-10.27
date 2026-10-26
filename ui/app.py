@@ -34,9 +34,9 @@ def page(ds, note):
     top.header(ds, note)
     if mine:
         myimport.manage()
-    top.status(current)
-    checkin.render(ds, state.done_scenario())
-    ask.render(ds, scenario)
+    with st.container(key="notices"):                 # 2. the important notices: status card + check-in
+        top.status(current)
+        checkin.render(ds, state.done_scenario())
 
     tab1, tab_budget, tab2, tab_money, tab3 = st.tabs(["Semester", "Budget", "Afford it?", "Find money", "Findings"])
     with tab1:
@@ -52,6 +52,7 @@ def page(ds, note):
 
     st.write("")
     behind.render(ledger, ds)
+    ask.panel(ds, scenario)                           # the floating chat button and, when open, the chat panel
 
 
 st.set_page_config(page_title="Runway", page_icon=":material/flight_takeoff:", layout="wide",
