@@ -38,6 +38,19 @@ Not full answers: 3 because of NVIDIA service errors, 7 because of real mistakes
 Not full answers: 0 because of NVIDIA service errors, 1 because of real mistakes:
   - Run 3, "What happens if I stick to my budget?": picked budget_status with the wrong arguments
 
+## After the fix (targeted re-run, not part of the scores above)
+
+In the fast runs above, 3 answers were counted as "NVIDIA service errors". They weren't outages: the planner (Nemotron
+Lightning) wrote the shift what-if plan with two closing brackets swapped (`]}` for `}]`), twice in a row, so Runway
+matched the question by keywords instead. Runway now repairs one swapped pair of brackets before checking the plan.
+We then asked only the two shift questions again ("What if I pick up a 5 hour shift on Nov 7?" and "What if I work
+4 hours this Saturday and next Saturday?"):
+
+- **Fast, twice:** 4/4 full answers; the planner gave a valid plan every time.
+- **Think harder, once:** the shift planner question was a full answer. The 5-hour shift question got a valid plan,
+  but NVIDIA's Super model returned a server error (InternalServerError) and Lightning failed too, so the quick
+  answer from the engine stood in.
+
 ## Run 1 (Fast): 24/29 full answers
 
 | # | Question | Tools / right? | Verdict / right? | Checks passed | Required facts by model | Written by | Retries (plan+rewrite) | Quick answer s | Full answer s | Result |

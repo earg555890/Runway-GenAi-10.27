@@ -126,7 +126,13 @@ Trust rules:
 
 ## Results
 
-We asked Runway 10 realistic student questions, 3 times each, with the live models: **30/30 full answers**. Right tool, right verdict, every amount and date matching the records, and every required fact written by the model, with no rewrites. Details: [eval_summary.md](eval_summary.md).
+We asked Runway 29 realistic student questions with the live NVIDIA models (Oct 26, 2026): twice in fast mode and once in "Think harder" mode. A full answer means the right tool, the right verdict, every amount and date matching the records, and every required fact written by the model.
+
+- **Think harder** (Nemotron Super, thinking on): **28/29 full answers**, about a minute each.
+- **Fast** (Nemotron Lightning, the default): **48/58 full answers**, about 3 seconds each. The quick answer from the engine shows in under a second.
+- **Every shown answer passed the number check (87/87).** When the AI's answer failed, Runway showed the quick answer built from the engine instead.
+
+Details, every question and what went wrong: [eval_summary.md](eval_summary.md).
 
 ## Data
 

@@ -194,3 +194,18 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
   on 8501). The eval runs in one process with the local backend and exits with it.
 - Before = after: no safe change left that would move these numbers (I didn't touch Altair validation or the
   sequential Zetaris loading the night before the deadline).
+### Part 4: final evaluation
+- Added the shift planner question (29 questions; both Saturdays checked). Full eval, fast twice + Think harder
+  once, 240 s apart: fast 48/58 full answers (24/29 each run), Think harder 28/29; every shown answer passed the
+  checks (87/87); 1 answer repaired by duplicate-line removal. Medians: quick answer 0.83 s, full answer 2.95 s
+  (fast) / 59.1 s (think).
+- The 3 fast "NVIDIA errors" were the planner swapping two closing brackets on shift what-ifs (reproduced in 4 of
+  6 direct calls, with or without the new planner example). Fixed with a narrow JSON repair (one swapped pair of
+  closers outside strings); tests use the exact replies. Targeted re-run after the fix: fast 4/4; Think harder:
+  shift planner question full, the 5-hour shift question hit a real NVIDIA server error (quick answer stood in).
+- Still failing in all 3 runs: "What happens if I stick to my budget?" (the planner picks category "food"; expected
+  no category). Not fixed (prompt change, too risky now).
+- README results section updated.
+### Part 5: wrap-up
+- Demo answers: all 15 re-checked against the new checks with no network; none needed regenerating (UI-only and
+  checker changes; the extra-shift "changed" result is the known re-check artifact).
