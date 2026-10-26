@@ -88,6 +88,10 @@ class RunwayMemory:
         return self._add("Monthly budget: " + ", ".join(parts) + ".", "budget", "You set this in the Budget tab",
                          type="preference", layer="long_term", tags=["budget"], supersede_tag="budget")
 
+    def remember_meal_plan(self, text):
+        return self._add(text, "meal_plan", "You set this in the meal plan card", type="preference",
+                         layer="long_term", tags=["meal_plan"], supersede_tag="meal_plan")
+
     def remember_shifts(self, shifts, day_words):
         text = ("Plans extra shifts: " + ", ".join(f"{day_words(s.date)} ({float(s.hours):g} hours)" for s in shifts)
                 + ".") if shifts else "No extra shifts planned."

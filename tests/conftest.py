@@ -54,3 +54,10 @@ def _not_sample_mode(monkeypatch):
         monkeypatch.setattr(config, "DATA_BACKEND", (config.get("DATA_BACKEND") or "local").lower())
         monkeypatch.setattr(config, "ANSWER_MODE", (config.get("ANSWER_MODE") or "cached").lower())
     monkeypatch.setattr(config, "SAMPLE_MODE", False)
+
+
+@pytest.fixture(autouse=True)
+def _meal_plan_to_tmp(monkeypatch, tmp_path):
+    """The meal plan settings and log live in a temp folder per test, never the real .cache/ or user_data/."""
+    import mealplan
+    monkeypatch.setattr(mealplan, "FOLDER", tmp_path / "mealplan")

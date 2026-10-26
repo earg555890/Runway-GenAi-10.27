@@ -168,6 +168,9 @@ class Scenario:
     approved: tuple = ()                       # opportunity ids "if approved" (what-if only; never certain money)
     meal_moves: int = 0                        # dining-dollar meals a week moved to swipes (negative: the other way)
     dining_dollars_added: Decimal = Decimal("0")   # dining dollars bought from checking tomorrow
+    meal_settings: object = None               # MealSettings she set (None: her school's plan, if any)
+    meal_log: tuple = ()                       # MealEntry: meals and points she logged
+    meal_today: date | None = None             # the meal plan's "today" (None: DEMO_TODAY)
 
     def __post_init__(self):
         today = config.DEMO_TODAY
@@ -215,6 +218,10 @@ class Scenario:
             parts.append(f"{self.meal_moves} dining-dollar meal(s) a week moved to swipes")
         if self.dining_dollars_added:
             parts.append(f"{fmt_money(self.dining_dollars_added)} dining dollars added")
+        if self.meal_settings:
+            parts.append(f"meal plan: {self.meal_settings.describe()}")
+        if self.meal_log:
+            parts.append(f"{len(self.meal_log)} meal log entr{'y' if len(self.meal_log) == 1 else 'ies'}")
         return "; ".join(parts) or "nothing changes"
 
 
@@ -518,10 +525,10 @@ def project(scenario=None, ds=None, ledger=None):
         add(today + timedelta(days=1), -scenario.dining_dollars_added, "meal_plan", "dining dollars added",
             ledger.add("dining dollars bought from checking", D(scenario.dining_dollars_added), "USD",
                        "What-if: dining dollars added to the meal plan, paid from checking tomorrow.", []))
-    if scenario.meal_moves or scenario.dining_dollars_added:
+    if scenario.meal_moves or scenario.dining_dollars_added or scenario.meal_settings or scenario.meal_log:
         meal = meal_plan_status(scenario, ds, Ledger())
-        if meal and meal.c["cost"].value and meal.runs_out:
-            add(meal.runs_out, -meal.c["cost"].value, "meal_plan", "meals paid from checking", meal.c["cost"])
+        for d, cost, computed in (meal.events if meal else []):
+            add(d, -cost, "meal_plan", "meals paid from checking", computed)
     for p in scenario.purchases:
         if p.account == "checking":
             add(p.date, -p.cost, "purchase", p.label,
@@ -1529,12 +1536,18 @@ def attention_items(scenario=None, ds=None, ledger=None):
                                                            "decision_days": days_c, "runs_out": p.first_below_zero},
                               ledger, row_ids=[grant.opp.row_id, ds.profile.row_id]))
 
-    # the meal plan: dining dollars that run out before the semester ends
+    # the meal plan: dining dollars that run out before the semester ends (a day or week plan: meals or points that
+    # run short at her pace)
     meal = meal_plan_status(scenario, ds, ledger)
-    if meal and meal.runs_out:
+    if meal and meal.runs_out and meal.pooled:
         out.append(_attention("meal_plan", meal.c["dd_runs_out"], meal.c["cost"],
                               {**meal.c, "tip_dd_end": meal.tip["dd_end"], "tip_sw_end": meal.tip["sw_end"]}, ledger,
-                              row_ids=[ds.meal_plan.row_id]))
+                              row_ids=[ds.meal_plan.row_id] if ds.meal_plan else []))
+    elif meal and meal.runs_out:
+        a = min((x for x in (meal.meals, meal.points) if x.runs_out.value), key=lambda x: x.runs_out.value)
+        out.append(_attention("meal_plan", a.runs_out, meal.c["cost"],
+                              {"cost": meal.c["cost"], "short": a.short, "short_periods": a.short_periods,
+                               "periods_left": a.periods_left, "kind": a.kind, "per": a.per}, ledger))
 
     out.sort(key=lambda a: (-a.urgency.value, a.due.value))
     return out
@@ -2021,15 +2034,132 @@ def approved_events(scenario, ds, ledger):
 
 
 # ---------------------------------------------------------------------------------------
-# Source 8: the meal plan. Swipes and dining dollars, their pace, and what (if anything) checking has to pay.
+# Source 8: the meal plan. Meals (swipes) and points (dining dollars): the plan (her school's, or the one she set),
+# what's left this period, the pace, when they run short, what goes unused, and what (if anything) checking pays.
 # ---------------------------------------------------------------------------------------
+MEAL_FREQS = ("day", "week", "semester")
+MAX_MEALS_ENTRY, MAX_POINTS_ENTRY = 10, Decimal("200")
+MAX_PLAN_MEALS, MAX_PLAN_POINTS = 1000, Decimal("10000")
+
+
+def meal_settings_problem(meals, meals_per, points, points_per, start, end, week_starts=0):
+    """A friendly message for a meal plan that can't work, or None."""
+    if meals_per not in MEAL_FREQS or points_per not in MEAL_FREQS:
+        return "Pick per day, per week or per semester."
+    if meals is None or points is None or Decimal(str(meals)) < 0 or Decimal(str(points)) < 0:
+        return "Amounts can't be negative."
+    if Decimal(str(meals)) != int(Decimal(str(meals))):
+        return "Meals must be a whole number."
+    if meals > MAX_PLAN_MEALS or Decimal(str(points)) > MAX_PLAN_POINTS:
+        return "That's more than a meal plan holds. Check the amounts."
+    if not meals and not Decimal(str(points)):
+        return "Add some meals or points to your plan."
+    if not start or not end or end <= start:
+        return "The plan has to end after it starts."
+    if week_starts not in range(7):
+        return "Pick the day your week starts."
+    return None
+
+
+@dataclass(frozen=True)
+class MealSettings:
+    """A meal plan: meals (swipes) and points (dining dollars), each an amount per day, week or semester. Per-day
+    and per-week allowances reset each period (unused ones are lost unless rolls_over); per-semester ones are one
+    pool for the plan's dates."""
+    meals: int
+    meals_per: str
+    points: Decimal
+    points_per: str
+    start: date
+    end: date
+    week_starts: int = 0         # the day a week resets: 0 = Monday ... 6 = Sunday
+    rolls_over: bool = False
+
+    def __post_init__(self):
+        problem = meal_settings_problem(self.meals, self.meals_per, self.points, self.points_per, self.start,
+                                        self.end, self.week_starts)
+        if problem:
+            raise ValueError(problem)
+
+    @property
+    def pooled(self):
+        return self.meals_per == "semester" and self.points_per == "semester"
+
+    def describe(self):
+        return (f"{self.meals} meals a {self.meals_per}, {fmt_money(self.points)} points a {self.points_per}"
+                + (" (unused roll over)" if self.rolls_over and not self.pooled else ""))
+
+
+@dataclass(frozen=True)
+class MealEntry:
+    """One line of her meal log: meals (swipes) and/or points (dining dollars) used on a day."""
+    date: date
+    meals: int = 0
+    points: Decimal = ZERO
+    note: str = ""
+    id: str = ""                 # "LOG-3": how her log entry is cited
+
+
+def meal_entry_problem(day, meals, points, settings, today=None):
+    """A friendly message for a log entry that can't be logged, or None."""
+    today = today or config.DEMO_TODAY
+    try:
+        meals, points = Decimal(str(meals or 0)), Decimal(str(points or 0))
+    except Exception:
+        return "Enter numbers only."
+    if meals < 0 or points < 0:
+        return "Amounts can't be negative."
+    if meals != int(meals) or meals > MAX_MEALS_ENTRY:
+        return f"Meals must be a whole number from 0 to {MAX_MEALS_ENTRY}."
+    if points > MAX_POINTS_ENTRY:
+        return f"Log up to ${MAX_POINTS_ENTRY:.0f} in points at a time."
+    if not meals and not points:
+        return "Log at least one meal or some points."
+    if not settings.start <= day <= settings.end:
+        return "Pick a day inside your meal plan's dates."
+    if day > today:
+        return "Pick today or an earlier day."
+    return None
+
+
+def default_meal_settings(ds=None):
+    """Her school's meal plan (the meal plan source) as settings: both allowances per semester. None without one."""
+    plan = _ds(ds).meal_plan
+    if not plan:
+        return None
+    return MealSettings(plan.swipes, "semester", plan.dining_dollars, "semester", plan.start, plan.end, 0, plan.rollover)
+
+
+@dataclass
+class Allowance:
+    kind: str                    # "meals" or "points"
+    per: str                     # "day", "week" or "semester"
+    amount: Computed             # on the plan, per period
+    used: Computed               # used this period (this semester for a pool; so far when unused roll over)
+    left: Computed               # left this period (below 0 if she logged more than the plan)
+    resets: Computed | None      # when this period's allowance resets (day and week plans)
+    pace: Computed               # used per week at her pace
+    runs_out: Computed           # the first day she runs short at that pace (value None: it lasts)
+    short_periods: Computed | None   # day and week plans: periods left that run short at that pace...
+    periods_left: Computed | None    # ...out of this many
+    unused_period: Computed | None   # left unused when this period resets (lost; day and week plans, no roll-over)
+    unused_end: Computed         # left unused on the plan's last day in the semester (lost)
+    short: Computed              # needed beyond the plan through that day, at her pace
+
+
 @dataclass
 class MealStatus:
     c: dict                      # name -> Computed (see meal_plan_status)
-    runs_out: date | None        # dining dollars run out (None: they last)
+    runs_out: date | None        # pool: dining dollars run out; period plans: the first day either runs short
     swipes_last: bool
     tip: dict                    # the "move 2 dining-dollar meals a week to swipes" effect: name -> Computed
     tip_works: bool
+    settings: MealSettings | None = None
+    meals: Allowance | None = None        # with detail=True, or a plan with day or week allowances
+    points: Allowance | None = None
+    events: list = field(default_factory=list)   # [(date, cost, Computed)]: meals paid from checking
+    pooled: bool = True          # both allowances per semester (the school-plan method of the answer key)
+    cost_unknown: bool = False   # meals run short but no points purchase to price a meal from
 
 
 def _meal_projection(dd_left, dd_pace, sw_left, sw_pace, avg, days_left):
@@ -2045,43 +2175,79 @@ def _meal_projection(dd_left, dd_pace, sw_left, sw_pace, avg, days_left):
     return runs_out, dd_end, sw_end, cost
 
 
-def meal_plan_status(scenario=None, ds=None, ledger=None):
-    """Dining dollars and swipes: used so far, left, pace per day and per week (Aug 24 to today), when the dining
-    dollars run out, swipes left on Dec 18, and what checking pays: dining-dollar meals still to come after they run
-    out, beyond the spare swipes, at the average meal price ($0 when the swipes cover it). What-ifs: move N
-    dining-dollar meals a week to swipes (Scenario.meal_moves), add dining dollars (Scenario.dining_dollars_added).
-    The tip: move 2 dining-dollar meals a week to swipes."""
+def _first_below(left, pace, days_left):
+    k = 1
+    while k <= days_left and left - pace * k >= 0:
+        k += 1
+    return k if k <= days_left else None
+
+
+def _meal_rows(scenario, ds, s, today):
+    """([(date, swipes, row id)], [(date, dining dollars, row id)], pace start): her school's history (Maya) and
+    her log, from the plan's start through today. The pace counts from the plan's start when there is history,
+    else from her first log entry."""
+    hist = [m for m in ds.meals if s.start <= m.date <= today] if ds.meal_plan else []
+    log = [e for e in scenario.meal_log if s.start <= e.date <= today]
+    meals = [(m.date, Decimal(m.swipes), m.row_id) for m in hist if m.swipes] + \
+            [(e.date, Decimal(e.meals), e.id) for e in log if e.meals]
+    points = [(m.date, m.dining_dollars, m.row_id) for m in hist if m.tender == "DINING_DOLLARS"] + \
+             [(e.date, D(e.points), e.id) for e in log if e.points]
+    start = s.start if hist else min((e.date for e in log), default=today)
+    return meals, points, start
+
+
+def meal_plan_status(scenario=None, ds=None, ledger=None, detail=False):
+    """Her meal plan: Scenario.meal_settings (default: her school's plan, default_meal_settings) and her log
+    (Scenario.meal_log, counted with her school's history). Both allowances per semester: the school-plan method
+    below (_pooled_status; the answer key's numbers). Any day or week allowance: _period_status. detail=True also
+    fills .meals and .points for a pooled plan (the meal card)."""
     scenario, ds = scenario or Scenario(), _ds(ds)
     ledger = ledger if ledger is not None else Ledger()
-    plan = ds.meal_plan
-    if not plan:
+    s = scenario.meal_settings or default_meal_settings(ds)
+    if not s:
         return None
-    start, today, end = plan.start, config.DEMO_TODAY, min(plan.end, config.SEMESTER_END)
-    n, days_left = (today - start).days + 1, (end - today).days
-    meals = [m for m in ds.meals if start <= m.date <= today]
-    dd_meals = [m for m in meals if m.tender == "DINING_DOLLARS"]
-    ids = [m.row_id for m in meals]
+    today = scenario.meal_today or config.DEMO_TODAY
+    if s.pooled:
+        return _pooled_status(scenario, ds, ledger, s, today, detail)
+    return _period_status(scenario, ds, ledger, s, today)
+
+
+def _pooled_status(scenario, ds, ledger, s, today, detail):
+    """Dining dollars and swipes: used so far, left, pace per day and per week (plan start to today), when the
+    dining dollars run out, swipes left on Dec 18, and what checking pays: dining-dollar meals still to come after
+    they run out, beyond the spare swipes, at the average meal price ($0 when the swipes cover it); and swipe meals
+    still to come after the swipes run out, beyond the spare dining dollars. What-ifs: move N dining-dollar meals a
+    week to swipes (Scenario.meal_moves), add dining dollars (Scenario.dining_dollars_added). The tip: move 2
+    dining-dollar meals a week to swipes."""
+    plan = ds.meal_plan
+    school = plan is not None and s == default_meal_settings(ds)
+    source = [plan.row_id] if school else []
+    name = plan.name if school else "Your meal plan"
+    sw_rows, dd_rows, start = _meal_rows(scenario, ds, s, today)
+    logged = sum(1 for r in dd_rows if r[2].startswith("LOG-"))
+    end = min(s.end, config.SEMESTER_END)
+    n, days_left = (today - start).days + 1, max((end - today).days, 0)
     c = {}
-    c["dd_total"] = ledger.add("dining dollars on the plan", D(plan.dining_dollars + scenario.dining_dollars_added),
-                               "USD", f"{plan.name}: {fmt_money(plan.dining_dollars)}"
+    c["dd_total"] = ledger.add("dining dollars on the plan", D(s.points + scenario.dining_dollars_added),
+                               "USD", f"{name}: {fmt_money(s.points)}"
                                + (f" + {fmt_money(scenario.dining_dollars_added)} added (what-if)"
-                                  if scenario.dining_dollars_added else "") + ".", [plan.row_id])
-    used = sum((m.dining_dollars for m in dd_meals), ZERO)
+                                  if scenario.dining_dollars_added else "") + ".", source)
+    used = sum((r[1] for r in dd_rows), ZERO)
     c["dd_used"] = ledger.add("dining dollars used so far", D(used), "USD",
-                              f"{len(dd_meals)} dining-dollar purchases from {fmt_date(start)} to {fmt_date(today)}.",
-                              [m.row_id for m in dd_meals])
+                              f"{len(dd_rows) - logged} dining-dollar purchases"
+                              + (f" and {logged} you logged" if logged else "")
+                              + f" from {fmt_date(start)} to {fmt_date(today)}.", [r[2] for r in dd_rows])
     c["dd_left"] = ledger.add("dining dollars left", c["dd_total"].value - c["dd_used"].value, "USD",
                               "On the plan minus used so far.", [c["dd_total"], c["dd_used"]])
-    sw_used = sum(m.swipes for m in meals)
-    c["swipes_total"] = ledger.add("swipes on the plan", plan.swipes, "count", f"{plan.name}.", [plan.row_id])
+    sw_used = int(sum(r[1] for r in sw_rows))
+    c["swipes_total"] = ledger.add("swipes on the plan", s.meals, "count", f"{name}.", source)
     c["swipes_used"] = ledger.add("swipes used so far", sw_used, "count",
-                                  f"Swipes from {fmt_date(start)} to {fmt_date(today)}.",
-                                  [m.row_id for m in meals if m.swipes])
-    c["swipes_left"] = ledger.add("swipes left", plan.swipes - sw_used, "count", "On the plan minus used so far.",
+                                  f"Swipes from {fmt_date(start)} to {fmt_date(today)}.", [r[2] for r in sw_rows])
+    c["swipes_left"] = ledger.add("swipes left", s.meals - sw_used, "count", "On the plan minus used so far.",
                                   [c["swipes_total"], c["swipes_used"]])
-    avg = used / len(dd_meals) if dd_meals else ZERO
+    avg = used / len(dd_rows) if dd_rows else ZERO
     c["avg_meal"] = ledger.add("average dining-dollar meal", D(avg), "USD",
-                               f"{fmt_money(used)} / {len(dd_meals)} purchases.", [c["dd_used"]])
+                               f"{fmt_money(used)} / {len(dd_rows)} purchases.", [c["dd_used"]])
     moves = Decimal(scenario.meal_moves)
     dd_pace = max(used / n - moves * avg / 7, Decimal(0))              # moving meals can't make either pace negative
     sw_pace = max(Decimal(sw_used) / n + moves / 7, Decimal(0))
@@ -2095,6 +2261,8 @@ def meal_plan_status(scenario=None, ds=None, ledger=None):
                                   [c["swipes_used"]])
     k, dd_end, sw_end, cost = _meal_projection(c["dd_left"].value, dd_pace, c["swipes_left"].value, sw_pace, avg,
                                                days_left)
+    short_meals = max(-sw_end, Decimal(0))                 # swipe meals still to come once the swipes run out
+    extra = max(Decimal(0), short_meals * avg - max(dd_end, Decimal(0))) if short_meals else Decimal(0)
     runs_out = today + timedelta(days=k) if k else None
     c["dd_runs_out"] = ledger.add("dining dollars run out", runs_out, "date",
                                   (f"{fmt_money(c['dd_left'].value)} left at {fmt_money(D(dd_pace))}/day: the first day "
@@ -2103,9 +2271,12 @@ def meal_plan_status(scenario=None, ds=None, ledger=None):
     c["swipes_end"] = ledger.add(f"swipes left on {end}", (sw_end).quantize(CENT, rounding=ROUND_HALF_UP), "count",
                                  f"{c['swipes_left'].value} left - {D(sw_pace)}/day x {days_left} days.",
                                  [c["swipes_left"], c["swipes_week"]])
-    c["cost"] = ledger.add("meals paid from checking this semester", D(cost), "USD",
+    c["cost"] = ledger.add("meals paid from checking this semester", D(cost + extra), "USD",
                            "Dining-dollar meals still to come after they run out, beyond the spare swipes, at the "
-                           f"average meal price {fmt_money(D(avg))}" + (" - the swipes cover them." if not cost else "."),
+                           f"average meal price {fmt_money(D(avg))}"
+                           + (", plus swipe meals still to come after the swipes run out, beyond the spare dining "
+                              "dollars" if extra else "")
+                           + (" - the swipes cover them." if not cost + extra else "."),
                            [c["dd_runs_out"], c["swipes_end"], c["avg_meal"]])
     tip_dd = max(used / n - (moves + 2) * avg / 7, Decimal(0))
     tip_sw = max(Decimal(sw_used) / n + (moves + 2) / 7, Decimal(0))
@@ -2119,7 +2290,169 @@ def meal_plan_status(scenario=None, ds=None, ledger=None):
                                 f"{c['swipes_left'].value} - {D(tip_sw)}/day x {days_left} days.", [c["swipes_left"]]),
            "cost": ledger.add("meals paid from checking with 2 meals a week on swipes", D(tip_cost), "USD",
                               "Same rule with the new paces.", [c["avg_meal"]])}
-    return MealStatus(c, runs_out, sw_end >= 0, tip, tip_dd_end >= 0 and tip_sw_end >= 0 and not tip_cost)
+    m = MealStatus(c, runs_out, sw_end >= 0, tip, tip_dd_end >= 0 and tip_sw_end >= 0 and not tip_cost, s)
+    sk = _first_below(Decimal(c["swipes_left"].value), sw_pace, days_left)
+    sw_out = today + timedelta(days=sk) if sk else None
+    if c["cost"].value and (runs_out or sw_out):
+        m.events = [(min(d for d in (runs_out, sw_out) if d), c["cost"].value, c["cost"])]
+    m.cost_unknown = bool(short_meals) and not dd_rows
+    if detail:                    # the meal card: the same numbers as two allowances (new records after the old ones)
+        def lasts(word, d, inputs):
+            return ledger.add(f"{word} run out", d, "date", f"At this pace, the first day none are left is "
+                              f"{fmt_date(d)}." if d else f"They last through {fmt_date(end)}.", inputs)
+
+        def ends(word, v, unit, inputs, short=False):
+            v = max(-v if short else v, Decimal(0))
+            return ledger.add(f"{word} {'needed beyond the plan' if short else 'left unused'} on {end}",
+                              v.quantize(CENT, rounding=ROUND_HALF_UP), unit, "From the pace above.", inputs)
+        m.meals = Allowance("meals", "semester", c["swipes_total"], c["swipes_used"], c["swipes_left"], None,
+                            c["swipes_week"], lasts("swipes", sw_out, [c["swipes_left"], c["swipes_week"]]), None, None,
+                            None, ends("swipes", sw_end, "count", [c["swipes_end"]]),
+                            ends("swipes", sw_end, "count", [c["swipes_end"]], True))
+        m.points = Allowance("points", "semester", c["dd_total"], c["dd_used"], c["dd_left"], None, c["dd_week"],
+                             c["dd_runs_out"], None, None, None, ends("dining dollars", dd_end, "USD", [c["dd_left"]]),
+                             ends("dining dollars", dd_end, "USD", [c["dd_left"]], True))
+    return m
+
+
+def meal_period(d, per, s):
+    """(first day, last day) of the period holding d: the day, the week (from s.week_starts), or the plan."""
+    if per == "day":
+        return d, d
+    if per == "week":
+        a = d - timedelta(days=(d.weekday() - s.week_starts) % 7)
+        return max(a, s.start), min(a + timedelta(days=6), s.end)
+    return s.start, s.end
+
+
+def _allowance(kind, amount, per, s, rows, pace_start, today, end, ledger, source):
+    """One allowance (meals or points) on a day, week or semester plan, and a day-by-day run at her pace from
+    tomorrow to the end: each new period resets it (or adds to it when unused ones roll over); a day that would go
+    below zero runs short by the rest. Returns (Allowance, {first short day of each period: amount short},
+    unused in all)."""
+    word, unit = ("points", "USD") if kind == "points" else ("meals", "count")
+    q = (lambda x: D(x)) if kind == "points" else \
+        (lambda x: int(x) if x == int(x) else Decimal(x).quantize(CENT, rounding=ROUND_HALF_UP))
+    num = fmt_money if kind == "points" else (lambda x: f"{x:g}")
+    roll = s.rolls_over and per != "semester"
+    when = {"day": "today", "week": "this week", "semester": "this semester"}[per]
+    ps, pe = meal_period(today, per, s)
+    amount = Decimal(str(amount))
+    total = ledger.add(f"{word} on the plan per {per}", q(amount) if kind == "points" else int(amount), unit,
+                       f"Your meal plan: {num(amount)} {word} a {per}.", source)
+    since = s.start if per == "semester" or roll else ps
+    used_rows = [r for r in rows if since <= r[0] <= today]
+    used_v = sum((r[1] for r in used_rows), Decimal(0))
+    used = ledger.add(f"{word} used {'so far' if roll else when}", q(used_v), unit,
+                      f"{len(used_rows)} entr{'y' if len(used_rows) == 1 else 'ies'} from {fmt_date(since)} to {fmt_date(today)}.", [r[2] for r in used_rows])
+    if roll:
+        k, d = 0, s.start
+        while d <= ps:
+            k, d = k + 1, meal_period(d, per, s)[1] + timedelta(days=1)
+        left_v = amount * k - used_v
+        left = ledger.add(f"{word} left {when}", q(left_v), unit, f"{k} {per}s so far x {num(amount)} (unused ones "
+                          f"roll over) minus used so far.", [total, used])
+    else:
+        left_v = amount - used_v
+        left = ledger.add(f"{word} left {when}", q(left_v), unit, "On the plan minus used.", [total, used])
+    nxt = pe + timedelta(days=1)
+    resets = ledger.add(f"{word} reset", nxt, "date", f"A new {per} starts {fmt_date(nxt)}.", [total]) \
+        if per != "semester" and nxt <= s.end else None
+    hist = [r for r in rows if pace_start <= r[0] <= today]
+    n = (today - pace_start).days + 1
+    pace = sum((r[1] for r in hist), Decimal(0)) / n
+    pace_c = ledger.add(f"{word} used per week", q(pace * 7) if kind == "points" else
+                        (pace * 7).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP), unit,
+                        f"{num(sum((r[1] for r in hist), Decimal(0)))} over {n} days ({fmt_date(pace_start)} to "
+                        f"{fmt_date(today)}) x 7.", [r[2] for r in hist])
+
+    bal, cur, lost, lost_first, first_short = max(left_v, Decimal(0)), (ps, pe), Decimal(0), None, None
+    short, periods, short_days = Decimal(0), set(), {}
+    for d in days(today + timedelta(days=1), end):
+        p = meal_period(d, per, s)
+        if p != cur:
+            cur = p
+            if roll:
+                bal += amount
+            else:
+                lost += bal
+                lost_first = bal if lost_first is None else lost_first
+                bal = amount
+        periods.add(p)
+        bal -= pace
+        if bal < 0:
+            first = next((x for x in short_days if meal_period(x, per, s) == p), d)
+            short_days[first] = short_days.get(first, Decimal(0)) - bal
+            short, first_short, bal = short - bal, first_short or d, Decimal(0)
+    runs_out = ledger.add(f"{word} run short", first_short, "date",
+                          f"At {num(q(pace * 7)) if kind == 'points' else f'{pace * 7:.1f}'} a week, the first day "
+                          f"you'd need more than is left is {fmt_date(first_short)}." if first_short else
+                          f"At this pace they last through {fmt_date(end)}.", [left, pace_c])
+    short_p = left_p = unused_p = None
+    if per != "semester":
+        n_short = len({meal_period(x, per, s) for x in short_days})
+        left_p = ledger.add(f"{per}s left on the plan", len(periods), "count",
+                            f"From {fmt_date(today + timedelta(days=1))} to {fmt_date(end)}.", [total])
+        short_p = ledger.add(f"{per}s that run short at this pace", n_short, "count",
+                             f"Each {per} gets {num(amount)} {word}; your pace is {pace_c.value} a week.",
+                             [pace_c, total, left_p])
+        if not roll and lost_first is not None:
+            unused_p = ledger.add(f"{word} left unused when this {per} resets", q(lost_first), unit,
+                                  f"Left now minus your pace until {fmt_date(pe)}; unused ones don't roll over.",
+                                  [left, pace_c])
+    unused_end = ledger.add(f"{word} left unused on {end}", q(bal), unit, "From the day-by-day run at your pace.",
+                            [left, pace_c])
+    short_c = ledger.add(f"{word} needed beyond the plan through {end}", q(short), unit,
+                         "The days that would go below zero, added up.", [left, pace_c])
+    return (Allowance(kind, per, total, used, left, resets, pace_c, runs_out, short_p, left_p, unused_p, unused_end,
+                      short_c), short_days, lost + bal)
+
+
+def _period_status(scenario, ds, ledger, s, today):
+    """A plan with a day or week allowance (or both): each allowance on its own (_allowance), then what checking
+    pays: points still needed beyond the spare meals, and meals still needed beyond the spare points, at her average
+    meal price (her points purchases). Posted in the forecast on the first short day of each period, in proportion."""
+    source = [ds.meal_plan.row_id] if ds.meal_plan and scenario.meal_settings is None else []
+    sw_rows, dd_rows, start = _meal_rows(scenario, ds, s, today)
+    end = min(s.end, config.SEMESTER_END)
+    meals, m_short, m_spare = _allowance("meals", s.meals, s.meals_per, s, sw_rows, start, today, end, ledger, source)
+    points, p_short, p_spare = _allowance("points", s.points, s.points_per, s, dd_rows, start, today, end, ledger,
+                                          source)
+    spent = sum((r[1] for r in dd_rows), ZERO)
+    avg = spent / len(dd_rows) if dd_rows else None
+    avg_c = ledger.add("average meal paid with points", D(avg or 0), "USD",
+                       f"{fmt_money(spent)} / {len(dd_rows)} purchases." if avg else "No points purchases yet.",
+                       [r[2] for r in dd_rows])
+    ms, ps_ = meals.short.value, points.short.value
+    if avg:
+        cost = max(Decimal(0), ps_ / avg - m_spare) * avg + max(Decimal(0), ms * avg - p_spare)
+    else:
+        cost = max(Decimal(0), ps_)
+    cost_c = ledger.add("meals paid from checking this semester", D(cost), "USD",
+                        "Points you'd need beyond the plan, less the meals you'd have spare, plus meals you'd need "
+                        f"beyond the plan, less the points you'd have spare, at your average meal price "
+                        f"{fmt_money(D(avg or 0))} (estimated).", [meals.short, points.short, meals.unused_end,
+                                                                     points.unused_end, avg_c])
+    c = {f"meals_{k}": v for k, v in vars(meals).items() if isinstance(v, Computed)}
+    c.update({f"points_{k}": v for k, v in vars(points).items() if isinstance(v, Computed)})
+    c.update(avg_meal=avg_c, cost=cost_c)
+    firsts = [x for x in (meals.runs_out.value, points.runs_out.value) if x]
+    m = MealStatus(c, min(firsts) if firsts else None, meals.runs_out.value is None, {}, False, s, meals, points,
+                   pooled=False, cost_unknown=bool(ms) and not avg)
+    gross = {}
+    for d, x in m_short.items():
+        gross[d] = gross.get(d, Decimal(0)) + x * (avg or 0)
+    for d, x in p_short.items():
+        gross[d] = gross.get(d, Decimal(0)) + x
+    whole = sum(gross.values(), Decimal(0))
+    if cost_c.value and whole:
+        left = cost_c.value
+        for i, d in enumerate(sorted(gross)):
+            share = left if i == len(gross) - 1 else D(cost_c.value * gross[d] / whole)
+            left -= share
+            if share:
+                m.events.append((d, share, cost_c))
+    return m
 
 
 def opportunities_total(checks, ledger):

@@ -59,6 +59,10 @@ def shifts(planned):
     safe(lambda m: m.remember_shifts(planned, fmt.day))
 
 
+def meal_plan(text):
+    safe(lambda m: m.remember_meal_plan(text))
+
+
 def think_harder(on):
     safe(lambda m: m.remember_preference("Prefers Think harder answers (slower, with reasoning)." if on else
                                          "Prefers fast answers.", "think"))
