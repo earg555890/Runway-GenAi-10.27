@@ -334,6 +334,71 @@ class Shift(Record):
         return self.note.lower().startswith("extra shift")
 
 
+@dataclass(frozen=True)
+class Opportunity(Record):
+    name: str
+    type: str                    # emergency_grant / scholarship / work_study
+    amount: Decimal | None       # a fixed award
+    max_amount: Decimal | None   # "up to"
+    hourly_rate: Decimal | None  # work-study
+    hours_per_week: Decimal | None
+    deadline: date | None        # None: rolling
+    decision_business_days: int
+    payout_rule: str             # after_decision / after_deadline / fixed_date / payroll
+    payout_business_days: int
+    payout_date: date | None
+    payout_method: str
+    class_years: tuple           # () = any
+    enrollment: str              # "full-time" or "half-time or more"
+    min_gpa: Decimal | None
+    need_based: bool
+    pell_required: bool
+    fafsa_required: bool
+    majors: tuple                # () = any
+    residency: str               # "any" or "in-state"
+    description: str
+
+
+@dataclass(frozen=True)
+class OppRequirement(Record):
+    opp_id: str
+    item: str
+    details: str
+
+
+@dataclass(frozen=True)
+class StudentProfile(Record):
+    class_year: str
+    enrollment: str
+    credits: int
+    gpa: Decimal
+    pell_eligible: bool
+    fafsa_on_file: bool
+    major: str
+    residency: str
+    as_of: date
+
+
+@dataclass(frozen=True)
+class MealPlan(Record):
+    name: str
+    swipes: int
+    dining_dollars: Decimal
+    start: date
+    end: date
+    rollover: bool
+
+
+@dataclass(frozen=True)
+class Meal(Record):
+    date: date
+    time: str
+    place: str
+    tender: str                  # SWIPE / DINING_DOLLARS
+    dining_dollars: Decimal      # 0 for a swipe
+    swipes: int
+
+
 @dataclass
 class Dataset:
     backend: str
@@ -354,6 +419,11 @@ class Dataset:
     shifts: list
     evidence: list = field(default_factory=list)   # data_access Evidence, one per query run
     _by_id: dict = field(default_factory=dict, repr=False)
+    opportunities: list = field(default_factory=list)          # source 7
+    opp_requirements: list = field(default_factory=list)
+    profile: StudentProfile | None = None
+    meal_plan: MealPlan | None = None                          # source 8
+    meals: list = field(default_factory=list)
 
     def row(self, row_id):
         return self._by_id[row_id]
@@ -470,10 +540,50 @@ def build(results, backend):
     ds = Dataset(backend, checking_account, chk, card, statements, disbursements, requirements, ledger, holds, refunds,
                  installments, rent_schedule, lease, job, pay_periods, shifts,
                  evidence=[r.evidence for r in results.values()])
+    _build_new_sources(ds, rows)
     for rec in [checking_account, lease, job, *chk, *card, *statements, *disbursements, *requirements, *ledger, *holds,
-                *refunds, *installments, *rent_schedule, *pay_periods, *shifts]:
+                *refunds, *installments, *rent_schedule, *pay_periods, *shifts, *ds.opportunities,
+                *ds.opp_requirements, *([ds.profile] if ds.profile else []), *([ds.meal_plan] if ds.meal_plan else []),
+                *ds.meals]:
         ds._by_id[rec.row_id] = rec
     return ds
+
+
+def _opt_money(s):
+    return money(s) if s else None
+
+
+def _list(s):
+    return () if not s or s.lower() == "any" else tuple(x.strip() for x in s.split(";"))
+
+
+def _build_new_sources(ds, rows):
+    """Sources 7 (aid opportunities, her profile) and 8 (meal plan). Absent tables leave the fields empty."""
+    ds.opportunities = [Opportunity(
+        "opportunities", "opportunities", r["opp_id"], r["name"], r["type"], _opt_money(r["amount"]),
+        _opt_money(r["max_amount"]), _opt_money(r["hourly_rate"]), _opt_money(r["hours_per_week"]),
+        parse_date(r["deadline"], "mdy"), int(r["decision_business_days"] or 0), r["payout_rule"],
+        int(r["payout_business_days"] or 0), parse_date(r["payout_date"], "mdy"), r["payout_method"],
+        _list(r["class_years"]), r["enrollment"], _opt_money(r["min_gpa"]), r["need_based"] == "Y",
+        r["pell_required"] == "Y", r["fafsa_required"] == "Y", _list(r["majors"]), r["residency"], r["description"])
+        for r in rows.get("aid_opportunities", [])]
+    ds.opp_requirements = [OppRequirement("opportunities", "application_requirements", r["areq_id"], r["opp_id"],
+                                          r["item"], r["details"]) for r in rows.get("opportunity_requirements", [])]
+    prof = rows.get("student_profile") or []
+    if prof:
+        r = prof[0]
+        ds.profile = StudentProfile("opportunities", "student_profile", r["profile_id"], r["class_year"],
+                                    r["enrollment"], int(r["credits"]), Decimal(r["gpa"]), r["pell_eligible"] == "Y",
+                                    r["fafsa_on_file"] == "Y", r["major"], r["residency"], parse_date(r["as_of"], "mdy"))
+    plan = rows.get("meal_plan") or []
+    if plan:
+        r = plan[0]
+        ds.meal_plan = MealPlan("meal_plan", "plan", r["plan_id"], r["plan_name"], int(r["swipes"]),
+                                money(r["dining_dollars"]), parse_date(r["start_date"], "iso"),
+                                parse_date(r["end_date"], "iso"), r["rollover"] == "Y")
+    ds.meals = [Meal("meal_plan", "transactions", r["meal_id"], parse_date(r["timestamp"][:10], "iso"),
+                     r["timestamp"][11:], r["location"], r["tender"], money(r["dining_dollars"] or "0"),
+                     int(r["swipes"] or 0)) for r in rows.get("meal_transactions", [])]
 
 
 def queries():
@@ -484,7 +594,10 @@ def queries():
             ("card_statements", {}), ("aid_disbursements", {}), ("aid_requirements", {}),
             ("bursar_ledger", {"term": "FA26"}), ("bursar_active_holds", {}), ("bursar_refunds", {}),
             ("bursar_payment_plan", {}), ("lease_terms", {}), ("rent_schedule", {}), ("job_info", {}),
-            ("pay_periods", {}), ("shifts", semester)]
+            ("pay_periods", {}), ("shifts", semester),
+            ("aid_opportunities", {}), ("opportunity_requirements", {}), ("student_profile", {}), ("meal_plan", {}),
+            ("meal_transactions", {"start_date": config.SEMESTER_START.isoformat(),
+                                   "end_date": config.DEMO_TODAY.isoformat()})]
 
 
 @lru_cache(maxsize=4)

@@ -1,6 +1,7 @@
 """Load Maya's CSVs into the local Zetaris platform. Idempotent: safe to rerun.
 
-    .venv/Scripts/python load_zetaris.py
+    .venv/Scripts/python load_zetaris.py                          # all eight sources
+    .venv/Scripts/python load_zetaris.py opportunities meal_plan  # only these sources (the others stay as they are)
 
 1. Copies data/maya/<source>/*.csv into the driver container (config.ZETARIS_DATA_ROOT/<source>/).
 2. Drops RUNWAY_TEST and any existing RUNWAY_* source databases (tables first, then the database).
@@ -41,11 +42,20 @@ def drop_database(db):
 def main():
     total_start = time.perf_counter()
     container, root = config.ZETARIS_CONTAINER, config.ZETARIS_DATA_ROOT
+    only = sys.argv[1:]
+    unknown = set(only) - set(SOURCE_DATABASES)
+    if unknown:
+        sys.exit(f"unknown source(s) {sorted(unknown)}; known: {sorted(SOURCE_DATABASES)}")
+    sources = {s: db for s, db in SOURCE_DATABASES.items() if not only or s in only}
 
     print(f"Copying CSVs to {container}:{root}")
-    docker("exec", container, "rm", "-rf", root, root.rsplit("/", 1)[0] + "/runway_test")
+    if only:
+        for source in sources:
+            docker("exec", container, "rm", "-rf", f"{root}/{source}")
+    else:
+        docker("exec", container, "rm", "-rf", root, root.rsplit("/", 1)[0] + "/runway_test")
     tables = []   # (source, db, table, container_path, csv_rows)
-    for source, db in SOURCE_DATABASES.items():
+    for source, db in sources.items():
         docker("exec", container, "mkdir", "-p", f"{root}/{source}")
         for path in sorted((config.DATA_DIR / source).glob("*.csv")):
             target = f"{root}/{source}/{path.name}"
@@ -57,12 +67,12 @@ def main():
 
     print("Dropping old databases")
     existing = {row[0].upper() for row in query("SHOW LIGHTNING DATABASES")}
-    for db in ["RUNWAY_TEST", *SOURCE_DATABASES.values()]:
+    for db in (["RUNWAY_TEST"] if not only else []) + list(sources.values()):
         if db in existing:
             timed(f"drop {db}", drop_database, db)
 
     print("Creating databases and tables")
-    for source, db in SOURCE_DATABASES.items():
+    for source, db in sources.items():
         timed(f"create {db}", query, f'CREATE LIGHTNING DATABASE {db} DESCRIBE BY "Runway demo source, {source}" OPTIONS ()')
     for source, db, table, target, _ in tables:
         timed(f"register {db}.{table}", query,

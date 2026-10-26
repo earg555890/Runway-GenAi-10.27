@@ -1,4 +1,4 @@
-"""Data-access layer: named queries over Maya's six sources, on Zetaris or local CSVs.
+"""Data-access layer: named queries over Maya's eight sources, on Zetaris or local CSVs.
 
 The PLAN step picks a query by NAME with parameters; it never writes SQL.
 
@@ -32,6 +32,8 @@ SOURCE_DATABASES = {
     "bursar": "RUNWAY_BURSAR",
     "lease": "RUNWAY_LEASE",
     "shifts": "RUNWAY_SHIFTS",
+    "opportunities": "RUNWAY_OPPORTUNITIES",    # source 7: the university's aid opportunities (+ her profile)
+    "meal_plan": "RUNWAY_MEALPLAN",             # source 8: the campus meal plan
 }
 
 
@@ -149,6 +151,11 @@ def _recurring_local(p):
 
 DATE_RANGE = [Param("start_date", "date", "first day, YYYY-MM-DD"), Param("end_date", "date", "last day, YYYY-MM-DD")]
 CHK, CRD, AID, BUR, LSE, SHF = (SOURCE_DATABASES[s] for s in ("checking", "card", "aid", "bursar", "lease", "shifts"))
+OPP, MEAL = SOURCE_DATABASES["opportunities"], SOURCE_DATABASES["meal_plan"]
+
+
+def _day_of(stamp):     # meal plan: "YYYY-MM-DD HH:MM"
+    return _iso(stamp[:10])
 
 # ---------------------------------------------------------------------------------------
 # The registry: the smallest set that retrieves every proof row in answer_key.json
@@ -251,6 +258,35 @@ QUERIES = [
         "BETWEEN DATE '{start_date}' AND DATE '{end_date}' ORDER BY shift_id",
         lambda p: _sorted(_between(_load("shifts", "shifts"), "shift_date", _mdyy, p), "shift_id"),
         "shifts/shifts.csv where shift_date between {start_date} and {end_date}", "shift_id", DATE_RANGE),
+    NamedQuery(
+        "aid_opportunities", "The university's grants, scholarships and work-study: amounts, deadlines, decision "
+        "time, when and how money is paid, and who is eligible.",
+        [("opportunities", "opportunities")], f"SELECT * FROM {OPP}.opportunities ORDER BY opp_id",
+        _all("opportunities", "opportunities", "opp_id"), "all rows of opportunities/opportunities.csv", "opp_id"),
+    NamedQuery(
+        "opportunity_requirements", "What each aid opportunity's application needs.",
+        [("opportunities", "application_requirements")],
+        f"SELECT * FROM {OPP}.application_requirements ORDER BY areq_id",
+        _all("opportunities", "application_requirements", "areq_id"),
+        "all rows of opportunities/application_requirements.csv", "areq_id"),
+    NamedQuery(
+        "student_profile", "The student's profile used for aid eligibility: class year, enrollment, GPA, Pell, "
+        "FAFSA, major, residency.",
+        [("opportunities", "student_profile")], f"SELECT * FROM {OPP}.student_profile ORDER BY profile_id",
+        _all("opportunities", "student_profile", "profile_id"), "all rows of opportunities/student_profile.csv",
+        "profile_id"),
+    NamedQuery(
+        "meal_plan", "The meal plan: swipes and dining dollars for the semester, and its dates.",
+        [("meal_plan", "plan")], f"SELECT * FROM {MEAL}.plan ORDER BY plan_id",
+        _all("meal_plan", "plan", "plan_id"), "all rows of meal_plan/plan.csv", "plan_id"),
+    NamedQuery(
+        "meal_transactions", "Meal plan use between two dates: swipes and dining-dollar purchases, with place.",
+        [("meal_plan", "transactions")],
+        f"SELECT * FROM {MEAL}.transactions WHERE to_date(substr(timestamp, 1, 10), 'yyyy-MM-dd') "
+        "BETWEEN DATE '{start_date}' AND DATE '{end_date}' ORDER BY meal_id",
+        lambda p: _sorted(_between(_load("meal_plan", "transactions"), "timestamp", _day_of, p), "meal_id"),
+        "meal_plan/transactions.csv where the timestamp's date is between {start_date} and {end_date}", "meal_id",
+        DATE_RANGE),
 ]
 REGISTRY = {q.name: q for q in QUERIES}
 

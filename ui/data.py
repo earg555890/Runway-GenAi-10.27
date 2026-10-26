@@ -14,6 +14,8 @@ SOURCES = {
     "bursar": "Student account (bursar)",
     "lease": "Lease",
     "shifts": "Work schedule",
+    "opportunities": "Aid opportunities",
+    "meal_plan": "Meal plan",
 }
 
 
@@ -30,7 +32,7 @@ def _run_all(backend, slot):
     queries = normalize.queries()
     uncached = backend == "zetaris" and not all(da.is_cached(q, **p) for q, p in queries)
     with slot.container():
-        bar = st.progress(0.0, text="Connecting your accounts... 0 of 6")
+        bar = st.progress(0.0, text=f"Connecting your accounts... 0 of {len(SOURCES)}")
         if uncached:
             st.caption("Connecting to Zetaris for the first time takes about a minute. After that it's instant.")
         results = {}

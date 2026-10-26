@@ -27,6 +27,11 @@ EVIDENCE_QUERY = {
     ("shifts", "job"): ("job_info", {}),
     ("shifts", "pay_periods"): ("pay_periods", {}),
     ("shifts", "shifts"): ("shifts", SEMESTER_HISTORY),
+    ("opportunities", "opportunities"): ("aid_opportunities", {}),
+    ("opportunities", "application_requirements"): ("opportunity_requirements", {}),
+    ("opportunities", "student_profile"): ("student_profile", {}),
+    ("meal_plan", "plan"): ("meal_plan", {}),
+    ("meal_plan", "transactions"): ("meal_transactions", {"start_date": "2026-08-24", "end_date": "2026-10-26"}),
 }
 
 # Parameters used when every named query is run (parity, timings).

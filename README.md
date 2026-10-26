@@ -10,7 +10,7 @@ A student's money is split across six places that never talk to each other: a ba
 
 ## What Runway does
 
-Runway connects the six sources, projects the checking balance day by day to the end of the semester, and answers plain questions. Every answer shows its proof.
+Runway connects eight separate sources (checking, card, financial aid, student account, lease, work schedule, the school's aid opportunities and the meal plan), projects the checking balance day by day to the end of the semester, and answers plain questions. Every answer shows its proof.
 
 **It speaks up first.** Under the status card, a check-in says "Hi Maya. 5 things need your attention." and shows the three most urgent as cards (most money at stake per day until it's due): send the verification form (her $1,850 refund then arrives around Thu, Nov 5), rent on Sun, Nov 1 leaves just $13.32 (rent before payday cost a $35 fee last time), and the $360 card payment on Mon, Nov 9 that takes her below zero; "See all" has the tight tuition week and the duplicate music apps. Each card has real actions, and every one is a click by the student:
 

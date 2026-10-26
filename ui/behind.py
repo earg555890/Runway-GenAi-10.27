@@ -8,7 +8,7 @@ from ui import data, explain, live_zetaris
 
 
 def sources(ds):
-    st.markdown("#### Maya's six data sources")
+    st.markdown(f"#### Maya's {len(data.SOURCES)} data sources")
     st.caption("Each source stays separate. Runway reads them through named queries, "
                + ("from local copies of the files." if ds.backend == "local" else "federated by Zetaris."))
     counts = data.rows_per_source(ds)
