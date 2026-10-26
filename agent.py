@@ -986,8 +986,9 @@ def unflatten(text):
     return "\n".join(out)
 
 
-def parse_sections(text):
-    """ANSWER / WHY / DO THIS / NOTE sections of an answer, or None if ANSWER or WHY is missing."""
+def parse_sections(text, partial=False):
+    """ANSWER / WHY / DO THIS / NOTE sections of an answer, or None if ANSWER or WHY is missing (partial: an answer
+    still streaming in only needs ANSWER)."""
     out, cur = {"answer": "", "why": [], "do": [], "note": ""}, None
     keys = {"ANSWER": "answer", "WHY": "why", "DO THIS": "do", "NOTE": "note"}
     for line in text.splitlines():
@@ -1001,7 +1002,7 @@ def parse_sections(text):
             out[cur].append(re.sub(r"^(?:[-*•]|\d+[.)])\s*", "", line))
         else:
             out[cur] = (out[cur] + " " + line).strip()
-    return out if out["answer"] and out["why"] else None
+    return out if out["answer"] and (out["why"] or partial) else None
 
 
 def merchant_accounts(ds):

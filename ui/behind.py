@@ -29,8 +29,9 @@ def answers():
     st.markdown("#### Ask Runway")
     st.caption(f"Answer mode: **{config.ANSWER_MODE}** (live = always ask the models; cached = reuse a saved answer "
                "for the same question and what-ifs; replay = saved answers only, typed out). PLAN model: "
-               f"`{config.NVIDIA_PLAN_MODEL}` (thinking off). EXPLAIN model: `{config.NVIDIA_EXPLAIN_MODEL}` "
-               "(thinking on). At most two model calls per question, plus one rewrite if the number check fails.")
+               f"`{config.NVIDIA_PLAN_MODEL}` (thinking off). EXPLAIN model: the same, thinking off (fast, the "
+               f"default); with Think harder, `{config.NVIDIA_EXPLAIN_MODEL}` (thinking on). At most two model calls "
+               "per question, plus one rewrite if the number check fails.")
     history = [a for a in st.session_state.get("history") or [] if a.mode != "event"]
     if not history:
         st.caption("No questions asked yet.")

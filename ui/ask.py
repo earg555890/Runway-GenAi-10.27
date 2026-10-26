@@ -3,6 +3,7 @@ bottom), the question box below them, suggested questions while the thread is em
 
 Each reply first shows the instant quick answer (built from the engine), then the AI answer streams in over it;
 if the AI answer doesn't pass the checks, the quick answer stays."""
+import json
 import re
 from types import SimpleNamespace
 
@@ -83,7 +84,7 @@ def _mode_words(a):
             "Fast: Nemotron Lightning, thinking off")
 
 
-def _thinking(a):
+def _thinking(a, key):
     with st.expander("How Runway thought about this", icon=":material/psychology:"):
         plan = agent.Plan(**a.plan)
         st.markdown("**What Runway checked:** " + fmt.md(agent.plan_words(plan))
@@ -115,6 +116,12 @@ def _thinking(a):
             st.markdown("**Nemotron's reasoning**")
             with st.container(height=220):
                 st.text(a.reasoning)
+        if plan.tool and st.toggle("Details for nerds", key=f"nerd_plan_{key}"):
+            st.caption("The plan Nemotron wrote (checked by Runway before any tool ran):" if plan.source == "llm"
+                       else "The plan Runway matched by keywords (the planner wasn't available):")
+            st.code(json.dumps({"resolved_question": plan.resolved_question, "calls": plan.calls,
+                                "assumptions": plan.assumptions}, indent=2, default=str),
+                    language="json", wrap_lines=True)
 
 
 def _todo_cards(act, key, ds):
@@ -258,7 +265,7 @@ def reply(a, latest=True, ds=None):
             _proof(items[pick], a, key, ds)
     _actions(a, key, ds)
     if a.plan.get("tool") or a.mode == "no_key":
-        _thinking(a)
+        _thinking(a, key)
 
 
 def _resolved(a):
@@ -296,9 +303,13 @@ def _ask(question, ds, scenario):
                 caption.caption("Quick answer from your numbers. Writing the full answer...")
             elif kind == "text":
                 text += payload
-                box.markdown(fmt.md(agent.strip_citations(text)) + " ▌")
+                sec = agent.parse_sections(text + " ▌", partial=True)     # laid out like the finished answer
+                box.markdown(sections_html(sec, {}) if sec else fmt.md(agent.strip_citations(text)) + " ▌",
+                             unsafe_allow_html=bool(sec))
             elif kind == "restart":
                 text = ""
+                if payload:                                              # "Double-checking the numbers..."
+                    status.update(label=payload)
                 if quick:
                     sec = agent.parse_sections(quick)
                     box.markdown(sections_html(sec, {}) if sec else fmt.md(quick), unsafe_allow_html=bool(sec))

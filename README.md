@@ -91,7 +91,7 @@ On Windows, clone into a short folder (like `C:\code`): one package installs fil
 
 Then open http://localhost:8501 and click a suggested question. Typed questions need a key (below).
 
-On Windows, after the install you can also double-click **Start Runway.bat** (opens the browser; does nothing extra if Runway is already running), **Start Runway (Zetaris).bat** and **Stop Runway.bat**.
+On Windows, after the install you can also double-click **Start Runway.bat** (opens the browser; does nothing extra if Runway is already running), **Start Runway (Zetaris).bat** and **Stop Runway.bat**. For recording the demo video, **Start Runway (Live demo).bat** checks the NVIDIA endpoint with one real question (`demo_check.py`), uses Zetaris if it's up, moves saved answers aside and starts Runway in live mode (every answer generated live); see [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 **Live answers (NVIDIA key):** put your key from [build.nvidia.com](https://build.nvidia.com) in `.env` as `NVIDIA_API_KEY=...` and set `ANSWER_MODE=cached` (saved answers first, then live) or `ANSWER_MODE=live`. Restart the app. With a key, the check-in's one-line greeting is written by the fast model (checked, never blocking the page); `AI_GREETING=off` keeps the fixed line.
 

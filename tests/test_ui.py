@@ -245,6 +245,26 @@ def test_ask_flight_question_shows_structured_answer(asked):
     assert at.session_state["history"][0].mode == "live" and at.session_state["history"][0].sections
 
 
+def test_how_runway_thought_shows_the_plan_json(asked):
+    at = asked
+    key = next(k for k in at.session_state if str(k).startswith("nerd_plan_"))
+    at.toggle(key=key).set_value(True)
+    run(at)
+    plan = next(c.value for c in at.code if c.language == "json")
+    assert '"tool": "can_afford"' in plan and '"date": "2026-11-10"' in plan
+    assert any("The plan Nemotron wrote" in plain(c.value) for c in at.caption)
+
+
+def test_streaming_answer_is_laid_out_like_the_finished_one():
+    import agent
+    from ui import ask
+    assert agent.parse_sections("ANSWER: Yes, if you do 2 ▌") is None                 # a finished answer needs WHY
+    sec = agent.parse_sections("ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Without ▌", partial=True)
+    html = ask.sections_html(sec, {})
+    assert html.startswith('<div class="rw-ans">Yes, if you do 2 things.</div>') and "<li>Without ▌</li>" in html
+    assert "ANSWER:" not in html and "[C1]" not in html
+
+
 def test_judge_setup_no_key_replay_mode(monkeypatch):
     """A fresh clone: no NVIDIA key, local data, replay mode. The committed demo answers serve every suggested
     question (with nothing changed and with both fixes on); a typed question gets a friendly message."""
