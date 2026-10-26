@@ -63,7 +63,7 @@ def _reminder(x):
 def card(x, ds, scenario):
     o, key = x.opp, x.opp.row_id
     with st.container(border=True, key=f"fm_card_{key}"):
-        st.markdown(f'<div class="rw-ci-title">{fmt.html(o.name)}</div>'
+        st.markdown(f'<div class="rw-fm-title">{fmt.html(o.name)}</div>'
                     f'<div class="rw-fm-meta">{fmt.html(TYPE_WORDS.get(o.type, ""))} · '
                     f'{fmt.html(amount_words(x))} · {fmt.html(deadline_words(o))}</div>'
                     f'<div class="rw-ci-text">{fmt.html(arrival_words(x))} {fmt.html(why_words(x, ds.profile))}</div>',

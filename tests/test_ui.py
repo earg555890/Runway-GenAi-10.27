@@ -512,7 +512,7 @@ def budget_texts(at):
 
 
 def test_budget_tab_spending_view(at):
-    assert [t.label for t in at.tabs] == ["My semester", "Budget", "Can I afford it?", "What we found"]
+    assert [t.label for t in at.tabs] == ["My semester", "Budget", "Can I afford it?", "Find money", "What we found"]
     line = next(t for t in budget_texts(at) if "rw-bud-line" in t)
     assert ">So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461).<" in line
     table = next(t for t in budget_texts(at) if "rw-bud-table" in t)
@@ -619,8 +619,8 @@ def test_find_money_tab(at):
     assert any(">You may qualify for 3 opportunities worth up to $1,750, plus a work-study job.<" in t for t in texts(at))
     heads = [plain(m.value) for m in at.markdown if m.value.startswith("#### ")]
     assert heads[:3] == ["#### Could help before you run out", "#### Helps later", "#### Almost (what you'd need)"]
-    cards = {t.split('rw-ci-title">')[1].split("<")[0]: t for t in texts(at)
-             if 'class="rw-fm-meta"' in t and 'rw-ci-title">' in t}
+    cards = {t.split('rw-fm-title">')[1].split("<")[0]: t for t in texts(at)
+             if 'class="rw-fm-meta"' in t and 'rw-fm-title">' in t}
     grant = cards["Student Emergency Grant"]
     assert "Grant · Up to $500 · Apply anytime" in grant and "If approved, it arrives around Mon, Nov 2." in grant
     spring = cards["Spring Opportunity Scholarship"]
