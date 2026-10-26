@@ -83,6 +83,8 @@ def card(x, ds, scenario):
             st.download_button("Remind", _reminder(x), file_name=f"runway-apply-{key.lower()}.ics", mime=MIME_ICS,
                                type="tertiary", icon=":material/event:", key=f"fm_cal_{key}", on_click=state.log,
                                args=(f"Downloaded a reminder to apply for {o.name}",))
+            if o.type == "work_study":              # pay depends on hours worked: nothing to add as a what-if
+                return
             helps = x.this_semester is not None and x.this_semester.value > 0
             st.toggle("If approved", key=state.approved_key(key), disabled=not helps,
                       help="Adds it to your forecast as a what-if. It isn't certain money." if helps else
