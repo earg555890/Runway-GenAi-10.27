@@ -512,7 +512,7 @@ def budget_texts(at):
 
 
 def test_budget_tab_spending_view(at):
-    assert [t.label for t in at.tabs] == ["My semester", "Budget", "Can I afford it?", "Find money", "What we found"]
+    assert [t.label for t in at.tabs] == ["Semester", "Budget", "Afford it?", "Find money", "Findings"]
     line = next(t for t in budget_texts(at) if "rw-bud-line" in t)
     assert ">So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461).<" in line
     table = next(t for t in budget_texts(at) if "rw-bud-table" in t)
@@ -577,7 +577,8 @@ def test_suggest_budget_left_to_assign_and_progress(at):
                                                                   "Transportation", "Meal plan")] == [18, 185, 96, 14, 0]
     assert any(">Left to assign: $1,436<" in t for t in texts(at))
     prog = next(t for t in texts(at) if 'class="rw-prog"' in t)
-    assert "Shopping</span><span>$443 over" in prog and "over budget" in prog          # $442.99
+    assert "Shopping</span><span>$18 left" in prog                                # everyday purchases only
+    assert "Plus a $289 one-off: uBreakiFix" in prog and "Plus a $172 one-off: Burlington" in prog
     assert "Groceries</span><span>$8.51 left" in prog and "spending fast" in prog
     at.number_input(key="bud_amt_Shopping").set_value(1500)
     run(at)
@@ -615,7 +616,7 @@ def test_chat_budget_question_uses_the_budget_tab_amounts(at, monkeypatch, tmp_p
 # --- Find money and the meal plan card (sources 7 and 8) -------------------------------------------------------
 
 def test_find_money_tab(at):
-    assert [t.label for t in at.tabs] == ["My semester", "Budget", "Can I afford it?", "Find money", "What we found"]
+    assert [t.label for t in at.tabs] == ["Semester", "Budget", "Afford it?", "Find money", "Findings"]
     assert any(">You may qualify for 3 opportunities worth up to $1,750, plus a work-study job.<" in t for t in texts(at))
     heads = [plain(m.value) for m in at.markdown if m.value.startswith("#### ")]
     assert heads[:3] == ["#### Could help before you run out", "#### Helps later", "#### Almost (what you'd need)"]

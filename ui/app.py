@@ -31,8 +31,7 @@ top.status(current)
 checkin.render(ds, state.done_scenario())
 ask.render(ds, scenario)
 
-tab1, tab_budget, tab2, tab_money, tab3 = st.tabs(["My semester", "Budget", "Can I afford it?", "Find money",
-                                                   "What we found"])
+tab1, tab_budget, tab2, tab_money, tab3 = st.tabs(["Semester", "Budget", "Afford it?", "Find money", "Findings"])
 with tab1:
     semester.render(ds, subs, base, current, changed, deltas)
 with tab_budget:

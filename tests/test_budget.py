@@ -198,8 +198,10 @@ def test_left_to_assign_and_progress(ds):
     assert engine.budget_left(m.amount, {"Shopping": 2000}, engine.Ledger()).value == Decimal("-250.53")
     rows = {r.category: r for r in engine.budget_progress(dict(SUGGESTED), None, ds)}
     # October so far, day 26 of 31: the budget's share for the days gone is budget x 26/31
-    assert rows["Shopping"].spent.value == Decimal("460.99") and rows["Shopping"].pace == "over"
-    assert rows["Shopping"].left.value == Decimal("-442.99")       # real spending, one-offs too
+    # everyday purchases only: October's Shopping was two one-offs (Burlington $171.99, uBreakiFix $289.00)
+    assert rows["Shopping"].spent.value == Decimal("0.00") and rows["Shopping"].pace == "on pace"
+    assert rows["Shopping"].left.value == Decimal("18.00")
+    assert sorted(-t.amount for t in rows["Shopping"].one_offs) == [Decimal("171.99"), Decimal("289.00")]
     assert rows["Groceries"].expected.value == Decimal("155.16") and rows["Groceries"].pace == "spending fast"
     assert rows["Groceries"].left.value == Decimal("8.51")
     assert rows["Transportation"].spent.value == 0 and rows["Transportation"].pace == "on pace"

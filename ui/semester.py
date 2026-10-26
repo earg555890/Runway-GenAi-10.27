@@ -1,4 +1,4 @@
-"""Tab 1, "My semester": the big number, the balance chart, and up to three ways to fix it."""
+"""Tab 1, "Semester": the big number, the balance chart, and up to three ways to fix it."""
 from datetime import timedelta
 
 import streamlit as st

@@ -93,6 +93,8 @@ def table_html(sp, per, budget):
     head = "<tr><th>Category</th><th>Share</th><th>Spent</th>" + ("<th>Budget</th><th>Left</th>" if monthly else "") + \
         "</tr>"
     rows = []
+    progress_by = ({r.category: r for r in engine.budget_progress({k: v for k, v in budget.items() if v}, per.start)}
+                   if monthly and budget else {})
     slices = {name for name, _ in donut_rows(sp)}          # the table is the donut's legend: folded rows are "Other"
     for c in sp.categories:
         color = fmt.category_color(c.name if c.name in slices else fmt.OTHER)
@@ -105,9 +107,10 @@ def table_html(sp, per, budget):
             elif b is None:
                 cells += ['<span class="rw-muted">none</span>', ""]
             else:
-                left = engine.D(b) - c.spent.value
+                left = progress_by.get(c.name)
                 cells += [fmt.html(fmt.dollars(b)) if b else "$0",
-                          fmt.html(f"{fmt.dollars(left)} left" if left >= 0 else f"{fmt.dollars(left)} over")]
+                          fmt.html(f"{fmt.dollars(left.left.value)} left" if left.left.value >= 0 else
+                                   f"{fmt.dollars(left.left.value)} over") if left else ""]
         rows.append("<tr>" + "".join(f"<td>{x}</td>" for x in cells) + "</tr>")
     return f'<table class="rw-bud-table">{head}{"".join(rows)}</table>'
 
@@ -170,7 +173,9 @@ def progress(ds):
                    f'</div><div class="rw-prog-track"><div class="rw-prog-fill" style="width:{fill}%;'
                    f'background:{fmt.category_color(r.category)}"></div></div>'
                    f'<div class="rw-prog-sub">{fmt.html(fmt.dollars(r.spent.value))} of '
-                   f'{fmt.html(fmt.dollars(r.budget))}</div></div>')
+                   f'{fmt.html(fmt.dollars(r.budget))}' + "".join(
+                       f'<br>Plus a {fmt.html(fmt.dollars(-t.amount))} one-off: {fmt.html(t.merchant)}'
+                       for t in r.one_offs) + '</div></div>')
     st.markdown("".join(out), unsafe_allow_html=True)
 
 

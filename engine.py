@@ -1721,15 +1721,18 @@ def budget_left(available, amounts, ledger):
 class Progress:
     category: str
     budget: Decimal
-    spent: Computed
+    spent: Computed              # everyday purchases only ($100+ one-offs left out, like the suggestion)
     left: Computed               # budget - spent (negative: over)
     expected: Computed           # the budget's share for the days gone so far
     pace: str                    # "on pace", "spending fast", "over"
+    one_offs: list = field(default_factory=list)     # Txn: $100+ one-off purchases in the category, shown apart
 
 
 def budget_progress(amounts, month=None, ds=None, ledger=None):
     """Spent so far this month (to DEMO_TODAY) per budgeted category vs its budget, and the pace: on pace if
-    spending is within the budget's share of the days gone, spending fast if above it, over if past the budget."""
+    spending is within the budget's share of the days gone, spending fast if above it, over if past the budget.
+    Only everyday purchases count against the budget ($100+ one-offs are left out, like the suggestion and the
+    forecast); the one-offs come back separately so nothing is hidden."""
     ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
     start, end = month_span(month or config.DEMO_TODAY)
     today = min(config.DEMO_TODAY, end)
@@ -1739,13 +1742,18 @@ def budget_progress(amounts, month=None, ds=None, ledger=None):
     for cat, amount in amounts.items():
         b = D(amount)
         c = sp.get(cat)
-        spent = c.spent if c else ledger.add(f"spent on {cat} {start} to {today}", ZERO, "USD", "No purchases.", [])
+        everyday = [t for t in c.txns if t.category != "one_off"] if c else []
+        one_offs = [t for t in c.txns if t.category == "one_off"] if c else []
+        spent = ledger.add(f"everyday {cat} spending {start} to {today}", D(-sum((t.amount for t in everyday), ZERO)),
+                           "USD", f"{len(everyday)} everyday purchase(s)"
+                           + (f"; {len(one_offs)} one-off(s) of $100 or more not counted" if one_offs else "") + ".",
+                           [t.row_id for t in everyday])
         left = ledger.add(f"{cat}: budget left", b - spent.value, "USD",
                           f"Budget {fmt_money(b)} - spent {fmt_money(spent.value)}.", [spent])
         expected = ledger.add(f"{cat}: budget for the days so far", D(b * gone / n), "USD",
                               f"{fmt_money(b)} x {gone} of {n} days.", [])
         pace = "over" if spent.value > b else "spending fast" if spent.value > expected.value else "on pace"
-        out.append(Progress(cat, b, spent, left, expected, pace))
+        out.append(Progress(cat, b, spent, left, expected, pace, one_offs))
     return out
 
 
@@ -1764,6 +1772,7 @@ class BudgetStatus:
     effect: BudgetEffect | None  # the forecast with the budget vs without
     suggestion: Suggestion | None    # when no budget is set: what Runway would suggest for next month
     refund_released: bool = False
+    one_offs: Computed | None = None     # $100+ one-offs in these categories this month (not counted, shown apart)
 
 
 def budget_status(amounts, month=None, category=None, scenario=None, ds=None, ledger=None):
@@ -1791,7 +1800,11 @@ def budget_status(amounts, month=None, category=None, scenario=None, ds=None, le
     expected = sum((r.expected.value for r in rows), ZERO)
     pace = "over" if spent.value > b.value else "spending fast" if spent.value > expected else "on pace"
     effect = budget_effect(replace(scenario, budget=tuple((c, D(v)) for c, v in amounts.items())), ds, ledger)
-    return BudgetStatus(span, cats, rows, b, spent, left, pace, effect, None, scenario.refund_released)
+    big = [t for r in rows for t in r.one_offs]
+    one_offs = ledger.add(f"one-off purchases of $100 or more, {name}", D(-sum((t.amount for t in big), ZERO)), "USD",
+                          "; ".join(f"{t.merchant} {fmt_money(-t.amount)} on {fmt_date(t.date)}" for t in big)
+                          + ". Not counted against the budget.", [t.row_id for t in big]) if big else None
+    return BudgetStatus(span, cats, rows, b, spent, left, pace, effect, None, scenario.refund_released, one_offs)
 
 
 # ---------------------------------------------------------------------------------------

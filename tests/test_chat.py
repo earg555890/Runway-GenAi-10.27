@@ -455,7 +455,7 @@ def _budget_pieces(args, ds, budget, scenario=None):
 
 @pytest.mark.parametrize("args,budget,starts,keys", [
     ({"category": "food"}, BUDGET, "ANSWER: You have $23.19 left in your food budget", {"left", "spent"}),
-    ({"category": "Shopping"}, BUDGET, "ANSWER: You're $443 over your shopping budget", {"left", "spent"}),
+    ({"category": "Shopping"}, BUDGET, "ANSWER: You have $18 left in your shopping budget", {"left", "spent"}),
     ({}, BUDGET, "ANSWER: Your money still runs out on Mon, Nov 9", {"effect", "spent"}),
     ({}, {"Groceries": 60}, "ANSWER: If you stick to this budget, your money lasts until Sun, Nov 15 (6 days longer)",
      {"effect", "spent"}),

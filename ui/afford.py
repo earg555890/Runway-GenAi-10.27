@@ -1,4 +1,4 @@
-"""Tab 2, "Can I afford it?": one purchase, one big verdict, numbered steps, one line about the lowest point."""
+"""Tab 2, "Afford it?": one purchase, one big verdict, numbered steps, one line about the lowest point."""
 from datetime import timedelta
 
 import streamlit as st

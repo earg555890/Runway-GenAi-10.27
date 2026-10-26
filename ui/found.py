@@ -1,4 +1,4 @@
-"""Tab 3, "What we found": up to four cards, each a title and one sentence, with the proof one click away."""
+"""Tab 3, "Findings": up to four cards, each a title and one sentence, with the proof one click away."""
 from datetime import timedelta
 
 import pandas as pd

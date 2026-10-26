@@ -723,7 +723,8 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
                    sg.available.fixed]
         else:
             e = b.effect
-            key = [b.left, b.spent, b.budget, *(x for r in b.rows for x in (r.spent, r.left)), e.days_longer,
+            key = [b.left, b.spent, b.budget, *([b.one_offs] if b.one_offs else []),
+                   *(x for r in b.rows for x in (r.spent, r.left)), e.days_longer,
                    e.with_budget.first_below_zero, e.without.first_below_zero, e.lowest_change, e.end_change,
                    e.with_budget.lowest, e.with_budget.lowest_date]
         return ToolResult(None, key, ledger, facts={"status": b})
@@ -1400,7 +1401,7 @@ def template_answer(plan, result, pack, ds, scenario):
             shift_c, pay_c = f["latest_shift"]
             why.append(f"A shift worked by {w.day(shift_c.value)} is paid {w.day(pay_c.value)}, before you run out "
                        f"{c(shift_c)}.")
-        return _format(answer, why, ["Look at the ways to fix it in My semester."], note)
+        return _format(answer, why, ["Look at the ways to fix it in the Semester tab."], note)
     if plan.tool == "find_leaks":
         why, do = [], []
         for leak in f["leaks"]:
@@ -1714,14 +1715,16 @@ def lookup_template(tool, result, c):
                  f"{w.dollars(b.budget.value)}.")
         pace = {"on pace": "You're on pace.", "spending fast": "You're spending faster than the budget allows.",
                 "over": "You're over budget."}[b.pace]
+        extra = ([f"Plus {w.dollars(b.one_offs.value)} in one-off purchases of $100 or more {c(b.one_offs)}, not "
+                  "counted against the budget."] if b.one_offs else [])
         if name != "whole":
             label = name.lower()
             head = (f"You have {w.dollars(b.left.value)} left in your {label} budget {c(b.left)}." if b.left.value >= 0
                     else f"You're {w.dollars(b.left.value)} over your {label} budget {c(b.left)}.")
-            return head, [spent, pace], [], ""
+            return head, [spent, pace] + extra, [], ""
         e = b.effect
         over = [r for r in b.rows if r.left.value < 0]
-        why = [spent] + [f"{r.category} is {w.dollars(r.left.value)} over {c(r.left)}." for r in over[:2]]
+        why = [spent] + [f"{r.category} is {w.dollars(r.left.value)} over {c(r.left)}." for r in over[:2]] + extra
         return todo_effect(e, c(e.days_longer)), why, [], pace
     if tool == "action_plan":
         items, (start, end), nxt = f["items"], f["span"], f["next"]

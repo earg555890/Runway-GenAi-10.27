@@ -35,7 +35,7 @@ DATA_BACKEND=zetaris .venv/Scripts/python -m streamlit run ui/app.py     # Git B
 
 PowerShell: `$env:DATA_BACKEND="zetaris"; .venv\Scripts\python -m streamlit run ui/app.py` (use `"local"` for the CSVs). Opens at http://localhost:8501. The first Zetaris load runs every engine query (about a minute on this laptop) and fills the query cache; later loads come from the cache. If Zetaris fails, the app falls back to the local files and says so.
 
-`ui/app.py` is short; each part is its own module in `ui/`: `top` (greeting, status sentence), `ask` (question box, coming soon), three tabs `semester` (chart + ways to fix it), `afford` (Can I afford it?), `found` (What we found, with proof), and `behind` (Behind the scenes: data sources, every calculation via `explain`, and `live_zetaris`). The UI does no money math: every number comes from `engine`.
+`ui/app.py` is short; each part is its own module in `ui/`: `top` (greeting, status sentence), `ask` (question box, coming soon), three tabs `semester` (chart + ways to fix it), `afford` (Afford it?), `found` (Findings, with proof), and `behind` (Behind the scenes: data sources, every calculation via `explain`, and `live_zetaris`). The UI does no money math: every number comes from `engine`.
 
 ## Money engine
 
