@@ -59,7 +59,7 @@ def render(ds, subs, base, current, changed, deltas=None):
                                                        engine.Ledger())}
     helpful = [x for x in subs if x.merchant in fixes and fixes[x.merchant].savings.value > 0]
     useless = [x for x in subs if x.merchant in fixes and fixes[x.merchant].savings.value <= 0]
-    cols = st.columns(3)
+    cols = st.columns(2)
     if fixes.get("refund released"):
         with cols[0]:
             rel = engine.refund_release_date(ds, engine.Scenario(refund_submit_date=s.wf_submit))
@@ -75,32 +75,11 @@ def render(ds, subs, base, current, changed, deltas=None):
         with cols[1]:
             _card(f"Cancel {sub.merchant}", f"Saves {fmt.dollars(fixes[sub.merchant].savings.value)} this semester.",
                   state.cancel_key(sub.merchant), done=state.is_done(("cancel", sub.merchant)))
-    with cols[2]:
-        if not ds.job:
-            st.caption("Connect your work schedule to see what an extra shift would add.")
-            return _rest(ds, subs, fixes, helpful, useless)
-        sh = engine.ExtraShift(s.wf_shift_date, engine.Decimal(f"{s.wf_shift_hours:.1f}"))
-        pay, added = engine.extra_shift_pay(sh, ds, state.choices())
-
-        def pickers():
-            a, b = st.columns([3, 2])
-            a.date_input("Day", key="wf_shift_date", min_value=config.DEMO_TODAY + timedelta(days=1),
-                         max_value=config.SEMESTER_END, format="MM/DD/YYYY")
-            b.number_input("Hours", key="wf_shift_hours", min_value=0.5, max_value=12.0, step=0.5)
-
-        sentence = (f"Adds {fmt.dollars(added.value)} to your {fmt.day(pay)} paycheck." if added.value > 0 else
-                    f"That shift is paid {fmt.day(pay)}, after the semester.")
-        run_out = current.first_below_zero.value
-        if added.value > 0 and run_out and pay >= run_out:      # paid too late to stop the run-out
-            in_time = engine.latest_shift_paid_before(run_out, ds)
-            if in_time:
-                sentence += (f" That's after you run out. A shift worked by {fmt.day(in_time[0].value)} is paid "
-                             f"{fmt.day(in_time[1].value)}, in time.")
-        _card("Pick up an extra shift", sentence, "wf_shift_on", pickers)
     _rest(ds, subs, fixes, helpful, useless)
 
 
 def _rest(ds, subs, fixes, helpful, useless):
+    shift_planner(ds, subs)
     for sub in useless + helpful[1:]:
         f = fixes[sub.merchant]
         if f.savings.value > 0:
@@ -117,6 +96,80 @@ def _rest(ds, subs, fixes, helpful, useless):
     meal_card(ds)
     st.button("Start over", type="tertiary", icon=":material/restart_alt:", on_click=state.reset, args=(subs,),
               key="start_over")
+
+
+def hours_words(h):
+    return f"{float(h):g} hour{'s' if float(h) != 1 else ''}"
+
+
+def timing_words(p, run_out):
+    if p.timing == "after_semester":
+        return f"Paid {fmt.day(p.pay_date)}, after the semester."
+    if p.timing == "late":
+        return f"Paid {fmt.day(p.pay_date)}, after you run out."
+    return f"Paid {fmt.day(p.pay_date)}, in time." if run_out else f"Paid {fmt.day(p.pay_date)}."
+
+
+def plan_sentence(plan):
+    """"These 3 shifts add $172 and your money lasts until Mon, Nov 16 (7 days longer)." All values from the
+    engine's shift plan."""
+    n = len(plan.shifts)
+    lead = f"This shift adds {fmt.dollars(plan.total.value)}" if n == 1 else \
+        f"These {n} shifts add {fmt.dollars(plan.total.value)}"
+    after, longer = plan.after, plan.days_longer
+    if after.lasts_through_semester:
+        return f"{lead} and you're covered all semester."
+    if longer is not None and longer.value > 0:
+        return (f"{lead} and your money lasts until {fmt.day(after.first_below_zero.value)} "
+                f"({longer.value} day{'s' if longer.value != 1 else ''} longer).")
+    return f"{lead}, but your money still runs out on {fmt.day(after.first_below_zero.value)}."
+
+
+def shift_planner(ds, subs):
+    """Try shifts she's thinking of taking: each one's pay and payday, the total, and how much longer the money
+    lasts. The planned shifts are in the forecast (status card, chart, check-in) like the other what-ifs."""
+    s = st.session_state
+    with st.container(border=True, key="shift_planner"):
+        st.markdown("**:material/schedule: Shift planner**")
+        if not ds.job:
+            st.caption("Connect your work schedule to plan extra shifts.")
+            return
+        plan = engine.shift_plan(state.shifts(), state.scenario(subs), ds)
+        run_out = plan.before.first_below_zero.value
+        if plan.shifts:
+            st.markdown(f"**{fmt.md(plan_sentence(plan))}**")
+            for p in plan.shifts:
+                left, right = st.columns([6, 1], vertical_alignment="center")
+                left.markdown(fmt.md(f"{fmt.day(p.shift.date)} · {hours_words(p.shift.hours)} · adds "
+                                     f"{fmt.dollars(p.added.value)}. {timing_words(p, run_out)}"))
+                right.button("", key=f"shift_rm_{p.shift.date}", icon=":material/close:", type="tertiary",
+                             help="Remove this shift", on_click=state.remove_shift, args=(p.shift.date,))
+            for monday, h in sorted(plan.week_hours.items()):
+                st.caption(f":material/warning: That's {float(h):g} extra hours in the week of {fmt.day(monday)}. "
+                           "Make sure you still have time for class.")
+        else:
+            st.markdown("Try shifts you're thinking of taking. See how much longer your money lasts.")
+        if run_out:
+            in_time = engine.latest_shift_paid_before(run_out, ds)
+            if in_time:
+                st.caption(fmt.md(f"A shift worked by {fmt.day(in_time[0].value)} is paid "
+                                  f"{fmt.day(in_time[1].value)}, in time."))
+        this_sat, next_sat = state.saturday(0), state.saturday(1)
+        a, b = st.columns(2)
+        a.button("+4h this Saturday", key="shift_add_this", icon=":material/add:", on_click=state.add_shift,
+                 args=(this_sat, 4), help=fmt.day(this_sat), width="stretch")
+        b.button("+4h next Saturday", key="shift_add_next", icon=":material/add:", on_click=state.add_shift,
+                 args=(next_sat, 4), help=fmt.day(next_sat), width="stretch")
+        with st.expander("Add a different day"):
+            d, h = st.columns([3, 2])
+            d.date_input("Day", key="wf_shift_date", format="MM/DD/YYYY")
+            h.number_input("Hours", key="wf_shift_hours", min_value=0.5, max_value=12.0, step=0.5)
+            st.button("Add shift", key="shift_add", on_click=state.add_typed_shift)
+        if s.get("shift_msg"):
+            st.caption(f":material/info: {s.shift_msg}")
+        if plan.shifts:
+            st.button("Reset shifts", key="shift_reset", type="tertiary", icon=":material/restart_alt:",
+                      on_click=state.reset_shifts)
 
 
 def meal_card(ds):

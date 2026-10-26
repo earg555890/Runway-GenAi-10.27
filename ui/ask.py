@@ -209,6 +209,25 @@ def _structured(a, notes, key, latest):
     note = sec.get("note") or " ".join(a.plan.get("assumptions") or [])
     if note:
         st.markdown(f'<div class="rw-note">{_html_cited(note, notes)}</div>', unsafe_allow_html=True)
+    _shift_button(a, key, latest)
+
+
+def answer_shifts(a):
+    """The extra shifts a what-if answer was about: [{"date": "YYYY-MM-DD", "hours": "4.00"}]."""
+    return [x for c in a.plan.get("calls") or [] if c.get("tool") == "what_if"
+            for x in (c.get("args") or {}).get("extra_shifts") or []]
+
+
+def _shift_button(a, key, latest):
+    items = answer_shifts(a)
+    if not (latest and items) or state.mine():
+        return
+    have = {(x["date"].isoformat(), float(x["hours"])) for x in st.session_state.get("wf_shifts") or []}
+    if all((x["date"], float(x["hours"])) in have for x in items):
+        st.caption("These shifts are in your shift planner.")
+        return
+    st.button("Add these to my shift planner" if len(items) > 1 else "Add this to my shift planner",
+              key=f"ans_shifts_{key}", icon=":material/schedule:", on_click=state.add_shifts, args=(items,))
 
 
 def _is_general(a):

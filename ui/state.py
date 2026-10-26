@@ -25,8 +25,8 @@ def _defaults(subs):
     d = {
         "wf_refund": False,
         "wf_submit": config.DEMO_TODAY + timedelta(days=1),
-        "wf_shift_on": False,
-        "wf_shift_date": date(2026, 11, 4),
+        "wf_shifts": [],            # the shift planner: [{"date": date, "hours": float}]
+        "wf_shift_date": saturday(0),
         "wf_shift_hours": 4.0,
         "buy_label": FLIGHT["label"],
         "buy_cost": FLIGHT["cost"],
@@ -130,6 +130,7 @@ def reset(subs):
     keep = budget()
     for k, v in _defaults(subs).items():
         st.session_state[k] = v
+    st.session_state.shift_msg = None
     set_budget(keep)
     _apply_done()
 
@@ -192,11 +193,61 @@ def drop_purchase():
     st.session_state.buy_active = False
 
 
-def shift():
+def saturday(weeks_ahead=0):
+    """This coming Saturday (after today), or one `weeks_ahead` later."""
+    today = config.DEMO_TODAY
+    return today + timedelta(days=(5 - today.weekday()) % 7 or 7, weeks=weeks_ahead)
+
+
+def shifts():
+    """The planned extra shifts (shift planner), merged by day, as engine.ExtraShift."""
+    out = [engine.ExtraShift(x["date"], Decimal(f"{x['hours']:.1f}")) for x in st.session_state.get("wf_shifts") or []
+           if config.DEMO_TODAY < x["date"] <= config.SEMESTER_END and x["hours"] > 0]
+    return engine.merge_shifts(out)
+
+
+def add_shift(day, hours):
+    """Plan a shift (a button callback). A friendly message instead when the day or the hours don't work."""
     s = st.session_state
-    if s.wf_shift_on and s.wf_shift_hours > 0 and config.DEMO_TODAY < s.wf_shift_date <= config.SEMESTER_END:
-        return engine.ExtraShift(s.wf_shift_date, Decimal(f"{s.wf_shift_hours:.1f}"))
-    return None
+    s.shift_msg = None
+    hours = float(hours or 0)
+    planned = sum(x["hours"] for x in s.wf_shifts if x["date"] == day)
+    if day <= config.DEMO_TODAY:
+        s.shift_msg = "Pick a day after today."
+    elif day > config.SEMESTER_END:
+        s.shift_msg = f"Pick a day by {fmt.day(config.SEMESTER_END)}, when the semester ends."
+    elif hours <= 0:
+        s.shift_msg = "Pick how many hours."
+    elif planned + hours > float(engine.MAX_SHIFT_HOURS):
+        s.shift_msg = (f"That's more than {engine.MAX_SHIFT_HOURS:.0f} hours on {fmt.day(day)}. "
+                       "Pick fewer hours.")
+    else:
+        s.wf_shifts = [*s.wf_shifts, {"date": day, "hours": hours}]
+
+
+def add_typed_shift():
+    add_shift(st.session_state.wf_shift_date, st.session_state.wf_shift_hours)
+
+
+def add_shifts(items):
+    """Shifts from a chat answer ([{"date": "YYYY-MM-DD", "hours": "4.00"}]) into the planner, skipping ones that
+    are already there."""
+    have = {(x["date"], x["hours"]) for x in st.session_state.wf_shifts}
+    for x in items:
+        d, h = date.fromisoformat(x["date"]), float(x["hours"])
+        if (d, h) not in have:
+            add_shift(d, h)
+
+
+def remove_shift(day):
+    st.session_state.wf_shifts = [x for x in st.session_state.wf_shifts if x["date"] != day]
+    st.session_state.shift_msg = None
+
+
+def reset_shifts():
+    """Clears only the planned shifts ("Start over" clears everything)."""
+    st.session_state.wf_shifts = []
+    st.session_state.shift_msg = None
 
 
 def purchase():
@@ -215,9 +266,8 @@ def submit_date():
 
 
 def choices():
-    """What the student decided that Runway can't suggest as a fix: the form date and an extra shift."""
-    sh = shift()
-    return engine.Scenario(refund_submit_date=submit_date(), extra_shifts=(sh,) if sh else ())
+    """What the student decided that Runway can't suggest as a fix: the form date and the planned shifts."""
+    return engine.Scenario(refund_submit_date=submit_date(), extra_shifts=shifts())
 
 
 def done_cancels():

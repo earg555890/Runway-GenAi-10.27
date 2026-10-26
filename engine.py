@@ -652,6 +652,88 @@ def extra_shift_pay(shift, ds=None, scenario=None, ledger=None):
                            [*(after.net.inputs), ds.job.row_id])
 
 
+MAX_SHIFT_HOURS = Decimal("12")        # a day
+SOFT_WEEK_HOURS = Decimal("20")        # extra hours in one week before the planner warns
+
+
+@dataclass
+class PlannedShift:
+    shift: ExtraShift
+    pay_date: date
+    added: Computed              # what this shift adds to its paycheck after withholding ($0 if paid after the semester)
+    timing: str                  # "in_time" (paid before she runs out), "late" (after) or "after_semester"
+
+
+@dataclass
+class ShiftPlan:
+    shifts: list                 # PlannedShift, by date
+    total: Computed              # total added pay by SEMESTER_END (ties out to the projection)
+    before: "Projection"         # without the planned shifts (her other what-ifs kept)
+    after: "Projection"          # with them
+    days_longer: Computed | None     # how many more days the money lasts (None if it never ran out)
+    week_hours: dict             # {Monday of the week: extra hours} for weeks over SOFT_WEEK_HOURS
+
+
+def merge_shifts(shifts):
+    """Planned shifts on the same day become one (hours added, at most MAX_SHIFT_HOURS), sorted by date."""
+    by_day = {}
+    for s in shifts:
+        by_day[s.date] = min(by_day.get(s.date, NO_HOURS) + Decimal(s.hours), MAX_SHIFT_HOURS)
+    return tuple(ExtraShift(d, h) for d, h in sorted(by_day.items()))
+
+
+def shift_plan(shifts, scenario=None, ds=None, ledger=None):
+    """Several planned extra shifts at once (the shift planner). Each shift's pay is what it adds to its paycheck
+    given the earlier planned shifts in the same pay period, so the per-shift amounts add up exactly to the change in
+    paychecks the projection uses. `scenario`: her other what-ifs (its own extra shifts are replaced)."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    shifts = merge_shifts(shifts)
+    base = replace(scenario, extra_shifts=())
+    before = project(base, ds, ledger)
+    after = project(replace(base, extra_shifts=shifts), ds, ledger)
+    run_out = before.first_below_zero.value
+    nets = lambda extra: {pc.start: pc.net.value for pc in paychecks(ds, replace(base, extra_shifts=extra), Ledger())}  # noqa: E731
+    planned, done, prev = [], (), nets(())
+    for s in shifts:
+        start, _, pay = pay_period_for(s.date)
+        period = next((p for p in ds.pay_periods if p.start <= s.date <= p.end), None)
+        if period:
+            start, pay = period.start, period.pay_date
+        done = done + (s,)
+        now = nets(done)
+        added = now.get(start, ZERO) - prev.get(start, ZERO)
+        prev = now
+        timing = ("after_semester" if pay > config.SEMESTER_END else
+                  "late" if run_out and pay >= run_out else "in_time")
+        how = (f"A {s.hours}-hour shift on {fmt_date(s.date)} is in the pay period starting {fmt_date(start)}, paid "
+               f"{fmt_date(pay)}: {s.hours} hours x {fmt_money(ds.job.hourly_rate)}/hour less "
+               f"{ds.job.withholding_pct}% withholding adds {fmt_money(added)} to that paycheck."
+               if timing != "after_semester" else
+               f"A shift on {fmt_date(s.date)} is paid {fmt_date(pay)}, after the semester ends, so it adds nothing "
+               f"before {fmt_date(config.SEMESTER_END)}.")
+        planned.append(PlannedShift(s, pay, ledger.add(f"planned shift {s.date} ({s.hours} hours): added pay",
+                                                       D(added), "USD", how, [ds.job.row_id]), timing))
+    total = ledger.add("planned shifts: total added pay by " + str(config.SEMESTER_END),
+                       sum((p.added.value for p in planned), ZERO), "USD",
+                       " + ".join(fmt_money(p.added.value) for p in planned) + " = total added after withholding.",
+                       [p.added for p in planned])
+    longer = None
+    if run_out:
+        end = after.first_below_zero.value or config.SEMESTER_END + timedelta(days=1)
+        longer = ledger.add("days the money lasts longer with the planned shifts", (end - run_out).days, "days",
+                            f"Runs out {fmt_date(run_out)} without them, " +
+                            (f"{fmt_date(after.first_below_zero.value)} with them." if after.first_below_zero.value
+                             else "never before the semester ends with them."),
+                            [before.first_below_zero, after.first_below_zero])
+    weeks = {}
+    for s in shifts:
+        monday = s.date - timedelta(days=s.date.weekday())
+        weeks[monday] = weeks.get(monday, NO_HOURS) + s.hours
+    return ShiftPlan(planned, total, before, after, longer,
+                     {w: h for w, h in weeks.items() if h > SOFT_WEEK_HOURS})
+
+
 def compare(base, current, ledger):
     """Change from the base projection to the current one (what-if deltas). Both must use `ledger`."""
     out = {}

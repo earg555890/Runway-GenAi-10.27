@@ -435,6 +435,9 @@ def plan_messages(question, scenario, sub_names, history=()):
         '- Can I afford a $60 jacket on Nov 20? -> [{"tool": "can_afford", "args": {"item": "jacket", "cost": 60, '
         '"date": "2026-11-20"}}]\n'
         '- What if I cancel Spotify? -> [{"tool": "what_if", "args": {"cancel_subscriptions": ["Spotify"]}}]\n'
+        '- What if I work 4 hours this Saturday and next Saturday? (today Mon Oct 26) -> [{"tool": "what_if", '
+        '"args": {"extra_shifts": [{"date": "2026-10-31", "hours": 4}, {"date": "2026-11-07", '
+        '"hours": 4}]}}]\n'
         '- What if I pick up a 4 hour shift on Nov 12? -> [{"tool": "what_if", "args": {"extra_shifts": '
         '[{"date": "2026-11-12", "hours": 4}]}}]\n'
         '- How much did I spend on food in October? -> [{"tool": "spending_summary", "args": {"start": '
@@ -664,6 +667,11 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
                before.lowest_date, before.first_below_zero]
         shift_pay = [engine.extra_shift_pay(s, ds, scenario, ledger) for s in new.extra_shifts
                      if s not in scenario.extra_shifts]
+        plan_ = None
+        if len(shift_pay) > 1:                 # several shifts: amounts that add up, the total, days longer
+            plan_ = engine.shift_plan(new.extra_shifts, new, ds, ledger)
+            shift_pay = [(p.pay_date, p.added) for p in plan_.shifts]
+            key += [plan_.total] + ([plan_.days_longer] if plan_.days_longer else [])
         key += [c for _, c in shift_pay]
         latest = None                       # a shift paid after the run-out date: when would one be paid in time?
         run_out = after.first_below_zero.value
@@ -677,7 +685,7 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
         return ToolResult("covered" if after.lasts_through_semester else "runs_out", key, ledger, chosen,
                           [f for f in fixes if f.savings.value <= 0 and f.name in a["cancel_subscriptions"]],
                           {"projection": after, "before": before, "reason": r, "shift_pay": shift_pay,
-                           "new_scenario": new, "latest_shift": latest})
+                           "new_scenario": new, "latest_shift": latest, "shift_plan": plan_})
     if tool == "find_leaks":
         leaks = engine.find_leaks(scenario, ds, ledger)
         key = [c for leak in leaks for c in leak.computed]
@@ -1466,13 +1474,30 @@ def template_answer(plan, result, pack, ds, scenario):
                    f"{w.day(r.event.date)}, when you'll have {w.balance(r.balance_before)}."] if r.event else                 ["Everyday spending slowly adds up."]
         changes = [f"The extra shift adds {w.dollars(pay.value)} to your {w.day(pay_date)} paycheck {c(pay)}."
                    for pay_date, pay in f.get("shift_pay", [])]
+        if f.get("shift_plan"):                       # several shifts: the total, then one line per payday
+            sp = f["shift_plan"]
+            paid = {}
+            for x in sp.shifts:
+                paid.setdefault(x.pay_date, []).append(x)
+            changes = [f"These {len(sp.shifts)} shifts add {w.dollars(sp.total.value)} {c(sp.total)}."]
+            for pay_date, xs in paid.items():
+                when = {"in_time": "before you run out" if sp.before.first_below_zero.value else "",
+                        "late": "after you run out", "after_semester": "after the semester"}[xs[0].timing]
+                days = [w.day(x.shift.date) for x in xs]
+                days = days[0] if len(days) == 1 else ", ".join(days[:-1]) + " and " + days[-1]
+                changes.append(f"Pay for {days} arrives {w.day(pay_date)}" + (f", {when}" if when else "")
+                               + f" {c(xs[0].added)}.")
         if changes:                                       # a what-if leads with the change itself
             answer, why = changes[0], [answer] + why + changes[1:]
-        if f.get("latest_shift"):
+        if f.get("latest_shift") and not f.get("shift_plan"):
             shift_c, pay_c = f["latest_shift"]
             why.append(f"A shift worked by {w.day(shift_c.value)} is paid {w.day(pay_c.value)}, before you run out "
                        f"{c(shift_c)}.")
-        return _format(answer, why, ["Look at the ways to fix it in the Semester tab."], note)
+        if f.get("shift_plan"):                       # the total leads; the run-out line, then the paydays
+            why = why[:1] + changes[1:]
+        return _format(answer, why, ["Try these in the shift planner in the Semester tab."
+                                     if f.get("shift_plan") else "Look at the ways to fix it in the Semester tab."],
+                       note)
     if plan.tool == "find_leaks":
         why, do = [], []
         for leak in f["leaks"]:
@@ -2081,7 +2106,21 @@ def _core_facts(tool, result, pack, ds, scenario):
                         date=best.lowest_date.value, where="why"))
     elif tool in ("runway", "what_if"):
         p, r = f["projection"], f["reason"]
-        if tool == "what_if":
+        if tool == "what_if" and f.get("shift_plan"):
+            sp = f["shift_plan"]
+            out.append(Fact("shifts_total", "the total extra pay from the shifts",
+                            f"These {len(sp.shifts)} shifts add {w.dollars(sp.total.value)} {c(sp.total)}.",
+                            money=(sp.total.value,), where="lead"))
+            for pay_date in dict.fromkeys(x.pay_date for x in sp.shifts if x.timing != "after_semester"):
+                first = next(x for x in sp.shifts if x.pay_date == pay_date)
+                out.append(Fact(f"payday_{pay_date}", f"the payday {w.day(pay_date)}",
+                                f"Pay for the shift on {w.day(first.shift.date)} arrives {w.day(pay_date)} "
+                                f"{c(first.added)}.", date=pay_date))
+            for fx in result.fixes:
+                fact = _fix_fact(fx, ds, f["new_scenario"], c)
+                fact.where = "lead"
+                out.append(fact)
+        elif tool == "what_if":
             for pay_date, pay in f.get("shift_pay", []):
                 out.append(Fact("shift_pay", "the extra pay from the shift",
                                 f"The extra shift adds {w.dollars(pay.value)} to your {w.day(pay_date)} paycheck "

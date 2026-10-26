@@ -62,8 +62,9 @@ def test_base_status_and_fix_cards(at):
     assert not at.chat_input[0].disabled
     assert [b.label for b in at.button if str(b.key).startswith("ask_suggest_")][3:] == \
         ["Can I afford a $400 flight home for Thanksgiving?", "What should I do this week?"]
-    assert [t.label for t in at.toggle if t.key != "ask_think"][:3] == [
-        "**Send the verification form**", "**Cancel Spotify**", "**Pick up an extra shift**"]
+    assert [t.label for t in at.toggle if t.key != "ask_think"][:2] == [
+        "**Send the verification form**", "**Cancel Spotify**"]
+    assert "wf_shift_on" not in at.session_state                     # the single shift card became the planner
     body = "\n".join(texts(at))
     assert "Releases your $1,850 refund around Thu, Nov 5." in body
     assert "Saves $23.98 this semester." in body
@@ -92,13 +93,6 @@ def test_no_bare_negative_balances_or_jargon_on_screen(at):
         assert "-$" not in t, t
     for word in ("scenario", "Computed", "evidence", "row ID", "backend", "ledger", "projection", "delta"):
         assert not any(word in t.replace("rw-delta", "") for t in shown), word
-
-
-def test_extra_shift_shows_added_pay(at):
-    assert any("Adds $57.35 to your Wed, Nov 18 paycheck." in t for t in texts(at))
-    at.toggle(key="wf_shift_on").set_value(True)
-    run(at)
-    assert at.session_state["wf_shift_on"] and figures(at)[0].count("rw-delta") == 1
 
 
 def test_start_over_resets(at):
@@ -422,12 +416,6 @@ def test_legend_only_when_changed_and_secondary_numbers_are_quiet(at):
     run(at)
     legend = next(t for t in texts(at) if t.startswith('<div class="rw-legend"'))
     assert "Before your changes" in legend and "With your changes" in legend
-
-
-def test_shift_card_hints_when_paid_after_running_out(at):
-    body = "\n".join(texts(at))
-    assert "Adds $57.35 to your Wed, Nov 18 paycheck." in body
-    assert "That's after you run out. A shift worked by Sat, Oct 31 is paid Tue, Nov 3, in time." in body
 
 
 # --- the check-in ----------------------------------------------------------------------------------------
