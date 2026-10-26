@@ -1,38 +1,43 @@
-# Runway: 4-minute demo video script (live)
+# Runway: demo video script (live, 3:45)
 
-The video rules: 3-5 minutes (judges stop at 5), about 70% live product and 30% concept, **no static
-screenshots**: questions are typed on camera and the AI answers are generated live. A 30-45 second "under the hood"
-segment. No third-party music, no watermarks, no logos or trademarks we don't own. Upload to YouTube (unlisted),
-Vimeo or Google Drive ("anyone with the link"), or an MP4 under 300 MB.
+The official rules: **1-4 minutes**, about 70% live product and 30% concept, **no static screenshots**: questions
+are typed on camera and the AI answers are generated live. A 30-45 second "under the hood" segment. No third-party
+music, no watermarks, no logos or trademarks we don't own. Upload to YouTube (unlisted), Vimeo or Google Drive
+("anyone with the link"), or an MP4 under 300 MB. Track: **The Agent That Can Explain Why**.
 
 How we record: **live mode** (`ANSWER_MODE=live`), **fast mode** (Think harder off), questions **typed** in the chat.
+Every answer goes through **Meterless Nightshift** to **NVIDIA Nemotron**; the data comes from **Zetaris**.
 Maya's synthetic data only. Never show "My data" mode, `.env`, keys or a terminal with keys (rule 7).
 Start everything with **`Start Runway (Live demo).bat`** (see the checklist below).
 
-Numbers below are what the app showed in a full rehearsal on Oct 26 (live, fast mode, Zetaris). The engine's numbers
+Numbers below are what the app showed in rehearsals on Oct 26 (live, fast mode, Zetaris). The engine's numbers
 never change; the AI's wording can, so read what is on screen rather than these lines word for word.
 
-## The script
+## The script (3:42)
 
 | Time | Click / do | On screen | Say |
 |---|---|---|---|
-| **0:00-0:15** The problem | Pitch deck slide 1 (or the app header if there are no slides). | The problem slide. | "Students drop out over a few hundred dollars. Not because they overspend. Because they can't see what's coming." |
-| **0:15-0:28** Maya | Slide 2. | Maya and her eight money sources. | "Meet Maya, a sophomore. Her money lives in eight places: checking, a credit card, financial aid, her student account, her lease, her work shifts, her meal plan and the school's aid list. No one app sees all of it." |
-| **0:28-0:40** The solution | Slide 3. Then switch to the browser with Runway open. | Runway: an AI agent that explains why. | "Runway is an AI agent that reads all eight, projects her money to the end of the semester, explains why, and drafts the fix. She approves every action." |
-| **0:40-0:55** Open Runway | The app is open at the top (light mode). Point at the status card, the check-in, then scroll to the chart. | **"Your money runs out in 2 weeks, on Mon, Nov 9."** Check-in: "Hi Maya. 6 things need your attention." The chart turns red after Nov 9; lowest point $1,462 below zero. | "Runway speaks first. Her money runs out on November 9th, when a $360 card payment is due. The check-in ranks what matters. The chart shows every day to December." |
-| **0:55-1:20** The flight question | Click the chat box and **type**: `Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?` Press Enter. Let it stream. | Stages: "Understanding your question..." then the quick answer at once, then the AI answer streaming in over it ("Writing your answer..."). It may say **"Double-checking the numbers..."** and write it again: that's the checker. Final: **"Yes, if you do 2 things."** Send the verification form (the $1,850 refund arrives around Thu, Nov 5); cancel Spotify ($23.98). Lowest point $5.81 on Mon, Nov 2. | "Can she fly home? She types the question. Nemotron plans which tools to run. Our engine does all the math, so she gets a quick answer in about a second. Then Nemotron writes the full answer. A checker rejects any number that isn't in her records. The answer: yes, if she does two things." |
-| **1:20-1:30** Proof and "Do these" | Click the proof chip **"2 · $1,850"**. Point at the **Do these** button (don't click it). | The proof table: the refund row from her student account. The **Do these** button beside DO THIS. | "Every number has proof. This one comes from her student account. One click on 'Do these' would try both fixes in her forecast." |
-| **1:30-1:42** The Apple Music insight | Point at the small note under DO THIS (proof chip **"5 · $0.00"** if you like). | "Cancelling Apple Music saves $0.00 this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends." | "Here's what a budget app gets wrong. Cancelling Apple Music saves her zero dollars this semester. It's on her card, and that bill is paid in January. Spotify charges checking directly, so that's the one to cancel. Her lowest point is $5.81. Tight, but she makes it." |
-| **1:42-1:58** The timing moment | **Type**: `Can I afford a $400 flight home for Thanksgiving?` Enter. | **"Not right now."** Lowest point $394 below zero on Mon, Nov 2. Note: "You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27." | "Same flight, no date. Now it's 'not right now'. Booking tomorrow comes before the refund arrives. Runway says what it assumed. Timing is the whole story." |
-| **1:58-2:12** A follow-up | **Type**: `what about Nov 17 instead?` Enter. | Under her message: "Answering: Can I afford a $400 flight home for Thanksgiving if I book it Nov 17 instead?" Answer: **"Yes, if you do 2 things."** | "She can just follow up. Runway knows she means the flight, and answers for November 17th." |
-| **2:12-2:30** Form sent: the forecast turns | Scroll up to the check-in card **"Send your verification form"**. Open **Email** for a second (the draft to financial aid; don't send). Then click **Form sent**. | The status card turns to **"You're covered all semester."** The chart goes blue. Runway says in the chat: "Nice. With the form sent, your refund should arrive around Wed, Nov 4. Your money now lasts all semester. Your lowest point is $5.81 on Mon, Nov 2." | "Runway drafts the email to financial aid. Maya sends it herself; Runway never sends anything. She marks the form as sent. The whole forecast updates instantly, with no AI call. She's covered all semester." |
-| **2:30-2:45** Shift planner | Click the **Semester** tab, scroll to **Shift planner**. Click **+4h this Saturday**, then **+4h next Saturday**. | "These 2 shifts add $115 and you're covered all semester." Sat, Oct 31 adds $57.35, paid Tue, Nov 3. Sat, Nov 7 adds $57.35, paid Wed, Nov 18. | "Thinking about extra shifts? Each one shows what it adds after withholding, and when it's actually paid. The second Saturday is paid on November 18th." |
-| **2:45-2:57** Budget | Click the **Budget** tab. Point at the sentence and the donut. Click **Suggest a budget**. | "So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461)." Suggested amounts appear. | "Budget shows where October went, and suggests a budget from her real spending." |
-| **2:57-3:10** Find money | Click the **Find money** tab. Point at **Student Emergency Grant**, then switch on **If approved**. | "Student Emergency Grant · Up to $500 · Apply anytime. If approved, it arrives around Mon, Nov 2." "Nothing here is certain until it's approved." | "Find money matches her to school aid. This grant could arrive November 2nd. It only counts if she switches on 'if approved'. Runway never treats a maybe as money." |
-| **3:10-3:22** Under the hood: the plan and the checks | Scroll up to the flight answer. Open **How Runway thought about this**, switch on **Details for nerds**. Then switch to the second browser tab (the Think harder answer, see the checklist) and point at **Nemotron's reasoning**. | "Written by: Nemotron Lightning", "Number check: all 4 dollar amounts and 2 dates match your records", "Required facts: 4 of 4 written by the model". The plan JSON: `{"tool": "can_afford", "args": {"cost": "400.00", "item": "flight home", "account": "checking", "date": "2026-11-10"}}`. In tab 2: Nemotron Super's reasoning. | "Under the hood. Nemotron's first call writes this plan: which tool, which arguments. Python validates it, runs the tools and does every calculation. Nemotron's second call writes the answer, and the checker verifies every number. With 'Think harder', Nemotron Super shows its reasoning." |
-| **3:22-3:40** Zetaris, live | Back in tab 1, open **Behind the scenes** at the bottom. Point at the 8 sources, then click **Run live on Zetaris**. Talk while the timer runs. | "Maya's 8 data sources ... federated by Zetaris." The timer "Running on Zetaris... 12.4 s", then "Zetaris answered in 18.2 s: 13 rows from card and checking." and the SQL across `RUNWAY_CHECKING` and `RUNWAY_CARD`. | "Each source stays separate: eight databases on Zetaris. This button runs one federated query, live, across her checking account and her credit card to find charges that repeat every month. No cache. Here are the rows." |
-| **3:40-3:50** The code | Switch to the editor: `agent.py`, function `run()` (line 2471). Scroll from `# PLAN` (line 2508) through `# EXECUTE` (2543) to `# EXPLAIN + CHECK` (2566). | The code: one PLAN call, the tools in plain Python, one EXPLAIN call, then the check. | "The whole agent is this loop. One plan call, then deterministic tools, then one explain call, then the check. No open-ended tool loop. Two model calls per question." |
-| **3:50-4:00** Results and roadmap | Back to the browser, scroll to the top: the status card says she's covered. | "You're covered all semester." | "We tested Runway on 29 questions, three times, with the real models. All 87 answers it showed passed the checks. Think harder wrote 28 of 29 in full. Next: bank connections with consent, school integrations, and a mobile app. Runway: know if you'll make it, and why." |
+| **0:00-0:10** The problem | Pitch deck slide 1 (or the app header if there are no slides). | The problem slide. | "Students drop out over a few hundred dollars. Not because they overspend. Because they can't see what's coming." |
+| **0:10-0:20** Maya | Slide 2. | Maya and her eight money sources. | "Meet Maya. Her money lives in eight places: checking, a credit card, financial aid, her student account, her lease, her job, her meal plan and the school's aid list." |
+| **0:20-0:30** The solution | Slide 3. Then switch to the browser with Runway open. | Runway: an AI agent that explains why. | "Runway reads all eight, projects her money to December, explains why, and drafts the fix. She approves every action." |
+| **0:30-0:42** Open Runway | The app at the top (light mode). Point at the status card, the check-in, then the chart. | **"Your money runs out in 2 weeks, on Mon, Nov 9."** "Hi Maya. 6 things need your attention." The chart turns red after Nov 9. | "Runway speaks first. Her money runs out November 9th, when a $360 card payment is due." |
+| **0:42-1:05** The flight question | Click the chat box and **type**: `Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?` Enter. Let it stream. Then click the proof chip **"2 · $1,850"** and point at **Do these** (don't click it). | "Understanding your question...", the quick answer at once, then the AI answer streaming in (maybe "Double-checking the numbers..."). **"Yes, if you do 2 things."** Send the verification form ($1,850 refund around Thu, Nov 5); cancel Spotify ($23.98). Lowest point $5.81 on Mon, Nov 2. The proof table: the refund row from her student account. | "She types her question. Nemotron plans which tools to run. Our engine does all the math, so a quick answer shows in about a second. Then Nemotron writes the full answer, and a checker rejects any number that isn't in her records. Yes, if she does two things. Every number has proof." |
+| **1:05-1:15** The Apple Music insight | Point at the note under DO THIS. | "Cancelling Apple Music saves $0.00 this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends." | "Here's what a budget app gets wrong. Cancelling Apple Music saves zero this semester: that card bill is paid in January. Spotify hits checking, so cancel that one." |
+| **1:15-1:27** The timing moment | **Type**: `Can I afford a $400 flight home for Thanksgiving?` Enter. | **"Not right now."** Lowest point $394 below zero on Mon, Nov 2. "You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27." | "Same flight, no date. Not right now: tomorrow comes before the refund. Runway says what it assumed." |
+| **1:27-1:37** A follow-up | **Type**: `what about Nov 17 instead?` Enter. | "Answering: Can I afford a $400 flight home for Thanksgiving if I book it Nov 17 instead?" **"Yes, if you do 2 things."** | "She can just follow up. Runway knows she means the flight." |
+| **1:37-1:52** Form sent | Scroll up to **"Send your verification form"**. Open **Email** for a second (don't send). Click **Form sent**. | **"You're covered all semester."** The chart goes blue. In the chat: "Nice. With the form sent, your refund should arrive around Wed, Nov 4. Your money now lasts all semester..." | "Runway drafts the email; Maya sends it herself. She marks the form as sent, and the whole forecast updates instantly, with no AI call." |
+| **1:52-2:03** Shift planner | **Semester** tab > **Shift planner**: click **+4h this Saturday**, then **+4h next Saturday**. | "These 2 shifts add $115 and you're covered all semester." Sat, Oct 31 adds $57.35, paid Tue, Nov 3. Sat, Nov 7 adds $57.35, paid Wed, Nov 18. | "Extra shifts show what each one adds after withholding, and when it's actually paid." |
+| **2:03-2:11** Budget | **Budget** tab. Point at the sentence and the donut. | "So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461)." | "Budget shows where October went." |
+| **2:11-2:22** Find money | **Find money** tab. Point at **Student Emergency Grant**, switch on **If approved**. | "Student Emergency Grant · Up to $500 · Apply anytime. If approved, it arrives around Mon, Nov 2." | "Find money matches her to school aid. It only counts if she switches on 'if approved'. A maybe is never money." |
+| **2:22-2:34** Under the hood: Nightshift | Scroll up to the flight answer. Open **How Runway thought about this**, switch on **Details for nerds**. | "Planned by: Nemotron Lightning (nvidia/nemotron-3.5-lightning-30b-a3b) through Meterless Nightshift, receipt rcpt_..."; "Written by: ..."; "Number check: all ... match your records"; the plan JSON and every model call with its routed model. | "Under the hood. Every request goes through Meterless Nightshift to NVIDIA Nemotron. The receipt shows which model answered. Here's the plan Nemotron wrote, which Python validates before any tool runs." |
+| **2:34-2:42** The provider checks | Open **Behind the scenes** (bottom) > **AI provider**. | The checks table: Connection HTTP 200; Authorization online; a wrong token shows unauthorized; model discovery; text requests on meterless/auto and the Nemotron models, each with its routed model and receipt. | "Runway checks Nightshift the official way: connection, authorization, model discovery, and a real request." |
+| **2:42-3:02** Zetaris, live | Scroll to **Run live on Zetaris**, click it. Talk while the timer runs (about 18 s). | The timer "Running on Zetaris... 12.4 s", then "Zetaris answered in 18.2 s: 13 rows from card and checking." and the SQL across `RUNWAY_CHECKING` and `RUNWAY_CARD`. | "The data layer is Zetaris: eight separate databases. This federated query runs live across her checking and her card, to find charges that repeat every month. No cache." |
+| **3:02-3:10** The code | Editor: `agent.py`, `run()` at line 2506. Scroll `# PLAN` (2548), `# EXECUTE` (2585), `# EXPLAIN + CHECK` (2608). | One PLAN call, the tools in plain Python, one EXPLAIN call, then the check. | "The whole agent is this loop: plan, deterministic tools, explain, check. Two model calls per question." |
+| **3:10-3:30** Memory (Meterless H-MEM) | Back to the browser. Open **What Runway remembers** under the chat. Then **reload the page** (a new session) and point at the first check-in card. | The memories, each with where it came from: "Marked done: Form sent (Send your verification form).", "Plans extra shifts: Sat, Oct 31 (4 hours), Sat, Nov 7 (4 hours).", short notes of her questions. After the reload, on the form card: **"Last time you clicked "Form sent". Still true? Click it again."** | "Runway remembers, with Meterless H-MEM. Every memory says where it came from, and she can forget it. Next session, Runway picks up where she left off. Memory helps the planner understand her. The numbers still come only from her records." |
+| **3:30-3:42** Close | Scroll to the top. | The status card. | "Every answer Runway showed in our 29-question test passed the number check. Next: bank connections with consent, school integrations, a mobile app. Runway: know if you'll make it, and why." |
+
+The memory beat reloads the page, so it comes after everything that needs the chat. "What Runway remembers" fills
+up during the demo; the checklist clears it before recording.
 
 ### If something goes wrong while recording
 
@@ -46,8 +51,9 @@ never change; the AI's wording can, so read what is on screen rather than these 
   answer, click **New chat** and re-take the beat.
 - **"Double-checking the numbers..."** appears: keep recording. That's the one allowed rewrite (rule 10). In the
   rehearsal the Nov 10 flight question needed it every time, and it added about 2 seconds.
-- **NVIDIA is down** (the check in `Start Runway (Live demo).bat` says NOT READY, or answers keep falling back): wait
-  a few minutes and run `.venv\Scripts\python demo_check.py` again. As a last resort, record with `ANSWER_MODE=cached`
+- **Nightshift or NVIDIA is down** (the check in `Start Runway (Live demo).bat` says NOT READY, or answers keep
+  falling back): check that Nightshift is open (and its Runtime token in `.env` is current), wait a few minutes and
+  run `.venv\Scripts\python demo_check.py` again. As a last resort, record with `ANSWER_MODE=cached`
   (`Start Runway.bat`). Those are real earlier answers typed out, so say so on screen ("recorded earlier").
 - **Zetaris is slow or down:** the button shows the error or the timer passes 60 s. Cut the Zetaris beat to the
   8-sources list and say "federated by Zetaris". The app keeps working on the cached Zetaris results.
@@ -62,7 +68,8 @@ never change; the AI's wording can, so read what is on screen rather than these 
 - [ ] **Turn off notifications:** Windows Focus / Do not disturb on. Mute the phone.
 - [ ] Docker Desktop: the Zetaris containers are running (`./verify.sh` in `C:\Users\Evana\zetaris-platform`).
 - [ ] Double-click **`Start Runway (Live demo).bat`**. It:
-      1. checks the NVIDIA endpoint with one real question (`demo_check.py`) and prints READY or NOT READY;
+      1. checks Meterless Nightshift (connection, authorization, discovery) and asks one real question
+         through it (`demo_check.py`), printing the model that answered and READY or NOT READY;
       2. stops any Runway already running on 8501;
       3. uses Zetaris if it's up (else Maya's local files, with a message);
       4. moves the saved answers aside, so every answer is really generated live;
@@ -73,15 +80,17 @@ never change; the AI's wording can, so read what is on screen rather than these 
 - [ ] **Light mode:** browser and Streamlit theme (menu ⋮ > Settings > choose the light theme).
 - [ ] **Readable at 1080p:** browser window 1920 x 1080 (full screen), zoom **125%** (Ctrl +). Check that the
       chat text and the status card are easy to read in a test recording.
-- [ ] **Tab 2 for the reasoning beat:** open a second tab on http://localhost:8501, switch on **Think harder**, and
-      type `How long will my money last?`. It takes about a minute. Open **How Runway thought about this** there so
-      **Nemotron's reasoning** is visible. Leave the tab ready and go back to tab 1.
-- [ ] Tab 1: reload so the chat is empty, nothing is marked done, no what-ifs are on, Think harder is **off**.
-- [ ] In the editor, open `agent.py` at line 2471 (`def run(`), font size large enough for 1080p.
+- [ ] **Meterless Nightshift is open** (Windows edition), with NVIDIA in Setup > Providers. The launcher's check
+      prints "Nightshift: ... online" and the model that answered.
+- [ ] **Clear the memory:** open **What Runway remembers** and click **Forget everything** (rehearsals leave
+      memories, and the memory beat should start from this recording's own actions).
+- [ ] Reload so the chat is empty, nothing is marked done, no what-ifs are on, Think harder is **off**.
+- [ ] In the editor, open `agent.py` at line 2506 (`def run(`), font size large enough for 1080p.
 - [ ] One practice pass of the typed questions (then reload). Live answers take about 3-8 s each in fast mode.
 - [ ] Don't click Send in any email app. Don't show `.env`, keys or a terminal with keys. My data mode stays off.
 - [ ] No music, or only music we made or have rights to. No watermarks. Show only our own app, slides and code.
-- [ ] After recording: watch it once in full; check it's 3-5 minutes and every number is readable. Upload as
+- [ ] After recording: watch it once in full; check it's **under 4 minutes** (aim for 3:45) and every number is
+      readable. Upload as
       YouTube unlisted (or Vimeo, or Drive "anyone with the link"), or export an MP4 under 300 MB.
 - [ ] After the demo: `Start Runway.bat` (or `Stop Runway.bat`) puts Runway back in cached mode.
 
@@ -99,7 +108,11 @@ never change; the AI's wording can, so read what is on screen rather than these 
 7. **Find money tab:** the school's grants ("if approved" switches), then "Found online - check before applying"
    (web results with links; amounts only when the page states them).
 8. **Findings tab:** the money leaks, with the Apple Music vs Spotify timing explained.
-9. **Behind the scenes** (bottom): the 8 data sources, **Run live on Zetaris** (needs Zetaris), the AI's plan and
+9. **What Runway remembers** (under the chat): what she marked done, her budget and shifts, and notes from past
+   chats (Meterless H-MEM), each with where it came from; Forget, "This isn't right", Forget everything. Reload the
+   page: the check-in says "Last time you clicked ..." for anything she did in an earlier session.
+10. **Behind the scenes** (bottom): the 8 data sources, the AI provider checks (Meterless Nightshift), **Run live on
+   Zetaris** (needs Zetaris), the AI's plan and
    reasoning ("How Runway thought about this" > "Details for nerds"), and the log of what Runway drafted and what
    was approved.
-10. **Results:** `eval_summary.md` has the 29-question evaluation against the real NVIDIA models.
+11. **Results:** `eval_summary.md` has the 29-question evaluation against the real NVIDIA models.

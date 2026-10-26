@@ -5,6 +5,7 @@ import time
 
 import streamlit as st
 
+import agent
 import runway_memory
 from ui import fmt, state
 
@@ -65,8 +66,8 @@ def think_harder(on):
 
 def conversation(answer):
     line = (answer.sections or {}).get("answer") or answer.text.split("\n")[0]
-    safe(lambda m: m.remember_conversation(answer.question, fmt.strip_ids(line).strip()[:140],
-                                           st.session_state.get("memory_session_id")))
+    line = agent.strip_citations(fmt.strip_ids(line)).replace("ANSWER:", "").strip()
+    safe(lambda m: m.remember_conversation(answer.question, line[:140], st.session_state.get("memory_session_id")))
 
 
 def recall(question):

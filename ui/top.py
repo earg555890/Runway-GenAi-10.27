@@ -30,8 +30,11 @@ def header(ds, note=None):
              f"How long your money lasts until {fmt.day(config.SEMESTER_END)}.")
     left.markdown(f'<p class="rw-brand">Runway</p><p class="rw-hello">{fmt.html(hello)}</p>', unsafe_allow_html=True)
     with right.container(horizontal=True, horizontal_alignment="right", gap="small", key="badges"):
+        if config.SAMPLE_MODE:
+            st.badge("Sample mode", color="orange")
         st.badge(data.backend_label(ds), color="gray")
-        st.badge("NVIDIA Nemotron via Meterless Nightshift" if config.AI_PROVIDER == "meterless" else
+        st.badge("Recorded answers by NVIDIA Nemotron" if config.SAMPLE_MODE else
+                 "NVIDIA Nemotron via Meterless Nightshift" if config.AI_PROVIDER == "meterless" else
                  "Reasoning by NVIDIA Nemotron", color="green")
         st.badge(f"Today: {fmt.day(config.DEMO_TODAY)}", color="gray")
     if note:

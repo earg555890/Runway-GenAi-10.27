@@ -120,7 +120,10 @@ def think_model(provider=None):
 
 
 def ai_configured():
-    """True if live answers can be asked for: the Meterless token, or (direct provider or fallback) an NVIDIA key."""
+    """True if live answers can be asked for: the Meterless token, or (direct provider or fallback) an NVIDIA key.
+    Never in SAMPLE_MODE."""
+    if SAMPLE_MODE:
+        return False
     return bool(METERLESS_RUNTIME_TOKEN if AI_PROVIDER == "meterless" else NVIDIA_API_KEY) or bool(NVIDIA_API_KEY)
 
 # Demo timeline: the fixed "today" the demo runs on (Fall 2026 semester).
@@ -128,9 +131,15 @@ DEMO_TODAY = date.fromisoformat(get("DEMO_TODAY") or "2026-10-26")
 SEMESTER_START = date(2026, 8, 24)
 SEMESTER_END = date(2026, 12, 18)
 
+# SAMPLE_MODE=true (the judge-friendly default in .env.example): runs from a clean clone with no Zetaris, no
+# Nightshift and no keys. Maya's local files and the recorded answers (DATA_BACKEND=local, ANSWER_MODE=replay);
+# no AI provider is called. SAMPLE_MODE=false uses DATA_BACKEND and ANSWER_MODE as set. With no .env at all (a fresh
+# clone), sample mode is on.
+SAMPLE_MODE = (get("SAMPLE_MODE") or ("false" if ENV_FILE.exists() else "true")).lower() in ("true", "1", "yes", "on")
+
 # Data access (see data_access.py). Paths are relative to the project root.
 PROJECT_ROOT = Path(__file__).resolve().parent
-DATA_BACKEND = (get("DATA_BACKEND") or "local").lower()          # "local" or "zetaris"
+DATA_BACKEND = "local" if SAMPLE_MODE else (get("DATA_BACKEND") or "local").lower()     # "local" or "zetaris"
 DATA_DIR = PROJECT_ROOT / (get("DATA_DIR") or "data/maya")
 # The student's own uploaded bank data (rule 7): gitignored, never committed, never in demo answers.
 USER_DATA_DIR = PROJECT_ROOT / (get("USER_DATA_DIR") or "user_data")
@@ -160,7 +169,7 @@ ZETARIS_DATA_ROOT = get("ZETARIS_DATA_ROOT") or "/home/zetaris/customer-data/sha
 # same question and what-ifs if there is one (.cache/answers/ first, then demo_answers/); replay = only the
 # committed demo answers, typed out (no key needed). Live answers are saved to .cache/answers/;
 # pregenerate_answers.py writes demo_answers/.
-ANSWER_MODE = (get("ANSWER_MODE") or "cached").lower()
+ANSWER_MODE = "replay" if SAMPLE_MODE else (get("ANSWER_MODE") or "cached").lower()
 ANSWER_CACHE_DIR = PROJECT_ROOT / ".cache" / "answers"
 # One JSON line per question answered live (agent.write_trace): plan, tools, queries, model calls, timings, checks.
 LOGS_DIR = PROJECT_ROOT / "logs"

@@ -1,0 +1,58 @@
+{
+  "project": "Runway",
+  "tagline": "An AI money agent for college students that tells you how long your money lasts, and explains why, with proof.",
+  "hackathon": "GenAI Works Open Agent Hackathon (HackOS)",
+  "track": "The Agent That Can Explain Why",
+  "repository": "https://github.com/earg555890/Hackathon1",
+  "team": [
+    {
+      "name": "Evan Arghirescu",
+      "github": "earg555890",
+      "role": "Product, agent orchestration, Zetaris and Meterless integration, UI"
+    }
+  ],
+  "ai_provider": {
+    "primary": "Meterless Nightshift (Meterless Runtime 0.90.0, OpenAI-compatible, local)",
+    "base_url_default": "http://127.0.0.1:8088/v1",
+    "contract": "Authorization: Bearer <runtime token>; meterless-app: runway on every request; meterless-scope: user on chat; GET /v1/models decides online / unauthorized / offline; 180 s timeout",
+    "where": ["llm_client.py (providers, receipts, labelled fallback)", "meterless.py (connection, authorization, discovery, text-request checks, Auto Detect)", "ui/provider.py (checks shown in Behind the scenes)"],
+    "routed_model_shown": "From meterless.compute_receipt.v1 (routed_model, receipt_id) on every answer: 'How Runway thought about this', Behind the scenes and logs/traces.jsonl",
+    "fallback": "NVIDIA API directly, only when the Meterless Runtime is unreachable or refuses the token, labelled 'fallback' on the answer"
+  },
+  "nvidia_models": [
+    {
+      "id": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "via": "Meterless Nightshift",
+      "used_for": "PLAN (picks 1-3 tools and their arguments as JSON, thinking off) and fast answers (EXPLAIN, thinking off)",
+      "where": "agent.py run(): PLAN call and explain_chain(think=False)"
+    },
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b",
+      "via": "Meterless Nightshift",
+      "used_for": "Think harder answers (EXPLAIN, thinking on; its reasoning trace is shown in the app)",
+      "where": "config.THINK_MODEL; agent.py explain_chain(think=True)"
+    }
+  ],
+  "meterless_engines": [
+    {
+      "engine": "H-MEM (hierarchical memory)",
+      "implementation": "hmem.py: a Python port of the reference in engines/hmem of github.com/Meterless/Meterless (Apache-2.0)",
+      "feature": "What Runway remembers: what the student marked done, what she opened (email draft, reminder, cancel page), her budget, planned shifts, preferences and short chat summaries, each with provenance and an append-only trust ledger; recalled into PLAN across sessions; the check-in asks 'Last time you clicked Form sent. Still true?'; Forget / This isn't right / Forget everything",
+      "files": ["hmem.py", "runway_memory.py", "ui/memory.py", "agent.py (plan_messages memory block, trace)", "ui/checkin.py (Last time... line)"],
+      "test": "tests/test_hmem_conformance.py runs the official conformance vectors (engines/hmem/conformance/vectors/vectors.json, unchanged) with a Python port of runner.ts: 13/13 pass. tests/test_runway_memory.py: 8 tests for the product feature.",
+      "test_command": ".venv/Scripts/python -m pytest tests/test_hmem_conformance.py tests/test_runway_memory.py"
+    }
+  ],
+  "zetaris": {
+    "role": "The data layer: federated access over JDBC (Lightning SQL), one Lightning database per source",
+    "databases": ["RUNWAY_CHECKING", "RUNWAY_CARD", "RUNWAY_AID", "RUNWAY_BURSAR", "RUNWAY_LEASE", "RUNWAY_SHIFTS", "RUNWAY_OPPORTUNITIES", "RUNWAY_MEALPLAN"],
+    "named_queries": 21,
+    "federated_query": "federated_recurring_charges: one statement across RUNWAY_CHECKING and RUNWAY_CARD (JOIN + UNION ALL + GROUP BY ... HAVING) to find charges that repeat every month",
+    "where": ["zetaris_db.py (JDBC)", "data_access.py (the 21 named queries; the app never runs ad-hoc SQL)", "load_zetaris.py (registers the files as tables)", "ui/live_zetaris.py ('Run live on Zetaris' button, uncached, with a timer)"],
+    "parity_test": "tests/test_data_access.py::test_zetaris_parity: every named query returns the same rows on Zetaris and on the local files"
+  },
+  "cursor": "TO CONFIRM (user): how Cursor was used in this project",
+  "sample_mode": "SAMPLE_MODE=true (the default in .env.example, and when there is no .env): Maya's local files and recorded answers; no Zetaris, Nightshift or keys needed",
+  "traces": "logs/traces.jsonl (one JSON line per live question: plan, tools, queries, model calls with routed model and receipt, timings, checks); example: docs/example_trace.json",
+  "data": "Synthetic demo student (Maya). No real accounts connected."
+}

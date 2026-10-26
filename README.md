@@ -2,7 +2,10 @@
 
 **An AI money agent for college students that tells you how long your money lasts, and explains why, with proof.**
 
-Built for the GenAI Works Open Agent Hackathon, Track 2: "The Agent That Can Explain Why".
+Built for the GenAI Works Open Agent Hackathon (HackOS), track: **The Agent That Can Explain Why**.
+
+Built on **Zetaris** (the data layer), **Meterless** (Nightshift as the AI provider, and the H-MEM memory engine)
+and **NVIDIA Nemotron** (through Nightshift).
 
 ## The problem
 
@@ -47,6 +50,7 @@ The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester e
 - **What-if panel:** turn fixes on and off (send the form, cancel a subscription) and the balance chart and numbers update instantly, with no AI call.
 - **Shift planner:** try the extra shifts you're thinking of taking ("+4h this Saturday", or any day and hours). Each shift shows its pay after withholding and its payday, in time or after you run out; the total says how much longer the money lasts ("These 2 shifts add $229 and your money lasts until Sun, Nov 15 (6 days longer)."). "Reset shifts" clears them. In the chat, "What if I work 4 hours this Saturday and next Saturday?" answers the same way, with a button to add them to the planner.
 - **Drafted actions:** a ready-to-send email to the financial aid office, calendar reminders and a to-do list. Runway never sends anything; you approve every action with a click.
+- **What Runway remembers (Meterless H-MEM):** what you marked done, what you opened (the email draft, a reminder), your budget, the shifts you plan and short notes from your chats, each with where it came from and when. In your next session the check-in picks up where you left off ("Last time you clicked "Form sent". Still true? Click it again."), and follow-up questions across sessions work. Memory helps Runway understand your question; the numbers in an answer still come only from your records. Forget one memory, mark it "not right", or forget everything.
 
 ## Watch the demo
 
@@ -54,7 +58,7 @@ Video: *coming soon* (link to be added)
 
 ## Screenshots
 
-Maya's demo data, replay mode.
+Maya's demo data.
 
 | | |
 |---|---|
@@ -65,9 +69,23 @@ Maya's demo data, replay mode.
 | ![Found online](docs/images/5-found-online.jpg) | |
 | **Find money:** the school's grants, then "Found online - check before applying". | |
 
-## Try it in 2 minutes
+## Dependencies
 
-No keys needed. This runs the full app on the included data, with the recorded AI answers for the suggested questions. Needs Python 3.11 or newer and git.
+| Dependency | What it does in Runway | Needed for |
+|---|---|---|
+| Python 3.11+ and `requirements.txt` (Streamlit, openai, JayDeBeApi, pytest) | the app, the agent, the engine and the tests | everything |
+| **Zetaris** (local Docker bundle, Lightning JDBC) + Java 21 | the data layer: 8 Lightning databases, 21 named queries, a federated query | full mode (`DATA_BACKEND=zetaris`) |
+| **Meterless Nightshift** (Windows edition), the Meterless Runtime at `http://127.0.0.1:8088/v1` | the primary AI provider (OpenAI-compatible); the NVIDIA key is set inside Nightshift | full mode (live answers) |
+| **NVIDIA Nemotron**, through Nightshift: `nvidia/nemotron-3.5-lightning-30b-a3b`, `nvidia/nemotron-3-ultra-550b-a55b` | plans the tools and writes the answers | full mode (live answers) |
+| Meterless **H-MEM** | Runway's memory (`hmem.py`, a Python port of the reference) | built in, no setup |
+
+Sample mode needs only Python: no Zetaris, no Nightshift, no keys.
+
+## Try it in 2 minutes (sample mode)
+
+No keys needed. Sample mode (`SAMPLE_MODE=true`, the default in `.env.example`, and also on when there is no `.env`
+at all) runs the full app on Maya's included data, with recorded AI answers for the suggested questions, and calls
+no AI provider. Needs Python 3.11 or newer and git.
 
 **macOS / Linux**
 
@@ -89,23 +107,28 @@ copy .env.example .env
 
 On Windows, clone into a short folder (like `C:\code`): one package installs files with very long paths, and pip fails past Windows' 260-character limit.
 
-Then open http://localhost:8501 and click a suggested question. Typed questions need a key (below).
+Then open http://localhost:8501 and click a suggested question. Typed questions need full mode (below).
 
 On Windows, after the install you can also double-click **Start Runway.bat** (opens the browser; does nothing extra if Runway is already running), **Start Runway (Zetaris).bat** and **Stop Runway.bat**. For recording the demo video, **Start Runway (Live demo).bat** checks the NVIDIA endpoint with one real question (`demo_check.py`), uses Zetaris if it's up, moves saved answers aside and starts Runway in live mode (every answer generated live); see [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
-**Live answers (NVIDIA key):** put your key from [build.nvidia.com](https://build.nvidia.com) in `.env` as `NVIDIA_API_KEY=...` and set `ANSWER_MODE=cached` (saved answers first, then live) or `ANSWER_MODE=live`. Restart the app. With a key, the check-in's one-line greeting is written by the fast model (checked, never blocking the page); `AI_GREETING=off` keeps the fixed line.
+## Full mode (Zetaris + Meterless Nightshift)
 
-**Zetaris:** start the Zetaris Docker bundle, fill in the `ZETARIS_*` settings and `JAVA_HOME` in `.env`, load the data with `python load_zetaris.py`, then run with `DATA_BACKEND=zetaris`. The first load runs every query on Zetaris (about a minute on our laptop) and caches the results. More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+1. **Meterless Nightshift:** install and open Nightshift (Windows edition). In **Setup > Providers**, add your NVIDIA key (from [build.nvidia.com](https://build.nvidia.com)). The key stays in Nightshift, not in Runway. From Nightshift's Console (**Setup > Runtime**), copy the Runtime URL and token into `.env`: `METERLESS_BASE_URL=http://127.0.0.1:8088/v1` and `METERLESS_RUNTIME_TOKEN=...`. Leave the token empty and Runway reads the runtime's own `proxy-token` file.
+2. **Zetaris:** start the Zetaris Docker bundle, fill in the `ZETARIS_*` settings and `JAVA_HOME` in `.env`, and load the data with `python load_zetaris.py`.
+3. In `.env`: `SAMPLE_MODE=false`, `DATA_BACKEND=zetaris`, and `ANSWER_MODE=cached` (saved answers first, then live) or `live`. Restart the app.
+
+Behind the scenes > **AI provider** shows the Nightshift checks (connection, authorization, model discovery, a real text request). Every answer says which model wrote it, with the Meterless receipt. The first Zetaris load runs every query (about a minute on our laptop) and caches the results. If Nightshift isn't reachable and an `NVIDIA_API_KEY` is set, Runway calls NVIDIA directly and labels the answer "fallback". More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    Q["Student's question<br/>+ the last 3 turns"] --> P["PLAN<br/>Nemotron Lightning<br/>picks 1-3 tools, as JSON"]
+    Q["Student's question<br/>+ the last 3 turns"] --> P["PLAN<br/>Nemotron Lightning via Nightshift<br/>picks 1-3 tools, as JSON"]
+    M["What Runway remembers<br/>Meterless H-MEM"] -. "recall, planner only" .-> P
     P --> D["Named queries via Zetaris<br/>across 8 separate sources"]
     D --> E["Money engine<br/>plain Python, tested to the cent"]
     E --> K["Quick answer<br/>from the numbers, ~1 s"]
-    E --> X["EXPLAIN<br/>Nemotron Lightning (fast)<br/>or Super (Think harder)"]
+    E --> X["EXPLAIN via Nightshift<br/>Nemotron Lightning (fast)<br/>or Ultra (Think harder)"]
     X --> C["Check<br/>numbers, dates, reasons,<br/>required facts, no repeats"]
     C --> A[Answer with proof]
     K -. "stays if the check fails" .-> A
@@ -118,15 +141,26 @@ Trust rules:
 - **A checker reads every answer.** Each dollar amount and date must match the computed results, and the answer must include the facts that matter (like the run-out date). It also checks the reasons: a store or subscription it names must be in the evidence, "charged to your card" must be true, and "saves $X" must match the computed saving. Repeated sentences, cut-off answers and made-up budgets fail too. On a miss, the AI gets one rewrite; if it still fails, the quick answer built from the numbers stays.
 - **No internal IDs leak into answers.** Record IDs stay in the proof view, not in the text.
 - **It degrades gracefully.** At most two AI calls per question (plus one rewrite). If one model is down, the other writes; if both are down, the quick answer stands. If Zetaris is down, the app runs on the local copy of the data and says so.
+- **Memory never supplies numbers.** Runway's memory (H-MEM) goes to the planner only. The answer is written from the evidence pack alone. This matters: Nightshift runs its own H-MEM and injected old answers into new requests (its receipt says `"hmem": injected 2`), and Runway's checker rejected every answer that reused those numbers.
 
 ## Sponsor technology
 
 - **Zetaris:** federated data access over JDBC (Lightning SQL). Each source is its own Lightning database, 8 in all: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`, `RUNWAY_OPPORTUNITIES` and `RUNWAY_MEALPLAN`, read through 21 named queries (the app never runs ad-hoc SQL). The federated query `federated_recurring_charges` spans two of those databases in one statement, the checking account and the credit card (`UNION ALL` + `GROUP BY ... HAVING`), to find charges that repeat every month. The app has a "Run live on Zetaris" button that runs it uncached, with a timer and the SQL. An uploaded bank file (My data) can be registered as a ninth database, `RUNWAY_MYDATA`, on the same computer.
-- **NVIDIA Nemotron:** two models. PLAN (`nvidia/nemotron-3.5-lightning-30b-a3b`, thinking off) picks up to three tools and their arguments as JSON, and resolves follow-ups. EXPLAIN writes the answer: Lightning with thinking off by default (a few seconds), or `nvidia/nemotron-3.5-super-vl-120b-a12b` with thinking on in "Think harder" mode, where its reasoning trace is shown in the app.
+- **Meterless Nightshift: the primary AI provider.** Every model call goes through the Meterless Runtime (OpenAI-compatible, on this computer), following the official provider contract (Meterless Runtime 0.90.0): Bearer runtime token, `meterless-app: runway` on every request, `meterless-scope: user` on chat, discovery and status from `GET /v1/models`, Auto Detect, a 180 s timeout (`llm_client.py`, `meterless.py`). Each answer records the routed model and the receipt from `meterless.compute_receipt.v1`, shown in "How Runway thought about this" and in the traces.
+- **Meterless H-MEM: Runway's memory.** `hmem.py` ports the H-MEM reference to Python: provenance on every record, short-term / working / long-term layers, the hybrid retrieval formula, the append-only trust ledger, feedback, conflicts, sleep and dreaming. It passes the official conformance vectors (13/13). It powers "What Runway remembers" (see above).
+- **NVIDIA Nemotron, through Nightshift:** PLAN (`nvidia/nemotron-3.5-lightning-30b-a3b`, thinking off) picks up to three tools and their arguments as JSON, and resolves follow-ups. EXPLAIN writes the answer: Lightning with thinking off by default (a few seconds), or `nvidia/nemotron-3-ultra-550b-a55b` with thinking on in "Think harder" mode, where its reasoning trace is shown in the app.
+
+Full sponsor write-up: [docs/SPONSOR_TECH.md](docs/SPONSOR_TECH.md). Machine-readable summary: [metadata.json](metadata.json).
+
+## Traces and tests
+
+- **How the agent reached each answer:** every question answered live writes one JSON line to `logs/traces.jsonl` (gitignored): the plan, each tool and query (source, backend, rows, time), the memories recalled for the planner, every model call (provider, requested and routed model, Meterless receipt id, time), timings and the check results. A committed example for Maya's flight question: [docs/example_trace.json](docs/example_trace.json).
+- **The Meterless engine test:** `python -m pytest tests/test_hmem_conformance.py tests/test_runway_memory.py` runs the official H-MEM conformance vectors (unchanged from the Meterless repo, with a pytest port of `runner.ts`): **13/13 pass**, plus 8 tests of the memory feature.
+- **Everything:** `python -m pytest` (Zetaris tests are skipped when Zetaris isn't running).
 
 ## Results
 
-We asked Runway 29 realistic student questions with the live NVIDIA models (Oct 26, 2026): twice in fast mode and once in "Think harder" mode. A full answer means the right tool, the right verdict, every amount and date matching the records, and every required fact written by the model.
+We asked Runway 29 realistic student questions with the live NVIDIA models (Oct 26, 2026, on NVIDIA's API directly, before the switch to Nightshift; Think harder used Nemotron Super then): twice in fast mode and once in "Think harder" mode. A full answer means the right tool, the right verdict, every amount and date matching the records, and every required fact written by the model.
 
 - **Think harder** (Nemotron Super, thinking on): **28/29 full answers**, about a minute each.
 - **Fast** (Nemotron Lightning, the default): **48/58 full answers**, about 3 seconds each. The quick answer from the engine shows in under a second.
@@ -136,7 +170,7 @@ Details, every question and what went wrong: [eval_summary.md](eval_summary.md).
 
 ## Data
 
-All demo data is synthetic. Maya Rivera is fictional, and no real bank, card, school or employer account is connected. Her files are in `data/maya/`, generated by `generate_maya_data.py`. The test bank files in `tests/fixtures/fake_bank/` are fake too. A file you upload in My data mode stays on your computer in `user_data/` (gitignored), is never committed or cached, and is sent nowhere except the NVIDIA API for answers you ask for.
+All demo data is synthetic. Maya Rivera is fictional, and no real bank, card, school or employer account is connected. Her files are in `data/maya/`, generated by `generate_maya_data.py`. The test bank files in `tests/fixtures/fake_bank/` are fake too. A file you upload in My data mode stays on your computer in `user_data/` (gitignored), is never committed, cached, remembered or traced, and is sent nowhere except to the AI provider (Meterless Nightshift on this computer, which forwards to NVIDIA) for answers you ask for.
 
 ## Roadmap
 

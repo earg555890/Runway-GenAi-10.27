@@ -2471,10 +2471,14 @@ def save_cached(answer, scenario, folder=None, history=(), done=(), budget=None)
 
 def no_live_answer_text(mode):
     """What a question with no saved answer gets when the models can't be called."""
-    why = ("Live answers are off in replay mode." if config.ai_configured() else
-           "Live answers need Meterless Nightshift (or an NVIDIA key).")
-    fix = ("restart with ANSWER_MODE=cached." if config.ai_configured() else
-           "start Nightshift, add METERLESS_RUNTIME_TOKEN to .env and restart with ANSWER_MODE=cached.")
+    if config.SAMPLE_MODE:
+        why, fix = ("Sample mode shows recorded answers.",
+                    "set SAMPLE_MODE=false, start Meterless Nightshift and add its Runtime token (see the README).")
+    else:
+        why = ("Live answers are off in replay mode." if config.ai_configured() else
+               "Live answers need Meterless Nightshift (or an NVIDIA key).")
+        fix = ("restart with ANSWER_MODE=cached." if config.ai_configured() else
+               "start Nightshift, add METERLESS_RUNTIME_TOKEN to .env and restart with ANSWER_MODE=cached.")
     return (f"{why} Recorded answers cover the four suggested questions, with nothing changed or with both "
             f"fixes on. To ask anything else, {fix}")
 
@@ -2601,8 +2605,9 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
         timings["quick_s"] = round(time.perf_counter() - t0, 2)
         yield "quick", quick
 
-    # EXPLAIN + CHECK. Fast: Lightning, thinking off (then Super, thinking off). Think harder: Super, thinking on
-    # (then Lightning, thinking on). One rewrite per model at most. If no AI answer passes, the quick answer stays.
+    # EXPLAIN + CHECK. Fast: Lightning, thinking off (then the Think harder model, thinking off). Think harder:
+    # config.think_model() (Ultra through Nightshift), thinking on (then Lightning, thinking on). One rewrite per model
+    # at most. If no AI answer passes, the quick answer stays.
     yield "stage", STAGES["explain"]
     t = time.perf_counter()
     names, private = merchant_accounts(ds), private_amounts(ds) if general else None
