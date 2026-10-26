@@ -5,6 +5,7 @@
     config.require("ZETARIS_PASSWORD")   # raises a clear error if missing
 """
 import os
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 
@@ -64,6 +65,25 @@ SEMESTER_END = date(2026, 12, 18)
 PROJECT_ROOT = Path(__file__).resolve().parent
 DATA_BACKEND = (get("DATA_BACKEND") or "local").lower()          # "local" or "zetaris"
 DATA_DIR = PROJECT_ROOT / (get("DATA_DIR") or "data/maya")
+# The student's own uploaded bank data (rule 7): gitignored, never committed, never in demo answers.
+USER_DATA_DIR = PROJECT_ROOT / (get("USER_DATA_DIR") or "user_data")
+DATA_START = date(2026, 7, 1)              # the earliest history question that makes sense (Maya's data starts in July)
+BUDGET_HISTORY_START = date(2026, 8, 1)    # budget averages cover this day to today (Maya: Aug-Oct)
+
+
+@contextmanager
+def as_of(today, start, end, history_start):
+    """Run the engine on other dates (My data mode: "today" is the last day in her bank file, the end date is hers).
+    Restores Maya's demo dates afterwards. One local user, so a module-level swap is enough."""
+    names = ("DEMO_TODAY", "SEMESTER_START", "SEMESTER_END", "DATA_START", "BUDGET_HISTORY_START")
+    g = globals()
+    saved = {k: g[k] for k in names}
+    g.update(DEMO_TODAY=today, SEMESTER_START=start, SEMESTER_END=end, DATA_START=history_start,
+             BUDGET_HISTORY_START=history_start)
+    try:
+        yield
+    finally:
+        g.update(saved)
 ZETARIS_CACHE = (get("ZETARIS_CACHE") or "on").lower() in ("on", "true", "1", "yes")
 ZETARIS_CACHE_DIR = PROJECT_ROOT / ".cache" / "zetaris"
 ZETARIS_CONTAINER = get("ZETARIS_CONTAINER") or "zetaris-driver-1"

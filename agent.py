@@ -117,7 +117,7 @@ TOOLS = {
 }
 INTENTS = ("afford", "runway", "what_if", "leaks", "refund", "crunch", "off_topic", *list(TOOLS)[6:])
 MAX_CALLS = 3
-DATA_START = date(2026, 7, 1)          # the earliest history question that makes sense (Maya's data starts in July)
+DATA_START = None                      # config.DATA_START at call time (Maya: Jul 1, 2026; My data: her first day)
 
 
 # ---------------------------------------------------------------------------------------
@@ -223,8 +223,9 @@ def _semester_date(x, what):
     return d
 
 
-def _any_date(x, what, earliest=DATA_START):
+def _any_date(x, what, earliest=None):
     """A date in Maya's data range (history or the rest of the semester)."""
+    earliest = earliest or config.DATA_START
     try:
         d = date.fromisoformat(str(x))
     except ValueError:

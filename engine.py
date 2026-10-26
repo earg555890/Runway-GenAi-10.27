@@ -311,6 +311,8 @@ def card_cycles(ds, scenario, card_rate, ledger, recurring, card_daily=None):
                            f"Statement {s.row_id} balance, paid in full by autopay from checking on the due date "
                            f"{fmt_date(s.due)}, or the next business day ({fmt_date(pay)}).", [s.row_id])
             cycles.append(CardCycle(s.cycle_start, s.closing, s.due, pay, s.row_id, c))
+    if not ds.statements:                     # no credit card (My data mode)
+        return cycles
     last = max(ds.statements, key=lambda s: s.closing)
     start, closing, due = last.closing + timedelta(days=1), add_months(last.closing), add_months(last.due)
     card_subs = [r for r in recurring if r.account == "card" and r.merchant not in scenario.cancel_subscriptions]
@@ -371,6 +373,8 @@ class Paycheck:
 def paychecks(ds, scenario, ledger):
     """Upcoming paychecks paid after DEMO_TODAY and by SEMESTER_END."""
     today, end, job = config.DEMO_TODAY, config.SEMESTER_END, ds.job
+    if not job:                               # no job record (My data mode): recurring_income() projects pay instead
+        return []
     periods = {(p.start, p.end): p for p in ds.pay_periods}
     for s in scenario.extra_shifts:                        # an extra shift may open a period not in the table
         start, stop, _ = pay_period_for(s.date)
@@ -477,6 +481,9 @@ def project(scenario=None, ds=None, ledger=None):
                            [r.row_id, ds.lease.row_id]))
     for pc in paychecks(ds, scenario, ledger):
         add(pc.pay_date, pc.net.value, "paycheck", pc.net.label, pc.net)
+    if not ds.job:                            # My data mode: pay detected from her deposit history (rule 11)
+        for d, amount, label, computed in recurring_income(ds, ledger):
+            add(d, amount, "paycheck", label, computed)
     for i in ds.installments:
         post = next_business_day(i.due)
         if i.status != "PAID" and today < post <= end:
@@ -599,6 +606,8 @@ def latest_shift_paid_before(deadline, ds=None, ledger=None):
     """The latest day after DEMO_TODAY whose shift pay arrives before `deadline` (e.g. the run-out date), by the
     pay-date rule. Returns (shift-date Computed, pay-date Computed), or None if no such day exists."""
     ds = _ds(ds)
+    if not ds.job:                            # no job record (My data mode)
+        return None
     ledger = ledger if ledger is not None else Ledger()
     d = deadline - timedelta(days=1)
     while d > config.DEMO_TODAY:
@@ -979,6 +988,8 @@ def cash_crunches(scenario=None, ds=None, ledger=None):
     fewer hours than a normal pay period."""
     scenario, ds = scenario or Scenario(), _ds(ds)
     ledger = ledger if ledger is not None else Ledger()
+    if not ds.installments or not ds.job:     # needs the payment plan and the job (not in My data mode)
+        return []
     normal_period, normal_rows, normal_hours = _normal_hours(ds)
     pcs = paychecks(ds, scenario, Ledger())
     out = []
@@ -1261,7 +1272,8 @@ def accounts_today(scenario=None, ds=None, ledger=None):
         rel = ledger.add("refund arrival if the form is sent tomorrow", refund_release_date(ds, scenario), "date",
                          f"Released {r.release_business_days} business days after the form arrives.", [r.row_id])
     pc = next((e for e in p.events if e.kind == "paycheck"), None)
-    pcd = ledger.add("next pay date", pc.date, "date", "Pay-date rule of the job.", [pc.computed, ds.job.row_id])         if pc else None
+    pcd = ledger.add("next pay date", pc.date, "date", "Pay-date rule of the job." if ds.job else
+                     "The next expected deposit from her pay history.", [pc.computed, *([ds.job.row_id] if ds.job else [])])         if pc else None
     return Today(p.start_balance, card, refund, rel, pc, pcd)
 
 
@@ -1449,7 +1461,9 @@ def attention_items(scenario=None, ds=None, ledger=None):
 # ---------------------------------------------------------------------------------------
 # Budgets: spending by category, money left after fixed bills, and a suggested budget
 # ---------------------------------------------------------------------------------------
-AVG_START = date(2026, 8, 1)             # the budget average covers Aug 1 to DEMO_TODAY (Aug-Oct)
+def avg_start():
+    """The budget average covers this day to DEMO_TODAY (Maya: Aug 1 - Oct 26; My data: her first day)."""
+    return config.BUDGET_HISTORY_START
 
 
 def month_span(month):
@@ -1590,8 +1604,8 @@ def suggest_budget(month, scenario=None, ds=None, ledger=None):
     ds, ledger = _ds(ds), ledger if ledger is not None else Ledger()
     start, end = month_span(month)
     avail = money_to_budget(month, scenario, ds, ledger)
-    past = spending_by_category(AVG_START, config.DEMO_TODAY, "both", ds, ledger)
-    n = (config.DEMO_TODAY - AVG_START).days + 1
+    past = spending_by_category(avg_start(), config.DEMO_TODAY, "both", ds, ledger)
+    n = (config.DEMO_TODAY - avg_start()).days + 1
     month_days = (end - start).days + 1
     avgs = []
     for c in past.categories:
@@ -1602,7 +1616,7 @@ def suggest_budget(month, scenario=None, ds=None, ledger=None):
         skipped = len(c.txns) - len(everyday)
         avg = ledger.add(f"{c.name}: average for a {month_days}-day month",
                          D((spent / n * month_days).quantize(Decimal("1"), rounding=ROUND_HALF_UP)), "USD",
-                         f"{fmt_money(spent)} of everyday {c.name} purchases from {fmt_date(AVG_START)} to "
+                         f"{fmt_money(spent)} of everyday {c.name} purchases from {fmt_date(avg_start())} to "
                          f"{fmt_date(config.DEMO_TODAY)} ({n} days)"
                          + (f", leaving out {skipped} one-off purchase{'s' if skipped != 1 else ''} of $100 or more"
                             if skipped else "")
@@ -1634,7 +1648,7 @@ def suggest_budget(month, scenario=None, ds=None, ledger=None):
 # ---------------------------------------------------------------------------------------
 def budget_shares(ds, ledger, categories):
     """{category: (checking share, card share)} from Aug 1 to today; a category with no history is checking."""
-    past = spending_by_category(AVG_START, config.DEMO_TODAY, "both", ds, Ledger())
+    past = spending_by_category(avg_start(), config.DEMO_TODAY, "both", ds, Ledger())
     out = {}
     for cat in categories:
         c = past.get(cat)
@@ -1643,7 +1657,7 @@ def budget_shares(ds, ledger, categories):
         total = -sum((t.amount for t in everyday), ZERO)
         share = (chk / total) if total else Decimal(1)
         out[cat] = ledger.add(f"{cat}: share paid from checking", share, "percent",
-                              (f"{fmt_money(chk)} of {fmt_money(total)} everyday {cat} spending from {fmt_date(AVG_START)} to "
+                              (f"{fmt_money(chk)} of {fmt_money(total)} everyday {cat} spending from {fmt_date(avg_start())} to "
                                f"{fmt_date(config.DEMO_TODAY)} was on checking; the rest on the card.") if total else
                               f"No {cat} spending yet, so the budget is assumed to come from checking.",
                               [t.row_id for t in everyday])
@@ -2032,3 +2046,38 @@ def opportunities_total(checks, ledger):
     return ledger.add("aid she may qualify for (up to)", D(sum((x.amount.value for x in paid), ZERO)), "USD",
                       " + ".join(f"{x.opp.name} {fmt_money(x.amount.value)}" for x in paid) + ". Not guaranteed.",
                       [x.amount for x in paid])
+
+
+# ---------------------------------------------------------------------------------------
+# My data mode: pay detected from the deposit history (no job record to project from)
+# ---------------------------------------------------------------------------------------
+def recurring_income(ds, ledger):
+    """[(date, amount, label, Computed)] for deposits that repeat: the same payer 3+ times, a steady gap (6-35 days,
+    every gap within 3 days of the median) and steady amounts (within 25% of the median). Each is projected forward
+    by the median gap at the average of its last 3 amounts, through SEMESTER_END. Rule-based, from history only."""
+    groups = {}
+    for t in ds.checking_txns:
+        if t.amount > 0 and t.category == "income":
+            groups.setdefault(t.merchant, []).append(t)
+    out = []
+    for name, ts in sorted(groups.items()):
+        ts.sort(key=lambda t: t.date)
+        if len(ts) < 3:
+            continue
+        gaps = sorted((b.date - a.date).days for a, b in zip(ts, ts[1:]))
+        gap = gaps[len(gaps) // 2]
+        amounts = sorted(t.amount for t in ts)
+        mid = amounts[len(amounts) // 2]
+        if not 6 <= gap <= 35 or any(abs(g - gap) > 3 for g in gaps) or any(abs(a - mid) > mid / 4 for a in amounts):
+            continue
+        last3 = ts[-3:]
+        amount = D(sum((t.amount for t in last3), ZERO) / len(last3))
+        d = ts[-1].date + timedelta(days=gap)
+        while d <= config.SEMESTER_END:
+            if d > config.DEMO_TODAY:
+                out.append((d, amount, f"{name} {d}", ledger.add(
+                    f"expected deposit from {name} on {d}", amount, "USD",
+                    f"{name} paid {len(ts)} times, every {gap} days; next one {fmt_date(d)} at the average of the "
+                    f"last 3 ({', '.join(fmt_money(t.amount) for t in last3)}).", [t.row_id for t in ts])))
+            d += timedelta(days=gap)
+    return out

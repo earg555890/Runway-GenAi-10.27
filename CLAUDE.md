@@ -36,7 +36,7 @@ A student's money is spread across separate sources (checking account, credit ca
 
    Read these from config, never hardcode them. `nvidia/nemotron-3-super-120b-a12b` is not available to our key (it returns 404); don't use it.
 6. **Secrets** live only in `.env` (or the existing config files), which are gitignored. Never print or commit keys.
-7. **All data is synthetic.** Never connect real bank accounts.
+7. **Real data only from files the user uploads themselves.** Uploaded files and anything derived from them stay on this computer in a gitignored folder (user_data/), are never committed, never sent anywhere except the NVIDIA API for answers the user asks for, and never appear in demo answers or the demo video. Never connect real bank accounts. The demo student (Maya) is synthetic.
 8. **The agent never sends anything on its own.** Actions are drafts the user approves.
 9. **At most 2 LLM calls per user question, plus at most one rewrite if the number check fails, plus model fallbacks on errors** (EXPLAIN: Super, then Lightning with thinking on, then a template answer):
    - one PLAN call: the model picks which tools to run and with what arguments, as structured JSON;

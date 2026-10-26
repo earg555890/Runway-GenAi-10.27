@@ -34,7 +34,9 @@ SOURCE_DATABASES = {
     "shifts": "RUNWAY_SHIFTS",
     "opportunities": "RUNWAY_OPPORTUNITIES",    # source 7: the university's aid opportunities (+ her profile)
     "meal_plan": "RUNWAY_MEALPLAN",             # source 8: the campus meal plan
+    "mydata": "RUNWAY_MYDATA",                  # the student's own uploaded bank file (user_data/, never committed)
 }
+DEMO_SOURCES = [s for s in SOURCE_DATABASES if s != "mydata"]
 
 
 # ---------------------------------------------------------------------------------------
@@ -94,7 +96,7 @@ _csv_cache = {}
 
 
 def _load(source, table):
-    path = config.DATA_DIR / source / f"{table}.csv"
+    path = (config.USER_DATA_DIR if source == "mydata" else config.DATA_DIR) / source / f"{table}.csv"
     key = (str(path), path.stat().st_mtime)
     if key not in _csv_cache:
         with open(path, newline="", encoding="utf-8") as f:
@@ -151,7 +153,7 @@ def _recurring_local(p):
 
 DATE_RANGE = [Param("start_date", "date", "first day, YYYY-MM-DD"), Param("end_date", "date", "last day, YYYY-MM-DD")]
 CHK, CRD, AID, BUR, LSE, SHF = (SOURCE_DATABASES[s] for s in ("checking", "card", "aid", "bursar", "lease", "shifts"))
-OPP, MEAL = SOURCE_DATABASES["opportunities"], SOURCE_DATABASES["meal_plan"]
+OPP, MEAL, MINE = SOURCE_DATABASES["opportunities"], SOURCE_DATABASES["meal_plan"], SOURCE_DATABASES["mydata"]
 
 
 def _day_of(stamp):     # meal plan: "YYYY-MM-DD HH:MM"
@@ -287,6 +289,10 @@ QUERIES = [
         lambda p: _sorted(_between(_load("meal_plan", "transactions"), "timestamp", _day_of, p), "meal_id"),
         "meal_plan/transactions.csv where the timestamp's date is between {start_date} and {end_date}", "meal_id",
         DATE_RANGE),
+    NamedQuery(
+        "mydata_transactions", "The student's own uploaded bank transactions (My data mode).",
+        [("mydata", "transactions")], f"SELECT * FROM {MINE}.transactions ORDER BY txn_id",
+        _all("mydata", "transactions", "txn_id"), "all rows of user_data/mydata/transactions.csv", "txn_id"),
 ]
 REGISTRY = {q.name: q for q in QUERIES}
 
@@ -340,8 +346,13 @@ def is_cached(name, **params):
     return _cache_path(name, _validate(REGISTRY[name], params)).exists()
 
 
-def clear_cache():
-    shutil.rmtree(config.ZETARIS_CACHE_DIR, ignore_errors=True)
+def clear_cache(name=None):
+    """Drop cached Zetaris results: all of them, or one query's (e.g. after a new bank file is imported)."""
+    if name is None:
+        shutil.rmtree(config.ZETARIS_CACHE_DIR, ignore_errors=True)
+        return
+    for p in config.ZETARIS_CACHE_DIR.glob(f"{name}-*.json"):
+        p.unlink(missing_ok=True)
 
 
 def _zetaris(q, sql):

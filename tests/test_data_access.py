@@ -37,6 +37,7 @@ EVIDENCE_QUERY = {
 # Parameters used when every named query is run (parity, timings).
 DEFAULT_PARAMS = {name: params for name, params in EVIDENCE_QUERY.values()}
 DEFAULT_PARAMS["federated_recurring_charges"] = {}
+DEFAULT_PARAMS["mydata_transactions"] = {}         # the student's own data: not in Maya's answer key, not in parity
 
 
 def answer_key():
@@ -158,7 +159,7 @@ def zetaris():
 
 
 @pytest.mark.zetaris
-@pytest.mark.parametrize("name", sorted(da.REGISTRY))
+@pytest.mark.parametrize("name", sorted(n for n in da.REGISTRY if n != "mydata_transactions"))
 def test_zetaris_parity(zetaris, name):
     params = DEFAULT_PARAMS[name]
     start = time.perf_counter()

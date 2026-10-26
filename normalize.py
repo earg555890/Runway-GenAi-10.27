@@ -18,7 +18,7 @@ and "Kroger 0412 Midtown" (card) are both "Kroger". Classification is rule-based
   4. else an outflow -> variable; an inflow -> income.
 """
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from functools import lru_cache
@@ -605,3 +605,79 @@ def load(backend=None):
     """Run every query in queries() and build the Dataset. Cached per backend for the process."""
     backend = (backend or config.DATA_BACKEND).lower()
     return build({name: da.run(name, backend=backend, **params) for name, params in queries()}, backend)
+
+
+# ---------------------------------------------------------------------------------------
+# My data mode: a Dataset from the student's own bank file only (no card, aid, bursar, lease, job, meal plan).
+# Maya's merchant rules apply first; these generic keywords (ONLY for uploaded data, so Maya's numbers can't
+# change) name common merchants. Classification stays rule-based (rule 12).
+#   (keyword, fixed category or None, spending category)
+# ---------------------------------------------------------------------------------------
+MYDATA_RULES = [
+    ("PAYROLL", "income", "Paycheck"), ("DIRECT DEP", "income", "Paycheck"), ("SALARY", "income", "Paycheck"),
+    ("CREDIT CARD PAYMENT", "card_payment", TRANSFER), ("CARD PAYMENT", "card_payment", TRANSFER),
+    ("TRANSFER TO", "card_payment", TRANSFER), ("TRANSFER FROM", "card_payment", TRANSFER),
+    ("OVERDRAFT", "fee", "Fees"), ("NSF", "fee", "Fees"), ("SERVICE FEE", "fee", "Fees"), ("ATM FEE", "fee", "Fees"),
+    ("NETFLIX", "subscription", "Subscriptions"), ("HULU", "subscription", "Subscriptions"),
+    ("DISNEY PLUS", "subscription", "Subscriptions"), ("YOUTUBE PREMIUM", "subscription", "Subscriptions"),
+    ("PRIME VIDEO", "subscription", "Subscriptions"),
+    ("RENT", None, "Rent"), ("APTS", None, "Rent"), ("APARTMENTS", None, "Rent"), ("PROPERTY", None, "Rent"),
+    ("WIRELESS", None, "Bills & utilities"), ("ELECTRIC", None, "Bills & utilities"),
+    ("INTERNET", None, "Bills & utilities"), ("UTILIT", None, "Bills & utilities"), ("COMCAST", None, "Bills & utilities"),
+    ("XFINITY", None, "Bills & utilities"), ("VERIZON", None, "Bills & utilities"), ("T MOBILE", None, "Bills & utilities"),
+    ("GROCER", None, "Groceries"), ("MARKET", None, "Groceries"), ("ALDI", None, "Groceries"),
+    ("SAFEWAY", None, "Groceries"), ("PUBLIX", None, "Groceries"), ("WHOLE FOODS", None, "Groceries"),
+    ("TRADER JOE", None, "Groceries"), ("WALMART", None, "Groceries"),
+    ("PIZZA", None, "Eating out"), ("COFFEE", None, "Eating out"), ("CAFE", None, "Eating out"),
+    ("TACO", None, "Eating out"), ("BURGER", None, "Eating out"), ("STARBUCKS", None, "Eating out"),
+    ("MCDONALD", None, "Eating out"), ("SUBWAY", None, "Eating out"), ("GRUBHUB", None, "Eating out"),
+    ("TRANSIT", None, "Transportation"), ("SHELL", None, "Transportation"), ("EXXON", None, "Transportation"),
+    ("CHEVRON", None, "Transportation"), ("PARKING", None, "Transportation"), ("LYFT", None, "Transportation"),
+    ("BEST BUY", None, "Shopping"), ("WALGREENS", None, "Shopping"), ("CVS", None, "Shopping"),
+    ("KROGER", None, "Groceries"), ("CHIPOTLE", None, "Eating out"), ("DOORDASH", None, "Eating out"),
+    ("UBER EATS", None, "Eating out"), ("UBER", None, "Transportation"), ("TARGET", None, "Shopping"),
+    ("AMAZON", None, "Shopping"), ("SPOTIFY", "subscription", "Subscriptions"), ("APPLE COM BILL", "subscription",
+                                                                                 "Subscriptions"),
+]
+
+
+def mydata_merchant(description):
+    """(merchant, fixed category, spending category or None) for an uploaded description, from the generic keywords
+    only (Maya's merchant rules name her own merchants); the merchant drops store numbers and web suffixes
+    ("FRESH MARKET #63" -> "Fresh Market", "NETFLIX.COM" -> "Netflix")."""
+    text = _squash(re.sub(r"\.(com|net|org)\b", "", description, flags=re.I))
+    spend = next(((cat, sc) for kw, cat, sc in MYDATA_RULES if _squash(kw) in text), None)
+    words = [w for w in text.split() if not any(ch.isdigit() for ch in w)][:4]
+    return " ".join(words).title() or description.strip(), spend[0] if spend else None, spend[1] if spend else None
+
+
+def build_mydata(rows, meta, backend="local"):
+    """Dataset from the uploaded transactions (rows of user_data/mydata/transactions.csv) and its meta: today's
+    balance is the latest running balance, or the one she typed."""
+    raw, spending = [], {}
+    for r in rows:
+        name, category, spend = mydata_merchant(r["description"])
+        raw.append(dict(source="mydata", table="transactions", row_id=r["txn_id"], account="checking",
+                        date=parse_date(r["posted_date"], "iso"), description=r["description"], merchant=name,
+                        category=category, purpose=None, projected_from=None, amount=money(r["amount"]),
+                        running_balance=money(r["running_balance"])))
+        spending[r["txn_id"]] = spend
+    txns = []
+    for t in classify(raw):
+        sc = spending.get(t.row_id)
+        if sc and t.spending_category != TRANSFER and (t.amount < 0) == (sc not in SPENDING_IN):
+            t = replace(t, spending_category=sc)
+        txns.append(t)
+    with_bal = [t for t in txns if t.running_balance is not None]
+    balance = with_bal[-1].running_balance if with_bal else money(meta.get("balance_today") or "") or Decimal(0)
+    last = max(t.date for t in txns)
+    first = min(t.date for t in txns)
+    opening = (with_bal[0].running_balance - with_bal[0].amount) if with_bal else balance - sum(t.amount for t in txns)
+    acct = CheckingAccount("mydata", "account", "MY-ACCT", balance, last, opening, Decimal(0),
+                           "From your bank file" if with_bal else "Balance you typed in")
+    ds = Dataset(f"mydata-{backend}", acct, txns, [], [], [], [], [], [], [], [], [], None, None, [], [])
+    ds._by_id[acct.row_id] = acct
+    for t in txns:
+        ds._by_id[t.row_id] = t
+    ds.first_day = first
+    return ds

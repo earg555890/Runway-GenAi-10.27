@@ -15,7 +15,7 @@ import sys
 import time
 
 import config
-from data_access import SOURCE_DATABASES, clear_cache
+from data_access import DEMO_SOURCES, SOURCE_DATABASES, clear_cache
 from zetaris_db import query
 
 
@@ -46,7 +46,8 @@ def main():
     unknown = set(only) - set(SOURCE_DATABASES)
     if unknown:
         sys.exit(f"unknown source(s) {sorted(unknown)}; known: {sorted(SOURCE_DATABASES)}")
-    sources = {s: db for s, db in SOURCE_DATABASES.items() if not only or s in only}
+    # the student's own data (RUNWAY_MYDATA) is registered by the importer (mydata.py), never by this script
+    sources = {s: db for s, db in SOURCE_DATABASES.items() if s in DEMO_SOURCES and (not only or s in only)}
 
     print(f"Copying CSVs to {container}:{root}")
     if only:
