@@ -8,7 +8,7 @@ decides how to draw it.
   - DOTTED, fainter, green: "If you follow the steps", the forecast with the recommended steps applied (the fixes
     that still help: send the verification form, cancel Spotify; never "if approved" aid). Drawn only when it
     differs from the solid line.
-- A subtle $0 line; a dashed "Runs out · Mon, Nov 9" marker for the solid line, or "Covered all semester"; the dotted
+- A solid, clear $0 line; a dashed "Runs out · Mon, Nov 9" marker for the solid line, or "Covered all semester"; the dotted
   line's lowest point labelled ("With the steps: lowest $5.81").
 - Hover anywhere: a vertical dashed guide, dots on both lines, and a tooltip pill with each line's balance that day and
   that day's events ("Card payment $360").
@@ -107,8 +107,8 @@ def build(current, steps=None, mode="light"):
                             labelColor=label, gridColor=GRID, gridOpacity=0.16, gridDash=[2, 4], domain=False,
                             ticks=False, labelPadding=6))
 
-    layers = [alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(color=ZERO, strokeWidth=1, opacity=0.55,
-                                                              strokeDash=[1, 3]).encode(y="y:Q")]
+    layers = [alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(color=label, strokeWidth=1.6, opacity=0.85)
+              .encode(y="y:Q")]                                                  # the $0 line: solid and clear
     if alt_pts:
         steps_df = pd.DataFrame([{"x": _ts(_at(d)), "y": b, "o": i} for i, (d, b) in enumerate(alt_pts)])
         layers.append(alt.Chart(steps_df).mark_line(color=STEPS, strokeWidth=3, strokeDash=[0.1, 7], strokeCap="round",
