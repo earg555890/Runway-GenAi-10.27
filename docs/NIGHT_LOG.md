@@ -93,3 +93,27 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
   replay never searches, the committed saved set, the chat answer ("Check before applying", stated amount and
   deadline, "see website"), the "you qualify" check, planner routing, and the Find money tab rendering the saved
   set without any live search. Full suite: 347 passed.
+
+## Part C: full evaluation (01:30-)
+- eval_agent.py: 28 questions (the 21 from before, the 2 budget, 1 aid and 1 meal-plan questions added with
+  Prompts 18-19, plus 2 new: "If I apply for the emergency grant, when would the money come?" (find_aid) and "How
+  many meal swipes will I have left at the end of the semester?" (meal_plan)). action_plan was already in ("What
+  should I do this week?"). Web search and My data are not in the scored eval (tested in pytest, all mocked).
+- Started `eval_agent.py fast,fast,think 240` in the background (DATA_BACKEND=local, log .cache/eval_night.log).
+
+## Part D: judge-ready finish (in progress)
+- D1 demo answers: replayed all 15 saved answers and re-ran the current checker on each saved text (fake model
+  returning the saved text, no network). 14/15 unchanged and passing. The extra-shift answer ("What if I pick up
+  a 5 hour shift on Nov 7?") passes the number check but now misses 2 required facts added later (sending the
+  form + the refund date; covered all semester with lowest $5.81), so it is regenerated after the eval (Think
+  harder, `pregenerate_answers.py "5 hour shift"`).
+- README: 8 Zetaris databases by name, 21 named queries, the federated query, My data paragraph, Found online
+  paragraph, the data/privacy note, the new roadmap (aggregator, school integrations, verified scholarship
+  databases, mobile app; one sentence each on why 1 and 2 weren't built in 6 days).
+- D2 fresh clone: cloned https://github.com/earg555890/Hackathon1 (9e9593c) into C:\rc; installing per README.
+
+## Part E: demo script
+- docs/DEMO_SCRIPT.md: the 7 timed beats (0:00-3:00) as a table of click / on screen / say, with the real
+  numbers from the app (runs out Mon, Nov 9; yes if 2 things; Apple Music $0.00; $5.81; "Not right now"; Form sent
+  -> above zero all semester, ending around $437; $1,757 in October; $500 grant Mon, Nov 2 if approved; spring
+  scholarship $0.00 this semester; dining dollars Sun, Nov 22), a recording checklist and a 1-page judge tour.

@@ -143,3 +143,9 @@ def test_find_money_tab_shows_the_saved_set_without_searching(monkeypatch):
     assert any(t.startswith("Found Sun, Oct 25 at 11:24 PM with Firecrawl") for t in texts)
     web = [t for t in texts if "scholarshipamerica.org" in t or t.startswith("Found Sun, Oct 25")]
     assert web and not any("qualify" in t.lower() for t in web)       # the school list may say it; online never
+
+
+def test_site_names_lose_trailing_separators():
+    assert websearch._site("https://www.gtf.org/x", {"ogSiteName": "Greater Texas Foundation -"}) == \
+        "Greater Texas Foundation"
+    assert websearch._site("https://www.gtf.org/x", {"ogSiteName": " | "}) == "gtf.org"

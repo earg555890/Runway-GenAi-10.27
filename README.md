@@ -12,7 +12,7 @@ A student's money is split across six places that never talk to each other: a ba
 
 Runway connects eight separate sources (checking, card, financial aid, student account, lease, work schedule, the school's aid opportunities and the meal plan), projects the checking balance day by day to the end of the semester, and answers plain questions. Every answer shows its proof.
 
-**It speaks up first.** Under the status card, a check-in says "Hi Maya. 5 things need your attention." and shows the three most urgent as cards (most money at stake per day until it's due): send the verification form (her $1,850 refund then arrives around Thu, Nov 5), rent on Sun, Nov 1 leaves just $13.32 (rent before payday cost a $35 fee last time), and the $360 card payment on Mon, Nov 9 that takes her below zero; "See all" has the tight tuition week and the duplicate music apps. Each card has real actions, and every one is a click by the student:
+**It speaks up first.** Under the status card, a check-in says "Hi Maya. 7 things need your attention." and shows the three most urgent as cards (most money at stake per day until it's due): send the verification form (her $1,850 refund then arrives around Thu, Nov 5), rent on Sun, Nov 1 leaves just $13.32 (rent before payday cost a $35 fee last time), and the $360 card payment on Mon, Nov 9 that takes her below zero; "See all" has the emergency grant to apply for, the tight tuition week, the duplicate music apps and the meal plan. Each card has real actions, and every one is a click by the student:
 
 - **Remind:** a calendar file (.ics) for that deadline, or "Add all deadlines to my calendar" as one file.
 - **Email:** opens the drafted email to financial aid in her email app (a `mailto:` link), or copy it. The address is a demo one (`finaid@stateu.example`).
@@ -28,6 +28,8 @@ Ask "What should I do this week?" and the answer comes with the same buttons.
 **Meal plan.** A small card in the Semester tab (and the check-in): her dining dollars run out around Sun, Nov 22, but she'll have about 40 swipes to spare on Dec 18, so checking pays $0.00. Moving 2 dining-dollar meals a week to swipes makes both last.
 
 **Budget tab.** One sentence on where the money went ("So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461)."), a donut of the top categories with the total in the middle, and a table whose rows open the purchases behind each category. Month (Aug to Dec, or this semester) and account filters. Below it, "Your budget for November" starts from what's left after rent and bills: for Maya that's $487 short until her refund comes, and $1,363 once the verification form is sent. "Suggest a budget" fills in her usual spending (Shopping $227, Groceries $185, Eating out $96, Transportation $14), scaled down if it doesn't fit; progress bars show this month's pace; and "Use my budget in my forecast" puts the budget into the balance forecast, so the status card and chart show how long the money lasts if she sticks to it. Ask "How much is left in my food budget?" or "What happens if I stick to my budget?" in the chat.
+
+**My data: use your own bank export.** Switch the header to "My data" and upload a CSV from your bank. Runway detects the columns, the date format and how money out is shown (a minus sign, parentheses, or separate debit and credit columns), shows a preview with dropdowns to fix anything, and rejects files it can't read in plain words. Then the whole app runs on your file: the balance today, your pay and bills found from the history, how long the money lasts, the budget and the chat. School features say "Connect your school data to see this." Your file stays on this computer (`user_data/`, never committed), and your answers are never saved.
 
 The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester ends Fri, Dec 18.
 
@@ -48,6 +50,19 @@ The demo student is Maya (fictional). Today is Mon, Oct 26, 2026; the semester e
 ## Watch the demo
 
 Video: *coming soon* (link to be added)
+
+## Screenshots
+
+Maya's demo data, replay mode.
+
+| | |
+|---|---|
+| ![Status card and check-in](docs/images/1-status-and-check-in.jpg) | ![The flight answer with proof](docs/images/2-flight-answer.jpg) |
+| **It speaks up first:** the status card and the check-in, with real actions. | **Yes, if you do 2 things:** every number cited, Apple Music saves $0.00. |
+| ![Balance chart](docs/images/3-semester-chart.jpg) | ![Budget tab](docs/images/4-budget.jpg) |
+| **Semester:** the balance day by day to Dec 18, and ways to fix it. | **Budget:** where the money went, by category. |
+| ![Found online](docs/images/5-found-online.jpg) | |
+| **Find money:** the school's grants, then "Found online - check before applying". | |
 
 ## Try it in 2 minutes
 
@@ -86,7 +101,7 @@ On Windows, after the install you can also double-click **Start Runway.bat** (op
 ```mermaid
 flowchart LR
     Q["Student's question<br/>+ the last 3 turns"] --> P["PLAN<br/>Nemotron Lightning<br/>picks 1-3 tools, as JSON"]
-    P --> D["Named queries via Zetaris<br/>across 6 separate sources"]
+    P --> D["Named queries via Zetaris<br/>across 8 separate sources"]
     D --> E["Money engine<br/>plain Python, tested to the cent"]
     E --> K["Quick answer<br/>from the numbers, ~1 s"]
     E --> X["EXPLAIN<br/>Nemotron Lightning (fast)<br/>or Super (Think harder)"]
@@ -105,7 +120,7 @@ Trust rules:
 
 ## Sponsor technology
 
-- **Zetaris:** federated data access over JDBC (Lightning SQL). Each source is its own Lightning database (6 in all), read through 16 named queries. One federated query spans two of those databases, the checking account and the credit card, to find charges that repeat every month. The app has a "Run live on Zetaris" button that runs it uncached, with a timer and the SQL.
+- **Zetaris:** federated data access over JDBC (Lightning SQL). Each source is its own Lightning database, 8 in all: `RUNWAY_CHECKING`, `RUNWAY_CARD`, `RUNWAY_AID`, `RUNWAY_BURSAR`, `RUNWAY_LEASE`, `RUNWAY_SHIFTS`, `RUNWAY_OPPORTUNITIES` and `RUNWAY_MEALPLAN`, read through 21 named queries (the app never runs ad-hoc SQL). The federated query `federated_recurring_charges` spans two of those databases in one statement, the checking account and the credit card (`UNION ALL` + `GROUP BY ... HAVING`), to find charges that repeat every month. The app has a "Run live on Zetaris" button that runs it uncached, with a timer and the SQL. An uploaded bank file (My data) can be registered as a ninth database, `RUNWAY_MYDATA`, on the same computer.
 - **NVIDIA Nemotron:** two models. PLAN (`nvidia/nemotron-3.5-lightning-30b-a3b`, thinking off) picks up to three tools and their arguments as JSON, and resolves follow-ups. EXPLAIN writes the answer: Lightning with thinking off by default (a few seconds), or `nvidia/nemotron-3.5-super-vl-120b-a12b` with thinking on in "Think harder" mode, where its reasoning trace is shown in the app.
 
 ## Results
@@ -114,13 +129,16 @@ We asked Runway 10 realistic student questions, 3 times each, with the live mode
 
 ## Data
 
-All data is synthetic. Maya Rivera is fictional, and no real bank, card, school or employer account is connected. Her files are in `data/maya/`, generated by `generate_maya_data.py`.
+All demo data is synthetic. Maya Rivera is fictional, and no real bank, card, school or employer account is connected. Her files are in `data/maya/`, generated by `generate_maya_data.py`. The test bank files in `tests/fixtures/fake_bank/` are fake too. A file you upload in My data mode stays on your computer in `user_data/` (gitignored), is never committed or cached, and is sent nowhere except the NVIDIA API for answers you ask for.
 
 ## Roadmap
 
-1. **Upload your own bank export.** A CSV or statement upload, mapped onto the same six sources.
-2. **Bank connections with consent, through an aggregator.** Not built in a 6-day hackathon: it needs the aggregator's approval, a security review, and real consent and privacy work.
-3. **School portal integrations, through university partnerships.** Not built yet: there are no standard APIs for financial aid or bursar accounts, so each school needs its own agreement.
+Built already: upload your own bank export (My data). Next:
+
+1. **Bank connections with consent, through an aggregator.** Not built in a 6-day build: it needs the aggregator's approval, a security review, and real consent and privacy work, so the CSV upload covers this for now.
+2. **School integrations (financial aid, student account, meal card), through university partnerships.** Not built in a 6-day build: there are no standard APIs for aid or bursar accounts, so each school needs its own agreement.
+3. **Verified scholarship databases,** so "Found online" results can say who qualifies, with checked amounts and deadlines.
+4. **A mobile app,** with the check-in as a weekly notification.
 
 ---
 

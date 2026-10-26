@@ -1,4 +1,4 @@
-"""Live evaluation of Ask Runway: 20 realistic questions against the real NVIDIA models (not part of pytest).
+"""Live evaluation of Ask Runway: 28 realistic questions against the real NVIDIA models (not part of pytest).
 
     .venv/Scripts/python eval_agent.py                       # one fast run -> eval_results.md / eval_results.json
     .venv/Scripts/python eval_agent.py fast,fast,think 240   # 3 runs (fast, fast, Think harder), 240 s apart
@@ -37,7 +37,7 @@ class Case:
     tools: tuple                  # expected tool(s), in any order; () = off-topic
     args: dict = field(default_factory=dict)     # expected args of the first call (only the ones given are checked)
     after: str | None = None      # a follow-up to this earlier question (asked first, in the same run)
-    new: bool = False             # one of the 10 questions added for the chat version
+    new: bool = False             # added after the first 10 (chat version and later features)
     budget: dict | None = None    # the budget she set in the Budget tab (budget questions)
 
 
@@ -71,6 +71,8 @@ CASES = [
     Case("What happens if I stick to my budget?", ("budget_status",), {"category": None}, new=True, budget=BUDGET),
     Case("Are there any grants or scholarships I qualify for?", ("find_aid",), new=True),
     Case("Will my dining dollars last?", ("meal_plan",), new=True),
+    Case("If I apply for the emergency grant, when would the money come?", ("find_aid",), new=True),
+    Case("How many meal swipes will I have left at the end of the semester?", ("meal_plan",), new=True),
 ]
 
 
@@ -223,8 +225,9 @@ def summary(runs):
     lines = ["# Ask Runway: how well it answers", "",
              f"We asked Runway {len(CASES)} realistic student questions (the original 10, plus "
              f"{sum(c.new for c in CASES)} new ones: spending, transactions, bills, work hours, a balance on a date, "
-             "two follow-ups, a multi-step plan, a general question, a vague one and \"what should I do this "
-             f"week?\"), {len(runs)} separate times ({total} answers in all), using the "
+             "two follow-ups, a multi-step plan, a general question, a vague one, \"what should I do this week?\", "
+             "two budget questions, two about grants and scholarships and two about the meal plan), "
+             f"{len(runs)} separate times ({total} answers in all), using the "
              "real NVIDIA Nemotron models. Every answer was graded automatically against numbers that Runway's money "
              "engine computes on its own. Follow-ups were asked after the question they follow, in the same chat.",
              "",

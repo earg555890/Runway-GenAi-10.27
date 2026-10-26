@@ -70,7 +70,8 @@ def _post(query, limit=PER_QUERY):
 
 
 def _site(url, meta):
-    return (meta or {}).get("ogSiteName") or (urlparse(url).hostname or "").removeprefix("www.")
+    name = ((meta or {}).get("ogSiteName") or "").strip(" -|:")         # "Greater Texas Foundation -" -> without
+    return name or (urlparse(url).hostname or "").removeprefix("www.")
 
 
 def on_page(value, page):
