@@ -335,6 +335,160 @@
           ]
         }
       ]
+    },
+    {
+      "id": 6,
+      "title": "Dining dollars run out before the semester ends; swipes to spare",
+      "finding": "At her pace, Maya's dining dollars run out around Sun Nov 22, but she'll have about 40 unused swipes on Dec 18. Swipes cover the gap, so checking pays $0.00 extra; moving 2 dining-dollar meals a week to swipes makes both last.",
+      "key_numbers": {
+        "dining_dollars": "400.00",
+        "dining_dollars_used": "283.00",
+        "dining_dollars_left": "117.00",
+        "dining_dollars_per_day": "4.42",
+        "dining_dollars_run_out": "2026-11-22",
+        "swipes": 75,
+        "swipes_used": 19,
+        "swipes_left": 56,
+        "swipes_unused_dec_18": "40.27",
+        "average_meal": "8.84",
+        "cost_to_checking": "0.00",
+        "tip_dining_dollars_left_dec_18": "16.56",
+        "tip_swipes_left_dec_18": "25.12"
+      },
+      "method": "Meal plan method (the engine reproduces it in engine.meal_plan_status):\n  pace per day = used Aug 24 - Oct 26 / 64 days (not rounded); dining dollars left = $400.00 - used;\n  dining dollars run out on the first day after Oct 26 when left - pace x days < 0;\n  swipes left at Dec 18 = left - swipe pace x 53 days (Oct 27 - Dec 18);\n  cost to checking = dining-dollar spending still to come after they run out, in meals (/ average meal price),\n  minus the swipes to spare at Dec 18, x the average meal price, if positive (else $0.00);\n  tip \"move 2 dining-dollar meals a week to swipes\": dining-dollar pace - 2 x average meal / 7, swipe pace + 2 / 7.",
+      "base_forecast_unchanged": "The meal plan is prepaid and swipes cover the gap, so checking is unchanged.",
+      "evidence": [
+        {
+          "source": "meal_plan",
+          "table": "plan",
+          "row_ids": [
+            "MP-FA26"
+          ]
+        },
+        {
+          "source": "meal_plan",
+          "table": "transactions",
+          "row_ids": [
+            "MEAL-001",
+            "MEAL-002",
+            "MEAL-003",
+            "MEAL-004",
+            "MEAL-005",
+            "MEAL-006",
+            "MEAL-007",
+            "MEAL-008",
+            "MEAL-009",
+            "MEAL-010",
+            "MEAL-011",
+            "MEAL-012",
+            "MEAL-013",
+            "MEAL-014",
+            "MEAL-015",
+            "MEAL-016",
+            "MEAL-017",
+            "MEAL-018",
+            "MEAL-019",
+            "MEAL-020",
+            "MEAL-021",
+            "MEAL-022",
+            "MEAL-023",
+            "MEAL-024",
+            "MEAL-025",
+            "MEAL-026",
+            "MEAL-027",
+            "MEAL-028",
+            "MEAL-029",
+            "MEAL-030",
+            "MEAL-031",
+            "MEAL-032",
+            "MEAL-033",
+            "MEAL-034",
+            "MEAL-035",
+            "MEAL-036",
+            "MEAL-037",
+            "MEAL-038",
+            "MEAL-039",
+            "MEAL-040",
+            "MEAL-041",
+            "MEAL-042",
+            "MEAL-043",
+            "MEAL-044",
+            "MEAL-045",
+            "MEAL-046",
+            "MEAL-047",
+            "MEAL-048",
+            "MEAL-049",
+            "MEAL-050",
+            "MEAL-051"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Aid she may qualify for, and when it would arrive",
+      "finding": "Maya qualifies for an emergency grant (up to $500; applying Oct 27 it would arrive Mon Nov 2 if approved, before Nov 9), a $250 book scholarship (paid Fri Nov 27), a $1,000 spring scholarship (paid in January: $0 this semester) and work-study (first paycheck after Nov 9). She is 0.1 GPA short of the merit scholarship.",
+      "key_numbers": {
+        "apply_on": "2026-10-27",
+        "eligible": [
+          "OPP-01",
+          "OPP-02",
+          "OPP-04",
+          "OPP-05"
+        ],
+        "almost": {
+          "OPP-03": "min GPA 3.50, hers 3.40"
+        },
+        "not_eligible": [
+          "OPP-06"
+        ],
+        "up_to_total": "1750.00",
+        "grant_decided": "2026-10-30",
+        "grant_arrives": "2026-11-02",
+        "grant_before_run_out": true,
+        "books_arrive": "2026-11-27",
+        "spring_arrives": "2027-01-15",
+        "spring_this_semester": "0.00",
+        "work_study_start": "2026-11-09",
+        "work_study_first_pay": "2026-11-18"
+      },
+      "evidence": [
+        {
+          "source": "opportunities",
+          "table": "opportunities",
+          "row_ids": [
+            "OPP-01",
+            "OPP-02",
+            "OPP-03",
+            "OPP-04",
+            "OPP-05",
+            "OPP-06"
+          ]
+        },
+        {
+          "source": "opportunities",
+          "table": "student_profile",
+          "row_ids": [
+            "PRF-01"
+          ]
+        },
+        {
+          "source": "opportunities",
+          "table": "application_requirements",
+          "row_ids": [
+            "AREQ-01",
+            "AREQ-02",
+            "AREQ-03",
+            "AREQ-04",
+            "AREQ-05",
+            "AREQ-06",
+            "AREQ-07",
+            "AREQ-08",
+            "AREQ-09",
+            "AREQ-10"
+          ]
+        }
+      ]
     }
   ]
 }

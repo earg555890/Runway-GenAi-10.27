@@ -1,0 +1,11 @@
+areq_id,opp_id,item,details
+AREQ-01,OPP-01,Short statement of what happened,2-3 sentences
+AREQ-02,OPP-01,Current budget or a recent bank statement,PDF or photo
+AREQ-03,OPP-02,Fall 2026 course list,From the student portal
+AREQ-04,OPP-02,Book list or cart total,Screenshot is fine
+AREQ-05,OPP-03,Unofficial transcript,From the student portal
+AREQ-06,OPP-03,One faculty recommendation,Sent by the faculty member
+AREQ-07,OPP-04,Personal statement,300 words
+AREQ-08,OPP-05,Resume,One page
+AREQ-09,OPP-05,Weekly availability,Hours you can work
+AREQ-10,OPP-06,Project proposal,Signed by your advisor

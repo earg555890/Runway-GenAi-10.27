@@ -19,6 +19,10 @@ Planted stories (expected findings, numbers and row IDs go to data/maya/answer_k
   4. November payment-plan installment due the same week as a short paycheck.
   5. The $400 Thanksgiving flight (booked by Nov 10) is affordable only if the refund is
      released AND one music subscription is cancelled.
+  6. Meal plan (source 8): dining dollars run out around Sun Nov 22, ~40 swipes unused on Dec 18;
+     swipes cover the gap, so checking pays $0 extra.
+  7. Aid opportunities (source 7): an emergency grant that would arrive before Nov 9 if approved, a book
+     scholarship, a spring scholarship that pays in January, work-study, and a merit award she just misses.
 
 Story 5's projection is the money engine's job (engine.py): tests/test_engine.py checks that the
 engine reproduces the story-5 numbers recorded in the answer key (STORY5_EXPECTED) to the cent.
@@ -414,6 +418,185 @@ def add_business_days(d, n):
 
 
 # ---------------------------------------------------------------------------------------
+# Sources 7 and 8 (added later): aid opportunities and the meal plan. Each has its own random stream, used only
+# after every other file is written, so sources 1-6 and stories 1-5 stay byte-for-byte the same.
+# ---------------------------------------------------------------------------------------
+PROFILE = dict(class_year="sophomore", enrollment="full-time", credits=15, gpa=Decimal("3.40"), pell_eligible="Y",
+               fafsa_on_file="Y", major="Biology", residency="in-state")
+OPP_APPLY_ON = date(2026, 10, 27)               # story 7: she applies tomorrow
+RUN_OUT = date(2026, 11, 9)                     # the run-out date the engine finds (story 5 / the forecast)
+# opp_id, name, type, amount, max_amount, hourly_rate, hours_per_week, deadline, decision_bd, payout_rule,
+# payout_bd, payout_date, payout_method, class_years, enrollment, min_gpa, need_based, pell_required, fafsa_required,
+# majors, residency, description
+OPPORTUNITIES = [
+    ("OPP-01", "Student Emergency Grant", "emergency_grant", "", "500.00", "", "", "", 3, "after_decision", 1, "",
+     "direct deposit", "any", "half-time or more", "", "Y", "N", "Y", "any", "any",
+     "One-time help for an unexpected expense or a short-term gap. Rolling; decided in about 3 business days."),
+    ("OPP-02", "Textbook & Supplies Scholarship", "scholarship", "250.00", "", "", "", "11/15/2026", 0,
+     "after_deadline", 10, "", "direct deposit", "any", "full-time", "", "Y", "Y", "Y", "any", "any",
+     "Books and supplies for Pell-eligible full-time students. Paid about 2 weeks after the deadline."),
+    ("OPP-03", "Dean's Merit Scholarship", "scholarship", "750.00", "", "", "", "11/30/2026", 0, "fixed_date", 0,
+     "01/15/2027", "credited to spring bill", "sophomore;junior", "full-time", "3.50", "N", "N", "Y", "any", "any",
+     "Merit award for sophomores and juniors with a 3.5 GPA or higher. Credited to the spring bill."),
+    ("OPP-04", "Spring Opportunity Scholarship", "scholarship", "1000.00", "", "", "", "12/01/2026", 0, "fixed_date",
+     0, "01/15/2027", "direct deposit", "sophomore;junior", "full-time", "", "Y", "N", "Y", "any", "any",
+     "Need-based award for the spring semester. Paid in January."),
+    ("OPP-05", "Federal Work-Study: Library Assistant", "work_study", "", "", "16.00", "10", "", 5, "payroll", 0, "",
+     "campus payroll (direct deposit)", "any", "half-time or more", "", "Y", "Y", "Y", "any", "any",
+     "Up to 10 hours a week at the main library. Starts the Monday after you're hired; paid on the campus pay "
+     "schedule."),
+    ("OPP-06", "Engineering Senior Design Grant", "scholarship", "500.00", "", "", "", "12/15/2026", 0,
+     "after_deadline", 10, "", "direct deposit", "senior", "full-time", "", "N", "N", "N", "Engineering", "any",
+     "Materials for senior design projects in Engineering."),
+]
+APPLICATION_REQUIREMENTS = [
+    ("AREQ-01", "OPP-01", "Short statement of what happened", "2-3 sentences"),
+    ("AREQ-02", "OPP-01", "Current budget or a recent bank statement", "PDF or photo"),
+    ("AREQ-03", "OPP-02", "Fall 2026 course list", "From the student portal"),
+    ("AREQ-04", "OPP-02", "Book list or cart total", "Screenshot is fine"),
+    ("AREQ-05", "OPP-03", "Unofficial transcript", "From the student portal"),
+    ("AREQ-06", "OPP-03", "One faculty recommendation", "Sent by the faculty member"),
+    ("AREQ-07", "OPP-04", "Personal statement", "300 words"),
+    ("AREQ-08", "OPP-05", "Resume", "One page"),
+    ("AREQ-09", "OPP-05", "Weekly availability", "Hours you can work"),
+    ("AREQ-10", "OPP-06", "Project proposal", "Signed by your advisor"),
+]
+
+MEAL_SWIPES = 75
+MEAL_DINING_DOLLARS = D("400.00")
+MEAL_SWIPES_USED = 19                           # Aug 24 - Oct 26 (story 6)
+MEAL_DD_MEALS = 32
+MEAL_DD_USED = D("283.00")                      # pace $4.421875/day: runs out on day 27 after Oct 26 = Sun Nov 22
+DD_PLACES = ["Union Food Court", "Library Cafe", "Market Express", "Science Hall Grill"]
+
+
+def build_opportunities(summary):
+    out = OUT / "opportunities"
+    summary["opportunities/opportunities.csv"] = write_csv(
+        out / "opportunities.csv",
+        ["opp_id", "name", "type", "amount", "max_amount", "hourly_rate", "hours_per_week", "deadline",
+         "decision_business_days", "payout_rule", "payout_business_days", "payout_date", "payout_method",
+         "class_years", "enrollment", "min_gpa", "need_based", "pell_required", "fafsa_required", "majors",
+         "residency", "description"], [list(o) for o in OPPORTUNITIES])
+    summary["opportunities/application_requirements.csv"] = write_csv(
+        out / "application_requirements.csv", ["areq_id", "opp_id", "item", "details"],
+        [list(r) for r in APPLICATION_REQUIREMENTS])
+    p = PROFILE
+    summary["opportunities/student_profile.csv"] = write_csv(
+        out / "student_profile.csv",
+        ["profile_id", "student_id", "class_year", "enrollment", "credits", "gpa", "pell_eligible", "fafsa_on_file",
+         "major", "residency", "as_of"],
+        [["PRF-01", STUDENT["student_id"], p["class_year"], p["enrollment"], str(p["credits"]), f"{p['gpa']:.2f}",
+          p["pell_eligible"], p["fafsa_on_file"], p["major"], p["residency"], fmt_mdy(TODAY)]])
+
+
+def build_meal_plan(summary):
+    rng = random.Random(SEED + 8)
+    days_ = list(days(SEMESTER_START, TODAY))
+    swipe_days = sorted(rng.sample([d for d in days_ if d.weekday() < 5], MEAL_SWIPES_USED))
+    dd_days = sorted(rng.sample(days_, MEAL_DD_MEALS))
+    amounts = [D(rng.uniform(6.5, 11.0)) for _ in dd_days]
+    amounts[-1] += MEAL_DD_USED - sum(amounts, Decimal("0"))      # the planted total, exactly
+    assert Decimal("5") <= amounts[-1] <= Decimal("14"), amounts[-1]
+    rows = []
+    for d in swipe_days:
+        rows.append((d, f"{rng.randint(11, 13)}:{rng.randint(0, 59):02d}", "Commons Dining Hall", "SWIPE", "", "1"))
+    for d, a in zip(dd_days, amounts):
+        rows.append((d, f"{rng.randint(8, 20)}:{rng.randint(0, 59):02d}", rng.choice(DD_PLACES), "DINING_DOLLARS",
+                     f"{a:.2f}", "0"))
+    rows.sort(key=lambda r: (r[0], int(r[1].split(":")[0]), int(r[1].split(":")[1])))
+    out = OUT / "meal_plan"
+    summary["meal_plan/plan.csv"] = write_csv(
+        out / "plan.csv", ["plan_id", "plan_name", "term", "swipes", "dining_dollars", "start_date", "end_date",
+                           "rollover"],
+        [["MP-FA26", "Block 75 + $400 Dining Dollars", "FA26", str(MEAL_SWIPES), f"{MEAL_DINING_DOLLARS:.2f}",
+          SEMESTER_START.isoformat(), SEMESTER_END.isoformat(), "N"]])
+    summary["meal_plan/transactions.csv"] = write_csv(
+        out / "transactions.csv", ["meal_id", "timestamp", "location", "tender", "dining_dollars", "swipes"],
+        [[f"MEAL-{i:03d}", f"{d.isoformat()} {int(t.split(':')[0]):02d}:{t.split(':')[1]}", place, tender, dd, sw]
+         for i, (d, t, place, tender, dd, sw) in enumerate(rows, start=1)])
+    return [(f"MEAL-{i:03d}", r) for i, r in enumerate(rows, start=1)]
+
+
+MEAL_METHOD = """Meal plan method (the engine reproduces it in engine.meal_plan_status):
+  pace per day = used Aug 24 - Oct 26 / 64 days (not rounded); dining dollars left = $400.00 - used;
+  dining dollars run out on the first day after Oct 26 when left - pace x days < 0;
+  swipes left at Dec 18 = left - swipe pace x 53 days (Oct 27 - Dec 18);
+  cost to checking = dining-dollar spending still to come after they run out, in meals (/ average meal price),
+  minus the swipes to spare at Dec 18, x the average meal price, if positive (else $0.00);
+  tip "move 2 dining-dollar meals a week to swipes": dining-dollar pace - 2 x average meal / 7, swipe pace + 2 / 7."""
+
+
+def new_stories(meal_rows):
+    """Stories 6 and 7 for the answer key, from the planted data (formulas in MEAL_METHOD / the opportunity rules)."""
+    n_days = (TODAY - SEMESTER_START).days + 1                      # 64
+    left_days = (SEMESTER_END - TODAY).days                         # 53
+    dd_pace = MEAL_DD_USED / n_days
+    dd_left = MEAL_DINING_DOLLARS - MEAL_DD_USED
+    k = 1
+    while dd_left - dd_pace * k >= 0:
+        k += 1
+    dd_runs_out = TODAY + timedelta(days=k)
+    sw_pace = Decimal(MEAL_SWIPES_USED) / n_days
+    sw_left = MEAL_SWIPES - MEAL_SWIPES_USED
+    sw_end = Decimal(sw_left) - sw_pace * left_days
+    avg = MEAL_DD_USED / MEAL_DD_MEALS
+    short_meals = (dd_pace * left_days - dd_left) / avg
+    cost = max(Decimal("0"), short_meals - sw_end) * avg
+    tip_dd = dd_pace - 2 * avg / 7
+    tip_sw = sw_pace + Decimal(2) / 7
+    tip_dd_end = dd_left - tip_dd * left_days
+    tip_sw_end = Decimal(sw_left) - tip_sw * left_days
+    meal_ids = [mid for mid, _ in meal_rows]
+    grant_decided = add_business_days(OPP_APPLY_ON, 3)
+    grant_paid = add_business_days(grant_decided, 1)
+    books_paid = add_business_days(date(2026, 11, 15), 10)
+    ws_decided = add_business_days(OPP_APPLY_ON, 5)
+    ws_start = ws_decided + timedelta(days=(7 - ws_decided.weekday()) % 7 or 7)
+    ws_pay = date(2026, 11, 18)                                     # Nov 1-15 period, paid the 18th (job pay rule)
+    return [
+        {
+            "id": 6, "title": "Dining dollars run out before the semester ends; swipes to spare",
+            "finding": f"At her pace, Maya's dining dollars run out around {dd_runs_out:%a %b} {dd_runs_out.day}, but "
+                       f"she'll have about {sw_end:.0f} unused swipes on Dec 18. Swipes cover the gap, so checking "
+                       "pays $0.00 extra; moving 2 dining-dollar meals a week to swipes makes both last.",
+            "key_numbers": {"dining_dollars": f"{MEAL_DINING_DOLLARS:.2f}", "dining_dollars_used": f"{MEAL_DD_USED:.2f}",
+                            "dining_dollars_left": f"{dd_left:.2f}", "dining_dollars_per_day": f"{D(dd_pace):.2f}",
+                            "dining_dollars_run_out": dd_runs_out.isoformat(), "swipes": MEAL_SWIPES,
+                            "swipes_used": MEAL_SWIPES_USED, "swipes_left": sw_left,
+                            "swipes_unused_dec_18": f"{D(sw_end):.2f}", "average_meal": f"{D(avg):.2f}",
+                            "cost_to_checking": f"{D(cost):.2f}",
+                            "tip_dining_dollars_left_dec_18": f"{D(tip_dd_end):.2f}",
+                            "tip_swipes_left_dec_18": f"{D(tip_sw_end):.2f}"},
+            "method": MEAL_METHOD,
+            "base_forecast_unchanged": "The meal plan is prepaid and swipes cover the gap, so checking is unchanged.",
+            "evidence": [{"source": "meal_plan", "table": "plan", "row_ids": ["MP-FA26"]},
+                         {"source": "meal_plan", "table": "transactions", "row_ids": meal_ids}],
+        },
+        {
+            "id": 7, "title": "Aid she may qualify for, and when it would arrive",
+            "finding": "Maya qualifies for an emergency grant (up to $500; applying Oct 27 it would arrive "
+                       f"{grant_paid:%a %b} {grant_paid.day} if approved, before Nov 9), a $250 book scholarship "
+                       f"(paid {books_paid:%a %b} {books_paid.day}), a $1,000 spring scholarship (paid in January: $0 "
+                       "this semester) and work-study (first paycheck after Nov 9). She is 0.1 GPA short of the "
+                       "merit scholarship.",
+            "key_numbers": {"apply_on": OPP_APPLY_ON.isoformat(),
+                            "eligible": ["OPP-01", "OPP-02", "OPP-04", "OPP-05"], "almost": {"OPP-03": "min GPA 3.50, hers 3.40"},
+                            "not_eligible": ["OPP-06"], "up_to_total": "1750.00",
+                            "grant_decided": grant_decided.isoformat(), "grant_arrives": grant_paid.isoformat(),
+                            "grant_before_run_out": grant_paid < RUN_OUT, "books_arrive": books_paid.isoformat(),
+                            "spring_arrives": "2027-01-15", "spring_this_semester": "0.00",
+                            "work_study_start": ws_start.isoformat(), "work_study_first_pay": ws_pay.isoformat()},
+            "evidence": [{"source": "opportunities", "table": "opportunities",
+                          "row_ids": [o[0] for o in OPPORTUNITIES]},
+                         {"source": "opportunities", "table": "student_profile", "row_ids": ["PRF-01"]},
+                         {"source": "opportunities", "table": "application_requirements",
+                          "row_ids": [r[0] for r in APPLICATION_REQUIREMENTS]}],
+        },
+    ]
+
+
+# ---------------------------------------------------------------------------------------
 def main():
     rng = random.Random(SEED)
     if OUT.exists():
@@ -805,6 +988,9 @@ def main():
             },
         ],
     }
+    build_opportunities(summary)                      # sources 7 and 8: after everything above, own random streams
+    meal_rows = build_meal_plan(summary)
+    answer_key["stories"] += new_stories(meal_rows)
     (OUT / "answer_key.json").write_text(json.dumps(answer_key, indent=2), encoding="utf-8")
 
     print("\nTables:")
