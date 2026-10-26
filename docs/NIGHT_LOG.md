@@ -117,3 +117,28 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
   numbers from the app (runs out Mon, Nov 9; yes if 2 things; Apple Music $0.00; $5.81; "Not right now"; Form sent
   -> above zero all semester, ending around $437; $1,757 in October; $500 grant Mon, Nov 2 if approved; spring
   scholarship $0.00 this semester; dining dollars Sun, Nov 22), a recording checklist and a 1-page judge tour.
+
+### Part C findings so far (fast runs 1 and 2: 22/28 full answers each)
+- Every miss was a real model mistake caught by the checker (the quick answer stood in); 0 NVIDIA service errors.
+- Repeated pattern 1 (fixed): on the meal-plan questions the fast model sometimes writes the whole answer on ONE
+  line ("ANSWER: ... WHY: - ... DO THIS: 1. ..."), which the format check rejected (3 of 4 meal answers).
+  Fix: `agent.unflatten()` puts a one-line answer back on separate lines before the checks, words unchanged (a new
+  item starts only after a finished sentence, so "Nov 22." is not read as item 22). Test added. Re-ran only the 2
+  meal questions twice: the format failures are gone; 2/4 full answers, the other 2 failed on a different real
+  mistake (the same fact stated in ANSWER and again in WHY; the rewrite repeated it). Not fixed: it is the model
+  repeating itself and the checker is right to reject it.
+- Repeated pattern 2 (not fixed, logged): "Can I afford new headphones for $150?" (no date) failed in both runs. The
+  model puts "You didn't say when you'd buy it, so I assumed tomorrow" in both WHY and NOTE, and writes
+  "-$144.19" with a minus sign. Deduplicating the note would not be enough (the minus sign still fails), and changing
+  the prompt is not a small safe change the night before the deadline. The quick answer ("Not right now") is right.
+- One-offs (once each): a wrong weekday ("Wed Nov 3"), "- $281" with a minus sign, "October 2" not in the facts, "$53"
+  not in the facts, a record ID (ACCT-CHK-01), a cut-off answer, and one budget plan that picked category "food"
+  for "What happens if I stick to my budget?" (expected no category).
+- D1 correction: the "stale" extra-shift demo answer was a false alarm from my re-check method (feeding back the
+  stored resolved plan args includes form_date, which switches on the form what-if and adds 2 facts). In the real
+  pipeline it needs 3 facts. It was regenerated anyway (Think harder, passes every check, 3/3 facts written by the
+  model, no rewrite) and committed; the other 14 saved answers are unchanged and pass the current checks.
+- Run 3 (Think harder) was stopped at 26/28 questions (25 full answers so far; the NVIDIA Super endpoint was
+  slow, one question took 7.5 min and was answered by the Lightning fallback) when a new session took over. Its
+  answers are only in the local log (.cache/eval_night.log); eval_results.json / .md hold the two complete fast
+  runs (22/28 each). eval_summary.md was not regenerated (it still shows the earlier 20-question results).
