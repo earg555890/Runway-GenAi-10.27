@@ -44,3 +44,13 @@ def _memory_to_tmp(monkeypatch, tmp_path):
 def _traces_to_tmp(monkeypatch, tmp_path):
     """Per-question traces go to a temp folder, never the real logs/."""
     monkeypatch.setattr(config, "LOGS_DIR", tmp_path / "logs")
+
+
+@pytest.fixture(autouse=True)
+def _not_sample_mode(monkeypatch):
+    """Tests set their own data and answer modes; sample mode (on in a fresh clone with no .env) would override them.
+    tests/test_sample_mode.py checks sample mode itself, in a subprocess."""
+    if config.SAMPLE_MODE:                                        # a fresh clone: restore the non-sample defaults
+        monkeypatch.setattr(config, "DATA_BACKEND", (config.get("DATA_BACKEND") or "local").lower())
+        monkeypatch.setattr(config, "ANSWER_MODE", (config.get("ANSWER_MODE") or "cached").lower())
+    monkeypatch.setattr(config, "SAMPLE_MODE", False)

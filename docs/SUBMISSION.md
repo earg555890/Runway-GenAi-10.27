@@ -18,7 +18,7 @@ Status: **done**, **to do (user)**, or **to do (Claude Code)**. Evidence is in b
 | 7 | Meterless Nightshift as the primary AI provider | done | `AI_PROVIDER=meterless` is the default (`config.py`), checks in Behind the scenes, routed model and receipt on every answer |
 | 8 | One track | done | "The Agent That Can Explain Why" in README, metadata.json, DEMO_SCRIPT.md, this file |
 | 9 | Pre-existing components declared | done | Below |
-| 10 | Runs from a clean clone with no manual steps | done | `SAMPLE_MODE` (on with no `.env`); checked with a fresh clone (Part 5) |
+| 10 | Runs from a clean clone with no manual steps | done | Fresh clone of 6a50c21 from GitHub, no `.env`, no keys: sample mode on; tests 433 passed, 21 skipped (Zetaris); app first page 4.1 s; the flight question replayed "Yes, if you do 2 things", written by Nemotron Ultra through Meterless Nightshift (receipt rcpt_req_hovpd7lc) |
 | 11 | No keys committed or on screen | done for the repo; to do (user) for the video | `.env` gitignored (`git check-ignore -v .env`); the NVIDIA key is in Nightshift, not the project; the user removes `NVIDIA_API_KEY` from `.env` |
 | 12 | Sample inputs and outputs included | done | README "Sample inputs and outputs" (real recorded answers) |
 | 13 | Logs show how the agent reached its output | done | `logs/traces.jsonl` per question; committed example `docs/example_trace.json` |
