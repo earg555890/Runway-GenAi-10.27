@@ -62,6 +62,10 @@ checked.
 - Every answer shows "Written by: Nemotron Lightning (nvidia/...) through Meterless Nightshift, receipt rcpt_..."
   from the signed `meterless.compute_receipt.v1`. The same goes into the per-question trace
   (`docs/example_trace.json`).
+- **Fast answers: Lightning by default, Ultra in the live demo.** Lightning (thinking off) is Runway's default fast
+  model. The live demo uses Ultra (thinking off) because it ignores Nightshift's injected memories better: on the
+  same 5-question spot check through Nightshift (3 memories injected per call), Ultra wrote **5/5** full answers in
+  2.2-13.1 s; Lightning wrote **2/5** (3.1-5.3 s), and the checker caught the other 3.
 - **Think harder on Ultra:** Maya's flight question passed every check on the first try in 94.7 s. The recorded demo
   answers (14 files) were regenerated through Nightshift on Ultra; every one passed every check on the first try
   (10 s to 253 s each).

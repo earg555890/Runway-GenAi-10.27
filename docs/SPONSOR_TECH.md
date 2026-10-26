@@ -84,6 +84,9 @@ number comes from tested code, and every claim cites its evidence. Here is how e
   any tool runs.
 - **EXPLAIN (fast, the default):** the same Lightning model with thinking off writes the answer in a few seconds,
   in the ANSWER / WHY / DO THIS / NOTE format, citing each number.
+- **The live demo's fast model:** Nemotron Ultra, thinking off (`FAST_EXPLAIN_MODEL`), because it ignores
+  Nightshift's injected memories better: 5/5 full answers in 2-13 s on a 5-question spot check, against 2/5 for
+  Lightning.
 - **EXPLAIN (Think harder):** `nvidia/nemotron-3-ultra-550b-a55b`, thinking on. On Maya's flight question it
   passed every check on the first try, in 94.7 s, and its reasoning trace is shown in the app.
 - **The model never does math.** The engine computes every number first. Then a checker verifies every amount,
@@ -92,7 +95,7 @@ number comes from tested code, and every claim cites its evidence. Here is how e
 
 ## Cursor
 
-TO CONFIRM (user): how Cursor was used.
+Cursor was the development environment for the whole build. Runway's code was written by Claude Code running in Cursor's integrated PowerShell terminal; Cursor was used to open and run the project, watch Claude Code's changes and progress live, read and review the generated files, and run the app and tests. Cursor's own AI features (Composer, Grok) were not used for code generation.
 
 ## What's unique about how we used them
 

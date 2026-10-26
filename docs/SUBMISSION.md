@@ -12,7 +12,7 @@ Status: **done**, **to do (user)**, or **to do (Claude Code)**. Evidence is in b
 | 1 | Demo video, 1-4 minutes, uploaded (YouTube unlisted, Vimeo, Drive "anyone with the link", or MP4 < 300 MB) | to do (user) | Script ready: `docs/DEMO_SCRIPT.md` (3:42, live, typed questions, under-the-hood beat) |
 | 2 | Slide deck covers the 8 required points | to do (user / project lead) | Facts for the deck: `docs/DECK_NOTES.md`, screenshots in `docs/images/` |
 | 3 | Repository public, with README (setup, usage, dependencies) | to do (user): make https://github.com/earg555890/Hackathon1 public | README: Dependencies, Setup (sample and full mode), sample inputs and outputs |
-| 4 | Sponsor explanation covers Zetaris, Meterless and NVIDIA | done | `docs/SPONSOR_TECH.md` (pasted below); the Cursor line needs the user's answer |
+| 4 | Sponsor explanation covers Zetaris, Meterless and NVIDIA | done | `docs/SPONSOR_TECH.md` (pasted below), including how Cursor was used |
 | 5 | Zetaris as the data layer | done | 8 Lightning databases, 21 named queries, a federated query, a parity test (`tests/test_data_access.py`) |
 | 6 | A Meterless Engine working, with a passing test | done | H-MEM (`hmem.py`), official conformance vectors 13/13 (`tests/test_hmem_conformance.py`), feature tests 8/8 (`tests/test_runway_memory.py`) |
 | 7 | Meterless Nightshift as the primary AI provider | done | `AI_PROVIDER=meterless` is the default (`config.py`), checks in Behind the scenes, routed model and receipt on every answer |
@@ -71,7 +71,9 @@ character limit:
 > Nightshift: Lightning plans the tools (JSON) and writes fast answers; Ultra writes "Think harder" answers with a
 > visible reasoning trace. The model never does math: the engine computes every number, and a checker verifies every
 > amount, date and reason before the answer is shown. Unique: our checker caught Nightshift's own memory injecting
-> old answers into new requests, so Runway's memory feeds only the planner, never the numbers.
+> old answers into new requests, so Runway's memory feeds only the planner, never the numbers. Cursor was the development environment for
+> the whole build: Claude Code ran in Cursor's integrated terminal; Cursor's own AI features were not used for code
+> generation.
 
 **Pre-existing components:** None of Runway's code or data existed before the hackathon. Git history: the first
 commit is b207526, 2026-10-22 18:59 UTC (after Oct 22, 00:00 UTC); all 79 commits are by Evan Arghirescu, and every

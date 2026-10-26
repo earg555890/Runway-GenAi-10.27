@@ -7,6 +7,11 @@ music, no watermarks, no logos or trademarks we don't own. Upload to YouTube (un
 
 How we record: **live mode** (`ANSWER_MODE=live`), **fast mode** (Think harder off), questions **typed** in the chat.
 Every answer goes through **Meterless Nightshift** to **NVIDIA Nemotron**; the data comes from **Zetaris**.
+The live demo launcher sets the fast-answer model to **Nemotron Ultra, thinking off**
+(`FAST_EXPLAIN_MODEL=nvidia/nemotron-3-ultra-550b-a55b`); Nemotron Lightning still plans every question. Why: Nightshift
+injects its own memories of earlier answers into each request, and Ultra ignores them better. In the Oct 26 spot
+check of 5 questions through Nightshift, Ultra wrote 5/5 full answers in **about 2-13 s** each (Lightning: 2/5).
+So expect each typed answer to take about 2-13 s: the quick answer shows in about 1 s, then the full answer streams.
 Maya's synthetic data only. Never show "My data" mode, `.env`, keys or a terminal with keys (rule 7).
 Start everything with **`Start Runway (Live demo).bat`** (see the checklist below).
 
@@ -21,7 +26,7 @@ never change; the AI's wording can, so read what is on screen rather than these 
 | **0:10-0:20** Maya | Slide 2. | Maya and her eight money sources. | "Meet Maya. Her money lives in eight places: checking, a credit card, financial aid, her student account, her lease, her job, her meal plan and the school's aid list." |
 | **0:20-0:30** The solution | Slide 3. Then switch to the browser with Runway open. | Runway: an AI agent that explains why. | "Runway reads all eight, projects her money to December, explains why, and drafts the fix. She approves every action." |
 | **0:30-0:42** Open Runway | The app at the top (light mode). Point at the status card, the check-in, then the chart. | **"Your money runs out in 2 weeks, on Mon, Nov 9."** "Hi Maya. 6 things need your attention." The chart turns red after Nov 9. | "Runway speaks first. Her money runs out November 9th, when a $360 card payment is due." |
-| **0:42-1:05** The flight question | Click the chat box and **type**: `Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?` Enter. Let it stream. Then click the proof chip **"2 · $1,850"** and point at **Do these** (don't click it). | "Understanding your question...", the quick answer at once, then the AI answer streaming in (maybe "Double-checking the numbers..."). **"Yes, if you do 2 things."** Send the verification form ($1,850 refund around Thu, Nov 5); cancel Spotify ($23.98). Lowest point $5.81 on Mon, Nov 2. The proof table: the refund row from her student account. | "She types her question. Nemotron plans which tools to run. Our engine does all the math, so a quick answer shows in about a second. Then Nemotron writes the full answer, and a checker rejects any number that isn't in her records. Yes, if she does two things. Every number has proof." |
+| **0:42-1:05** The flight question | Click the chat box and **type**: `Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?` Enter. Let it stream. Then click the proof chip **"2 · $1,850"** and point at **Do these** (don't click it). | "Understanding your question...", the quick answer at once, then the AI answer streaming in (about 9 s in the rehearsal). **"Yes, if you do 2 things."** Send the verification form ($1,850 refund around Thu, Nov 5); cancel Spotify ($23.98). Lowest point $5.81 on Mon, Nov 2. The proof table: the refund row from her student account. | "She types her question. Nemotron plans which tools to run. Our engine does all the math, so a quick answer shows in about a second. Then Nemotron writes the full answer, and a checker rejects any number that isn't in her records. Yes, if she does two things. Every number has proof." |
 | **1:05-1:15** The Apple Music insight | Point at the note under DO THIS. | "Cancelling Apple Music saves $0.00 this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends." | "Here's what a budget app gets wrong. Cancelling Apple Music saves zero this semester: that card bill is paid in January. Spotify hits checking, so cancel that one." |
 | **1:15-1:27** The timing moment | **Type**: `Can I afford a $400 flight home for Thanksgiving?` Enter. | **"Not right now."** Lowest point $394 below zero on Mon, Nov 2. "You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27." | "Same flight, no date. Not right now: tomorrow comes before the refund. Runway says what it assumed." |
 | **1:27-1:37** A follow-up | **Type**: `what about Nov 17 instead?` Enter. | "Answering: Can I afford a $400 flight home for Thanksgiving if I book it Nov 17 instead?" **"Yes, if you do 2 things."** | "She can just follow up. Runway knows she means the flight." |
@@ -29,7 +34,7 @@ never change; the AI's wording can, so read what is on screen rather than these 
 | **1:52-2:03** Shift planner | **Semester** tab > **Shift planner**: click **+4h this Saturday**, then **+4h next Saturday**. | "These 2 shifts add $115 and you're covered all semester." Sat, Oct 31 adds $57.35, paid Tue, Nov 3. Sat, Nov 7 adds $57.35, paid Wed, Nov 18. | "Extra shifts show what each one adds after withholding, and when it's actually paid." |
 | **2:03-2:11** Budget | **Budget** tab. Point at the sentence and the donut. | "So far in October, you spent $1,757. Most went to Rent ($725) and Shopping ($461)." | "Budget shows where October went." |
 | **2:11-2:22** Find money | **Find money** tab. Point at **Student Emergency Grant**, switch on **If approved**. | "Student Emergency Grant · Up to $500 · Apply anytime. If approved, it arrives around Mon, Nov 2." | "Find money matches her to school aid. It only counts if she switches on 'if approved'. A maybe is never money." |
-| **2:22-2:34** Under the hood: Nightshift | Scroll up to the flight answer. Open **How Runway thought about this**, switch on **Details for nerds**. | "Planned by: Nemotron Lightning (nvidia/nemotron-3.5-lightning-30b-a3b) through Meterless Nightshift, receipt rcpt_..."; "Written by: ..."; "Number check: all ... match your records"; the plan JSON and every model call with its routed model. | "Under the hood. Every request goes through Meterless Nightshift to NVIDIA Nemotron. The receipt shows which model answered. Here's the plan Nemotron wrote, which Python validates before any tool runs." |
+| **2:22-2:34** Under the hood: Nightshift | Scroll up to the flight answer. Open **How Runway thought about this**, switch on **Details for nerds**. | "Planned by: Nemotron Lightning (nvidia/nemotron-3.5-lightning-30b-a3b) through Meterless Nightshift, receipt rcpt_..."; "Written by: Nemotron Ultra (nvidia/nemotron-3-ultra-550b-a55b) through Meterless Nightshift, receipt rcpt_..."; "Number check: all ... match your records"; the plan JSON and every model call with its routed model. | "Under the hood. Every request goes through Meterless Nightshift to NVIDIA Nemotron: Lightning plans, Ultra writes. The receipt shows which model answered. Here's the plan Nemotron wrote, which Python validates before any tool runs." |
 | **2:34-2:42** The provider checks | Open **Behind the scenes** (bottom) > **AI provider**. | The checks table: Connection HTTP 200; Authorization online; a wrong token shows unauthorized; model discovery; text requests on meterless/auto and the Nemotron models, each with its routed model and receipt. | "Runway checks Nightshift the official way: connection, authorization, model discovery, and a real request." |
 | **2:42-3:02** Zetaris, live | Scroll to **Run live on Zetaris**, click it. Talk while the timer runs (about 18 s). | The timer "Running on Zetaris... 12.4 s", then "Zetaris answered in 18.2 s: 13 rows from card and checking." and the SQL across `RUNWAY_CHECKING` and `RUNWAY_CARD`. | "The data layer is Zetaris: eight separate databases. This federated query runs live across her checking and her card, to find charges that repeat every month. No cache." |
 | **3:02-3:10** The code | Editor: `agent.py`, `run()` at line 2506. Scroll `# PLAN` (2548), `# EXECUTE` (2585), `# EXPLAIN + CHECK` (2608). | One PLAN call, the tools in plain Python, one EXPLAIN call, then the check. | "The whole agent is this loop: plan, deterministic tools, explain, check. Two model calls per question." |
@@ -41,16 +46,15 @@ up during the demo; the checklist clears it before recording.
 
 ### If something goes wrong while recording
 
-- **A live answer is slow** (no text after about 10 seconds): keep recording and keep talking. The quick answer is
-  already on screen, and it's real: it's built from the engine's numbers and passes the same checks. Say "the quick
-  answer is already here; the full answer is still being written". If it takes more than 20 seconds, re-take that
-  beat.
+- **A live answer is slow:** answers usually take about 2-13 s with Ultra. While it writes, keep talking (the beat's
+  spoken line fits that wait). The quick answer is already on screen, and it's real: it's built from the engine's
+  numbers and passes the same checks. If the full answer takes more than about 20 s, re-take that beat.
 - **The answer falls back to the quick answer** (a grey note says the AI answer didn't pass the checks, or a model
   wasn't available): keep it. That's the checker doing its job, and every number is still correct and proven. Say
   "the checker caught a problem, so Runway kept the answer built from her numbers". If you'd rather show the AI
   answer, click **New chat** and re-take the beat.
-- **"Double-checking the numbers..."** appears: keep recording. That's the one allowed rewrite (rule 10). In the
-  rehearsal the Nov 10 flight question needed it every time, and it added about 2 seconds.
+- **"Double-checking the numbers..."** appears: keep recording. That's the one allowed rewrite (rule 10); it adds a
+  few seconds. With Ultra as the fast model no rewrite was needed in the 5-question spot check, but it can happen.
 - **Nightshift or NVIDIA is down** (the check in `Start Runway (Live demo).bat` says NOT READY, or answers keep
   falling back): check that Nightshift is open (and its Runtime token in `.env` is current), wait a few minutes and
   run `.venv\Scripts\python demo_check.py` again. As a last resort, record with `ANSWER_MODE=cached`
@@ -86,7 +90,8 @@ up during the demo; the checklist clears it before recording.
       memories, and the memory beat should start from this recording's own actions).
 - [ ] Reload so the chat is empty, nothing is marked done, no what-ifs are on, Think harder is **off**.
 - [ ] In the editor, open `agent.py` at line 2506 (`def run(`), font size large enough for 1080p.
-- [ ] One practice pass of the typed questions (then reload). Live answers take about 3-8 s each in fast mode.
+- [ ] One practice pass of the typed questions (then reload). Live answers take about 2-13 s each (fast mode, Ultra).
+      The launcher's check prints "written by Nemotron Ultra ... through Meterless Nightshift" and READY.
 - [ ] Don't click Send in any email app. Don't show `.env`, keys or a terminal with keys. My data mode stays off.
 - [ ] No music, or only music we made or have rights to. No watermarks. Show only our own app, slides and code.
 - [ ] After recording: watch it once in full; check it's **under 4 minutes** (aim for 3:45) and every number is
