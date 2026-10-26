@@ -109,6 +109,8 @@ def _thinking(a):
             st.markdown(f"**Required facts:** {len(facts) - len(added)} of {len(facts)} written by the model"
                         + (f"; Runway added the rest from your numbers ({fmt.md(', '.join(added))})." if added
                            else ".") + (" One rewrite was needed." if a.retries.get("explain_rewrite") else ""))
+        if a.retries.get("repaired"):
+            st.markdown(f"**Repaired:** {a.retries['repaired']} (no words were added or changed).")
         if a.reasoning:
             st.markdown("**Nemotron's reasoning**")
             with st.container(height=220):

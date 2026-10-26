@@ -1059,12 +1059,41 @@ def _units(text):
     return out
 
 
+def _same(a, b):
+    return a == b or difflib.SequenceMatcher(None, a, b).ratio() >= 0.9
+
+
+def remove_repeats(text):
+    """The answer with every repeated or near-identical sentence removed (the first one is kept), by the same rule
+    as repetition_problems(). No word is added or changed; a bullet or NOTE left empty is dropped."""
+    seen, out = [], []
+    for line in text.splitlines():
+        head = SECTION_HEAD.match(line)
+        if head:
+            prefix, body = line[:head.start(2)], head.group(2)
+        else:
+            m = re.match(r"^\s*(?:[-*•]|\d+[.)])\s*", line)
+            prefix, body = (line[:m.end()], line[m.end():]) if m else ("", line)
+        keep = []
+        for part in re.split(r"(?<=[.!?])\s+", body):
+            norm = " ".join(re.sub(r"[^a-z0-9$ ]", " ", strip_citations(part).lower()).split())
+            if len(norm.split()) >= 4:
+                if any(_same(s, norm) for s in seen):
+                    continue
+                seen.append(norm)
+            keep.append(part)
+        if body.strip() and not " ".join(keep).strip() and (not head or head.group(1).upper() == "NOTE"):
+            continue                                      # the whole bullet / NOTE was a repeat
+        out.append((prefix + " ".join(keep)).rstrip())
+    return "\n".join(out)
+
+
 def repetition_problems(text):
     units, problems = _units(text), []
     for i in range(len(units)):
         for j in range(i + 1, len(units)):
             a, b = units[i][1], units[j][1]
-            if a == b or difflib.SequenceMatcher(None, a, b).ratio() >= 0.9:
+            if _same(a, b):
                 problems.append(f"the answer repeats itself (\"{units[j][0][:60]}\")")
                 return problems
     return problems
@@ -1103,6 +1132,22 @@ def web_claim_problems(text):
     """Online results are unchecked: never tell her she qualifies for them."""
     m = QUALIFY_CLAIM.search(strip_citations(text))
     return [f"\"{m.group(0)}\": Runway didn't check online results; say \"check before applying\""] if m else []
+
+
+def assumption_place_problems(text, required):
+    """The plan's assumption ("You didn't say when you'd buy it, so I assumed tomorrow ...") belongs in NOTE only."""
+    sec = parse_sections(text)
+    if not sec:
+        return []
+    out = []
+    for f in required:
+        if f.key != "assumption":
+            continue
+        key = " ".join(re.sub(r"[^a-z ]", " ", f.line.lower()).split()[:6])        # "you didn t say when you d"
+        elsewhere = [sec["answer"], *sec["why"], *sec["do"]]
+        if any(key in " ".join(re.sub(r"[^a-z ]", " ", x.lower()).split()) for x in elsewhere):
+            out.append("the assumption is outside NOTE; write it once, in NOTE only")
+    return out
 
 
 def certainty_problems(text):
@@ -1274,7 +1319,7 @@ def check_answer(text, pack, require_format=False, *, names=None, finish_reason=
         if names:
             problems += reason_problems(text, pack, names)
         problems += (event_date_problems(text, events) + copied_label_problems(text, required)
-                     + copied_how_problems(text, pack))
+                     + copied_how_problems(text, pack) + assumption_place_problems(text, required))
     if text.strip():
         problems += (repetition_problems(text) + cutoff_problems(text, finish_reason)
                      + invented_budget_problems(text, None if general else pack) + copied_hint_problems(text)
@@ -1299,11 +1344,13 @@ EXPLAIN_SYSTEM = (
     "- Use ONLY numbers and dates from the facts below. Never calculate or invent a number or date.\n"
     "- Money: from $100 up, round to whole dollars (\"$1,850\", \"$360\"). Under $100, keep the cents "
     "(\"$23.98\", \"$5.81\").\n"
-    "- Never write a negative balance with a minus sign. Write \"$1,462 below zero\".\n"
+    "- Never write a negative balance with a minus sign. Write \"$1,462 below zero\". A fact whose value is "
+    "negative (like -144.19) is a balance below zero: write \"$144 below zero\".\n"
     "- Dates like \"Mon, Nov 9\".\n"
     "- Put a citation after each number or date, like [C3] or [E2]. At most 2 citations per bullet. Only cite "
     "ids that exist in the facts.\n"
-    "- If the facts list an assumption, put it in NOTE.\n"
+    "- If the facts list an assumption (like \"You didn't say when you'd buy it, so I assumed tomorrow\"), "
+    "write it ONCE, in NOTE only. Never put it in ANSWER, WHY or DO THIS.\n"
     "- Only name a store, app or subscription that appears in the facts. Only say what it is charged to (the "
     "credit card or checking) if the facts say so.\n"
     "- Never repeat a sentence or a bullet, and never repeat the ANSWER in WHY. Finish every sentence.\n"
@@ -1605,6 +1652,14 @@ def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *,
         check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
                              finish_reason=getattr(stream.result, "finish_reason", None), required=required,
                              events=events, aid=aid, web=web)
+        if not check.ok and all(p.startswith("the answer repeats itself") for p in check.problems):
+            fixed = remove_repeats(text)              # the only problem is a repeat: drop it, change no words
+            again = check_answer(fixed, pack, require_format=True, names=names, general=general, private=private,
+                                 finish_reason=getattr(stream.result, "finish_reason", None), required=required,
+                                 events=events, aid=aid, web=web)
+            if again.ok:
+                text, check = fixed, again
+                retries["repaired"] = "removed duplicate line"
         missing = missing_facts(text, required) if text else list(required)
         if (check.ok and not missing) or attempt == 1:
             break
@@ -1613,6 +1668,11 @@ def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *,
         problems = check.problems + [f"missing {f.label}: {f.line}" + (" (put it FIRST)" if f.where == "lead" else
                                                                          " (in NOTE)" if f.where == "note" else "")
                                      for f in missing]
+        if any("has a minus sign" in p for p in check.problems):
+            problems.append("write every balance below zero as \"$144 below zero\" (the amount, then \"below "
+                            "zero\"), never with a minus sign, and never copy a How note")
+        if any(p.startswith("the assumption is outside NOTE") for p in check.problems):
+            problems.append("delete the assumption from ANSWER, WHY and DO THIS; keep it only as the NOTE line")
         if any(p.startswith("the answer repeats itself") for p in check.problems):   # Lightning resends it as is
             problems.append("ANSWER must be ONE short sentence; say each reason once, in WHY only, and delete "
                             "the copy")

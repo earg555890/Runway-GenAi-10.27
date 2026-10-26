@@ -137,6 +137,7 @@ def run_once(ds, run_no, think, cases=None):
                  resolved=a.plan.get("resolved_question"), expected_verdict=want, verdict=a.verdict, tool_ok=tool_ok,
                  verdict_ok=verdict_ok, check_ok=check_ok, problems=a.check.get("problems"), facts_ok=facts_ok,
                  facts=len(facts), appended=appended, rewrites=a.retries.get("explain_rewrite", 0),
+                 repaired=a.retries.get("repaired"),
                  answered_by=a.models.get("answered_by"), explain_errors=a.models.get("explain_errors"),
                  source=a.explain_source, nvidia_error=nvidia_error, passed=passed, mode=a.mode, retries=a.retries,
                  timings=a.timings, wall_s=round(time.perf_counter() - start, 1), answer=a.text, quick=a.quick,
@@ -164,7 +165,7 @@ def table(results):
             f"{agent.model_name(r['answered_by']) if r['expected_tools'] else '-'} | "
             f"{r['retries']['plan_json']}+{r['retries'].get('explain_rewrite', 0)} | "
             f"{r['timings'].get('quick_s', '-')} | {r['timings'].get('total_s', '-')} | "
-            f"{'PASS' if r['passed'] else 'FAIL'} |" for r in results]
+            f"{'PASS' if r['passed'] else 'FAIL'}{' (repaired)' if r.get('repaired') else ''} |" for r in results]
     head = ("| # | Question | Tools / right? | Verdict / right? | Checks passed | Required facts by model | "
             "Written by | Retries (plan+rewrite) | Quick answer s | Full answer s | Result |\n"
             "|---|---|---|---|---|---|---|---|---|---|---|\n")
@@ -209,6 +210,8 @@ def mode_block(runs, think):
              f"- **Full answers** (all of the above, written by the model with every required fact): "
              f"{count('passed')}/{n}",
              f"- Answers that needed one rewrite: {sum(1 for r in allr if r['rewrites'])}/{n}",
+             f"- Answers repaired (removed duplicate line, no words changed): "
+             f"{sum(1 for r in allr if r.get('repaired'))}/{n}",
              f"- Answers where the quick answer stood in for the AI answer: "
              f"{sum(1 for r in allr if r['expected_tools'] and r['source'] != 'llm')}/{n}",
              f"- **Quick answer:** {quick} s median after sending. **Full AI answer:** {full} s median.", ""]

@@ -353,12 +353,14 @@ def test_check_catches_invented_budgets():
 
 def test_failed_checks_trigger_the_one_rewrite(ds):
     plan = plan_json([{"tool": "money_ideas"}])
-    repeated = ("ANSWER: Work an extra shift by Sat, Oct 31 [C2].\nWHY:\n"
+    repeated = ("ANSWER: Work an extra shift by Sat, Oct 31 [C2]. It pays $999.\nWHY:\n"   # repeat + a made-up $
                 + "- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n" * 3)
     llm = FakeLLM(plans=[plan], answers=[repeated, repeated])
     _, a = run_all("What can I do to make money before this?", llm, ds)
     assert a.retries["explain_rewrite"] == 1 and len(llm.messages) == 2
     assert "repeats itself" in llm.messages[1][1][-1]["content"]                  # the rewrite request names it
+    assert "$999 is not in the facts" in llm.messages[1][1][-1]["content"]         # not only a repeat: no repair
+    assert not a.retries.get("repaired")
     assert a.text == a.quick                                                      # still failing: quick answer
 
 
