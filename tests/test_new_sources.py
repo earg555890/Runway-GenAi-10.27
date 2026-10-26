@@ -108,3 +108,76 @@ def test_attention_items_from_the_new_sources(ds):
     m = by["meal_plan"]
     assert m.due.value == date(2026, 11, 22) and m.urgency.value == 0              # $0 at stake for checking
     assert "grant" not in {a.kind for a in e.attention_items(e.Scenario(approved=("OPP-01",)), ds)}
+
+
+# --- chat: find_aid and meal_plan --------------------------------------------------------------------------------
+
+import agent  # noqa: E402
+
+SUBS = ["Apple Music", "Spotify"]
+
+
+def _quick(calls, ds):
+    plan = agent.parse_plan({"calls": calls}, SUBS)
+    results = agent.execute_all(plan, e.Scenario(), ds)
+    pack = agent.build_pack(results, ds, plan, e.Scenario())
+    required = agent.required_facts(plan, results, pack, ds, e.Scenario())
+    quick = agent.quick_answer(plan, results, pack, ds, e.Scenario(), required)
+    check = agent.check_answer(quick, pack, require_format=True, names=agent.merchant_accounts(ds), required=required,
+                               events=agent.event_dates(ds, e.Scenario()), aid=calls[0]["tool"] == "find_aid")
+    assert check.ok, check.problems
+    assert not agent.missing_facts(quick, required)
+    return quick, pack, required
+
+
+def test_find_aid_answer_says_if_approved(ds):
+    quick, pack, required = _quick([{"tool": "find_aid", "args": {}}], ds)
+    assert quick.startswith("ANSWER: You may qualify for 3 awards worth up to $1,750")
+    assert "Student Emergency Grant: up to $500" in quick and "if approved, it arrives around Mon, Nov 2" in quick
+    assert "after the semester, so it adds $0.00 this semester" in quick                  # the spring scholarship
+    assert "it's the only one that could arrive before Mon, Nov 9" in quick
+    assert "You'd need a 3.50 GPA (yours is 3.40) for the Dean's Merit Scholarship." in quick
+    assert "if_approved" in {f.key for f in required}
+    assert not [it for it in pack.items if "Dean's Merit" in it.get("title", "")]     # not eligible: no amount to offer
+    certain = quick.replace("up to $500 [C3]; if approved, it arrives around Mon, Nov 2", "$500 [C3]; it arrives Mon, Nov 2")
+    assert certain != quick
+    assert agent.check_answer(certain, pack, aid=True).problems[0].endswith('treats aid as certain; say "if approved"')
+    quick, _, _ = _quick([{"tool": "find_aid", "args": {"type": "emergency_grant"}}], ds)
+    assert quick.startswith("ANSWER: You may qualify for 1 award worth up to $500")
+
+
+def test_meal_plan_answer(ds):
+    quick, _, required = _quick([{"tool": "meal_plan", "args": {}}], ds)
+    assert quick.startswith("ANSWER: Your dining dollars run out around Sun, Nov 22")
+    assert "You'll have about 40 swipes left on Fri, Dec 18" in quick and "checking pays $0.00" in quick
+    assert "you'd still have $16.56 in dining dollars on Fri, Dec 18" in quick
+    assert {f.key for f in required} == {"runs_out", "swipes_end", "cost"}
+
+
+def test_new_tools_validation_and_keywords():
+    assert agent.validate_call("find_aid", {"type": "Scholarship"}, SUBS)[0] == {"type": "scholarship"}
+    assert agent.validate_call("find_aid", {"type": "all"}, SUBS)[0] == {"type": None}         # seen live
+    with pytest.raises(ValueError):
+        agent.validate_call("find_aid", {"type": "loan"}, SUBS)
+    assert agent.keyword_plan("Are there any grants or scholarships I qualify for?", SUBS).tool == "find_aid"
+    assert agent.keyword_plan("Is there emergency money?", SUBS).args == {"type": "emergency_grant"}
+    assert agent.keyword_plan("Will my dining dollars last?", SUBS).tool == "meal_plan"
+    assert agent.keyword_plan("How many swipes do I have left?", SUBS).tool == "meal_plan"
+
+
+def test_grants_never_become_afford_fixes_in_chat(ds):
+    plan = agent.parse_plan({"calls": [{"tool": "can_afford", "args": {"item": "flight", "cost": 400,
+                                                                         "date": "2026-11-10"}}]}, SUBS)
+    approved = e.Scenario(approved=("OPP-01",))
+    r = agent.execute_all(plan, approved, ds)[0]
+    assert [f.name for f in r.fixes] == ["refund released", "Spotify"]          # the grant what-if is dropped
+
+
+def test_deadlines_must_be_the_opportunitys_own(ds):
+    """Seen live (fast): "Apply for the Student Emergency Grant before the Nov 15 deadline" (it's rolling)."""
+    assert agent.deadline_problems("1. Apply for the Student Emergency Grant before the Nov 15 deadline.",
+                                   ds.opportunities) == ["the Student Emergency Grant has no deadline (apply anytime), "
+                                                         "not Sun, Nov 15"]
+    assert agent.deadline_problems("Apply for the book scholarship by Nov 15.", ds.opportunities) == []
+    assert agent.deadline_problems("Apply for the Textbook & Supplies Scholarship by Sun, Nov 15.", ds.opportunities) == []
+    assert agent.deadline_problems("The Spring Opportunity Scholarship deadline is Sun, Nov 15.", ds.opportunities) ==         ["the Spring Opportunity Scholarship's deadline is Tue, Dec 1, not Sun, Nov 15"]

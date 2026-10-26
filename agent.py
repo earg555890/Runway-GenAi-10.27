@@ -99,6 +99,13 @@ TOOLS = {
         args={"category": "Groceries, Eating out, Meal plan, Shopping, Entertainment, Transportation, Other, or "
                           "\"food\"; leave it out for the whole budget",
               "month": "YYYY-MM (optional; default this month)"}),
+    "find_aid": dict(
+        does="Grants, scholarships, emergency money and work-study from her school that she may qualify for, and "
+             "when the money would arrive IF APPROVED (never certain money).",
+        args={"type": "\"emergency_grant\", \"scholarship\" or \"work_study\" (optional; leave out for all)"}),
+    "meal_plan": dict(
+        does="Her campus meal plan: swipes and dining dollars left, when the dining dollars run out, swipes left at "
+             "the end of the semester, and how to make both last.", args={}),
     "action_plan": dict(
         does="What the student should DO (this week, first, next): the items that need attention, most urgent "
              "first, each with its next step.",
@@ -317,6 +324,12 @@ def validate_call(tool, args, sub_names):
         if not args.get("date"):
             raise ValueError('balance_on needs "date"')
         clean = {"date": _any_date(args["date"], "date", config.SEMESTER_START).isoformat()}
+    elif tool == "find_aid":
+        kind = str(args.get("type") or "").strip().lower() or None
+        kind = None if kind in ("all", "any", "both", "grant_or_scholarship") else kind      # seen live: "all"
+        if kind and kind not in ("emergency_grant", "scholarship", "work_study"):
+            raise ValueError(f"type must be emergency_grant, scholarship or work_study, got {kind!r}")
+        clean = {"type": kind}
     elif tool == "budget_status":
         cat = str(args.get("category") or "").strip()
         names = {c.lower(): c for c in (*normalize.FLEXIBLE, *engine.BUDGET_GROUPS)}
@@ -429,6 +442,9 @@ def plan_messages(question, scenario, sub_names, history=()):
         '- Where did my money go in October? -> [{"tool": "spending_summary", "args": {"start": "2026-10-01", '
         '"end": "2026-10-31"}}]\n'
         '- How much is left in my food budget? -> [{"tool": "budget_status", "args": {"category": "food"}}]\n'
+        '- Are there any grants or scholarships I qualify for? -> [{"tool": "find_aid"}]\n'
+        '- Is there emergency money? -> [{"tool": "find_aid", "args": {"type": "emergency_grant"}}]\n'
+        '- Will my dining dollars last? / How many swipes do I have left? -> [{"tool": "meal_plan"}]\n'
         '- What happens if I stick to my budget? / Am I on budget? -> [{"tool": "budget_status"}]\n'
         '- Help me get through the semester -> [{"tool": "runway"}, {"tool": "money_ideas"}, {"tool": '
         '"find_leaks"}]\n'
@@ -506,6 +522,11 @@ def keyword_plan(question, sub_names):
                                                          sub_names)[0])
         except ValueError:
             return None
+    elif any(k in q for k in ("grant", "scholarship", "emergency money", "work-study", "work study", "financial help")):
+        args = {"type": "emergency_grant"} if "emergency" in q else {}
+        p = Plan("find_aid", "find_aid", validate_call("find_aid", args, sub_names)[0])
+    elif any(k in q for k in ("dining", "swipe", "meal plan")):
+        p = Plan("meal_plan", "meal_plan", {})
     elif "budget" in q:
         cat = next((c for c in (*engine.BUDGET_GROUPS, *normalize.FLEXIBLE) if c.lower() in q), None)
         p = Plan("budget_status", "budget_status", validate_call("budget_status", {"category": cat}, sub_names)[0])
@@ -681,6 +702,19 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
         key = [deadline] + [c for i in ideas for c in (i.amount, i.arrives, i.detail) if c is not None]
         return ToolResult("covered" if p.lasts_through_semester else "runs_out", key, ledger,
                           facts={"ideas": ideas, "deadline": deadline, "projection": p})
+    if tool == "find_aid":
+        checks = engine.eligible_opportunities(None, scenario, ds, ledger)
+        if a.get("type"):
+            checks = [x for x in checks if x.opp.type == a["type"]]
+        total = engine.opportunities_total(checks, ledger)
+        run_out = engine.project(scenario, ds, ledger).first_below_zero
+        # only what she qualifies for: an "almost" award's amount and date stay out, so no answer can offer it
+        key = [total, run_out] + [c for x in checks if x.status == "eligible"
+                                  for c in (x.amount, x.arrives, x.this_semester) if c is not None]
+        return ToolResult(None, key, ledger, facts={"checks": checks, "total": total, "run_out": run_out})
+    if tool == "meal_plan":
+        m = engine.meal_plan_status(scenario, ds, ledger)
+        return ToolResult(None, [*m.c.values(), *m.tip.values()] if m else [], ledger, facts={"meal": m})
     if tool == "budget_status":
         b = engine.budget_status(budget, a["month"], a.get("category"), scenario, ds, ledger)
         if b.suggestion:
@@ -992,16 +1026,57 @@ def negative_money_problems(text):
             for m in NEGATIVE_MONEY.finditer(text)][:1]
 
 
+AID_WORDS = re.compile(r"\b(?:grant|scholarship|award|work-study|aid)\b", re.I)
+HEDGES = re.compile(r"\b(?:if (?:you(?:'re| are) )?(?:approved|hired)|may|might|could|up to|if you apply|if accepted)\b",
+                    re.I)
+
+
+def certainty_problems(text):
+    """Aid opportunities are never certain: a sentence about a grant or scholarship that states an amount or an
+    arrival must say "if approved" (or may / could / up to / if hired)."""
+    for sentence in SENTENCE_END.split(strip_citations(text)):
+        if AID_WORDS.search(sentence) and (find_amounts(sentence) or re.search(r"\barriv|\bpaid\b|\bget\b", sentence,
+                                                                               re.I)) and not HEDGES.search(sentence):
+            return [f"\"{sentence.strip()[:60]}\" treats aid as certain; say \"if approved\""]
+    return []
+
+
+DEADLINE_WORDS = re.compile(r"\bdeadline\b|\bapply (?:by|before)\b", re.I)
+
+
+def deadline_problems(text, opportunities):
+    """A sentence naming an opportunity with a deadline must use that opportunity's own deadline (seen live: "Apply
+    for the Student Emergency Grant before the Nov 15 deadline"; the grant is rolling, Nov 15 is another award's)."""
+    for sentence in SENTENCE_END.split(strip_citations(text)):
+        if not DEADLINE_WORDS.search(sentence):
+            continue
+        found = [d for _, d, _ in find_dates(sentence) if d]
+        for o in opportunities:
+            alias = " ".join(re.sub(r"[^a-z ]", " ", o.name.lower()).split()[-2:])
+            if alias in " ".join(re.sub(r"[^a-z ]", " ", sentence.lower()).split()) and found:
+                if o.deadline is None:
+                    return [f"the {o.name} has no deadline (apply anytime), not {w.day(found[0])}"]
+                if found[0] != o.deadline:
+                    return [f"the {o.name}'s deadline is {w.day(o.deadline)}, not {w.day(found[0])}"]
+    return []
+
+
+# What only the engine's notes look like: "Tue Oct 27" (no comma after the weekday), the demo year, "=", " x ", " / ".
+# Plain wording writes "Tue, Oct 27" and shows a year only when it isn't 2026 ("Fri, Jan 15, 2027").
+ENGINE_STYLE = re.compile(r"\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b"
+                          r"|\b2026\b|=|\sx\s|\s/\s")
+
+
 def copied_how_problems(text, pack):
     """The "How:" notes in the facts explain the math to the model ("Missing form submitted Tue Oct 27, 2026 + 7
     business days = Thu Nov 5, 2026."); copied into an answer they read like a spreadsheet. A sentence or bullet
     that is mostly one of them (90% alike, or sharing a 35-character run) AND carries the notes' engine formatting
-    (a year, "=", " x ", " / ") fails. A plain restatement ("Groceries $176.49 plus Eating out $81.32") is fine."""
+    (ENGINE_STYLE) fails. A plain restatement ("Groceries $176.49 plus Eating out $81.32") is fine."""
     hows = [h for it in pack.items if it.get("kind") == "calc"
             for h in re.split(r"(?<=[.;])\s+", it.get("how", "")) if len(h.split()) >= 6]
     norm = [" ".join(re.sub(r"[^a-z0-9$ ]", " ", h.lower()).split()) for h in hows]
     for shown, unit in _units(text):
-        if not re.search(r"\b20\d\d\b|=|\sx\s|\s/\s", shown):
+        if not ENGINE_STYLE.search(shown):
             continue
         for n in norm:
             m = difflib.SequenceMatcher(None, unit, n, autojunk=False)
@@ -1092,7 +1167,7 @@ def copied_label_problems(text, required):
 
 
 def check_answer(text, pack, require_format=False, *, names=None, finish_reason=None, general=False,
-                 private=None, required=(), events=None):
+                 private=None, required=(), events=None, aid=False):
     """Every dollar amount and date must come from the pack; every citation must exist. A whole-dollar amount
     ("$1,462") matches a pack value that rounds to it ($1,462.37); signs are ignored, so "$1,462 below zero"
     and "-$1,462.37" both match -$1,462.37. Also: reason claims about merchants (names: merchant_accounts()),
@@ -1129,7 +1204,8 @@ def check_answer(text, pack, require_format=False, *, names=None, finish_reason=
     if text.strip():
         problems += (repetition_problems(text) + cutoff_problems(text, finish_reason)
                      + invented_budget_problems(text, None if general else pack) + copied_hint_problems(text)
-                     + negative_money_problems(text))
+                     + negative_money_problems(text)
+                     + (certainty_problems(text) + deadline_problems(text, aid if aid is not True else []) if aid else []))
     return Check(not problems, list(dict.fromkeys(problems)), len(amounts), len(found), len(cites))
 
 
@@ -1231,6 +1307,11 @@ def call_words(tool, a):
         return f"your checking balance on {w.day(date.fromisoformat(a['date']))}"
     if tool == "action_plan":
         return f"what needs your attention, {_span(a)}"
+    if tool == "find_aid":
+        return "grants, scholarships and work-study you may qualify for" + (
+            f" ({a['type'].replace('_', ' ')})" if a.get("type") else "")
+    if tool == "meal_plan":
+        return "your meal plan"
     if tool == "budget_status":
         return f"your {(a.get('category') or 'whole').lower()} budget, {date.fromisoformat(a['month'] + '-01'):%B}"
     if tool == "general_info":
@@ -1408,7 +1489,7 @@ def model_name(model):
 
 
 def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *, names=None, general=False,
-                  private=None, events=None):
+                  private=None, events=None, aid=False):
     """Stream one EXPLAIN answer from `model`, check it (numbers, dates, citations, format, record IDs, reasons,
     repetition, cut-off, required facts), and allow one rewrite. Yields ("text"/"restart", ...) events and returns
     (text, reasoning, check, missing) where missing are the required facts the model still left out. Raises if the
@@ -1425,7 +1506,7 @@ def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *,
         text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
         check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
                              finish_reason=getattr(stream.result, "finish_reason", None), required=required,
-                             events=events)
+                             events=events, aid=aid)
         missing = missing_facts(text, required) if text else list(required)
         if (check.ok and not missing) or attempt == 1:
             break
@@ -1573,6 +1654,42 @@ def lookup_template(tool, result, c):
         do = [f"Send the verification form. The refund comes around {w.day(t.refund_release.value)} "
               f"{c(t.refund_release)}."] if t.refund else []
         return (f"You have {w.dollars(t.checking.value)} in checking today {c(t.checking)}.", why, do, "")
+    if tool == "find_aid":
+        checks, total, run_out = f["checks"], f["total"], f["run_out"]
+        ok = [x for x in checks if x.status == "eligible"]
+        if not ok:
+            return "I didn't find aid you qualify for right now.", ["None of the school's opportunities fit yet."], [], ""
+        ok.sort(key=lambda x: (not x.before_run_out, x.arrives.value))
+        lines = [aid_line(x, c) for x in ok[:4]]
+        money_ok = [x for x in ok if x.amount]
+        head = (f"You may qualify for {len(money_ok)} award{'s' if len(money_ok) != 1 else ''} worth up to "
+                f"{w.dollars(total.value)} {c(total)}, if approved." if money_ok else
+                "You may qualify for a work-study job, if you're hired.")
+        soon = [x for x in ok if x.before_run_out and x.amount]
+        do = ([f"Apply for the {soon[0].opp.name.lower()} first: it's the only one that could arrive before "
+               f"{w.day(run_out.value)} {c(run_out)}."] if soon and run_out.value else [])
+        do.append("Open Find money to draft the application.")
+        almost = [x for x in checks if x.status == "almost"]
+        note = " ".join(f"You'd need {x.missing[0]} for the {x.opp.name}." for x in almost[:1])
+        return head, lines, do, ("None of this is certain until it's approved. " + note).strip()
+    if tool == "meal_plan":
+        m = f["meal"]
+        if not m:
+            return "I don't see a meal plan.", ["No meal plan is on file."], [], ""
+        k = m.c
+        head = (f"Your dining dollars run out around {w.day(m.runs_out)} {c(k['dd_runs_out'])}." if m.runs_out else
+                f"Your dining dollars last the semester {c(k['dd_runs_out'])}.")
+        why = [f"You have {k['swipes_left'].value} swipes {c(k['swipes_left'])} and {w.dollars(k['dd_left'].value)} "
+               f"in dining dollars {c(k['dd_left'])} left.",
+               f"You'll have about {k['swipes_end'].value:.0f} swipes left on {w.day(config.SEMESTER_END)} "
+               f"{c(k['swipes_end'])}."]
+        why.append(f"Swipes cover the gap, so checking pays {w.dollars(k['cost'].value)} {c(k['cost'])}."
+                   if not k["cost"].value else
+                   f"Checking would pay {w.dollars(k['cost'].value)} for meals {c(k['cost'])}.")
+        do = ([f"Use 2 swipes a week instead of dining dollars: you'd still have {w.dollars(m.tip['dd_end'].value)} "
+               f"in dining dollars on {w.day(config.SEMESTER_END)} {c(m.tip['dd_end'])}."]
+              if m.runs_out and m.tip_works else [])
+        return head, why, do, ""
     if tool == "budget_status":
         b = f["status"]
         if b.suggestion:
@@ -1644,6 +1761,19 @@ def lookup_template(tool, result, c):
         return (f"Here {'is 1 way' if k == 1 else f'are {k} ways'} to get money {when} {c(dl)}.", lines,
                 [lines[0].split(":")[0] + "."], "Ranked by when the money arrives.")
     return None
+
+
+def aid_line(x, c):
+    """One opportunity in one sentence, always "if approved" (or "if you're hired")."""
+    o = x.opp
+    if o.type == "work_study":
+        return (f"{o.name}: ${o.hourly_rate:.0f}/hour; if you're hired, your first paycheck comes "
+                f"{w.day(x.arrives.value)} {c(x.arrives)}.")
+    amount = f"up to {w.dollars(x.amount.value)}" if o.max_amount and not o.amount else w.dollars(x.amount.value)
+    if x.this_semester is not None and not x.this_semester.value:
+        return (f"{o.name}: {amount} {c(x.amount)}; if approved, it's paid {w.day(x.arrives.value)} {c(x.arrives)}, "
+                f"after the semester, so it adds {w.dollars(0)} this semester.")
+    return f"{o.name}: {amount} {c(x.amount)}; if approved, it arrives around {w.day(x.arrives.value)} {c(x.arrives)}."
 
 
 def todo_effect(e, cite=""):
@@ -1734,6 +1864,31 @@ def lookup_facts(tool, result, c):
             e = t.next_paycheck
             out.append(Fact("paycheck", "the next paycheck", f"Your next paycheck is {w.dollars(e.amount)} on "
                             f"{w.day(e.date)} {c(e.computed)}.", money=(e.amount,), date=e.date))
+    elif tool == "find_aid":
+        ok = [x for x in f["checks"] if x.status == "eligible"]
+        out.append(Fact("if_approved", "that the money is only if approved", "None of this is certain until it's "
+                        "approved.", words=("if approved", "if you're approved", "if you are approved")))
+        if any(x.amount for x in ok):
+            out.append(Fact("total", "the total you may qualify for, if approved",
+                            f"You may qualify for up to {w.dollars(f['total'].value)} {c(f['total'])}, if approved.",
+                            money=(f["total"].value,)))
+        for x in sorted(ok, key=lambda x: (not x.before_run_out, x.arrives.value))[:2]:
+            out.append(Fact(f"aid_{x.opp.row_id}", f"the {x.opp.name.lower()}, its amount and when it would arrive",
+                            aid_line(x, c), money=(x.amount.value,) if x.amount else (), date=x.arrives.value))
+    elif tool == "meal_plan":
+        m = f["meal"]
+        if m:
+            k = m.c
+            out.append(Fact("runs_out", "when the dining dollars run out",
+                            f"Your dining dollars run out around {w.day(m.runs_out)} {c(k['dd_runs_out'])}."
+                            if m.runs_out else f"Your dining dollars last the semester {c(k['dd_runs_out'])}.",
+                            date=m.runs_out, words=() if m.runs_out else ("last",), where="answer"))
+            out.append(Fact("swipes_end", "the swipes left on Dec 18",
+                            f"You'll have about {k['swipes_end'].value:.0f} swipes left on {w.day(config.SEMESTER_END)} "
+                            f"{c(k['swipes_end'])}.", words=(f"{k['swipes_end'].value:.0f}",)))
+            out.append(Fact("cost", "what checking pays for meals",
+                            f"Checking pays {w.dollars(k['cost'].value)} for meals {c(k['cost'])}.",
+                            money=(k["cost"].value,)))
     elif tool == "budget_status":
         b = f["status"]
         if b.suggestion:
@@ -1811,7 +1966,7 @@ def required_facts(plan, results, pack, ds, scenario):
 
 
 LOOKUP_TOOLS = ("spending_summary", "find_transactions", "upcoming_bills", "work_summary", "balance_on",
-                "accounts_today", "money_ideas", "action_plan", "budget_status", "general_info")
+                "accounts_today", "money_ideas", "action_plan", "budget_status", "find_aid", "meal_plan", "general_info")
 
 
 def _core_facts(tool, result, pack, ds, scenario):
@@ -2181,13 +2336,14 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     t = time.perf_counter()
     names, private = merchant_accounts(ds), private_amounts(ds) if general else None
     events = None if general else event_dates(ds, scenario)
+    aid = ds.opportunities if any((r.tool or plan.tool) == "find_aid" for r in results) else False   # never certain
     messages = explain_messages(plan.resolved_question or question, plan, results, pack, label, required, general)
     text, reasoning, check, answered_by, missing, errors = "", "", None, None, [], []
     for model, thinking in chain:
         try:
             text, reasoning, check, missing = yield from _explain_with(
                 llm, model, thinking, messages, pack, retries, required, names=names, general=general,
-                private=private, events=events)
+                private=private, events=events, aid=aid)
             answered_by = model
             break
         except Exception as exc:
@@ -2197,7 +2353,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
         text = append_facts(text, missing)
         retries["facts_appended"] = len(missing)
         check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
-                             required=required, events=events)
+                             required=required, events=events, aid=aid)
     passed = answered_by is not None and check.ok
     if passed:
         source = "llm"
@@ -2220,7 +2376,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
         text = quick or ("I can't look that up right now. Try again in a minute." if general else OFF_TOPIC)
         missing = missing_facts(text, required)
         check = check_answer(text, pack, names=names, general=general, private=private, required=required,
-                             events=events)
+                             events=events, aid=aid)
         reasoning = reasoning if answered_by is not None else ""
         yield "restart", ""
     facts_record = [{"key": f.key, "label": f.label, "appended": f in missing} for f in required]

@@ -9,7 +9,8 @@ from engine import fmt_money
 
 STUDENT_NAME = "Maya Rivera"
 SOURCE_PLAIN = {"checking": "Your checking account", "card": "Your credit card", "aid": "Financial aid office",
-                "bursar": "Student account (bursar)", "lease": "Your lease", "shifts": "Your work schedule"}
+                "bursar": "Student account (bursar)", "lease": "Your lease", "shifts": "Your work schedule",
+                "opportunities": "Your school's aid opportunities", "meal_plan": "Your meal plan"}
 TERMS = {"FA": "Fall", "SP": "Spring", "SU": "Summer"}
 
 
@@ -127,6 +128,20 @@ def describe(rec):
             m(rec.net) if rec.net is not None else ""
     if isinstance(rec, n.Shift):
         return rec.date, f"Shift {rec.start_time}-{rec.end_time}, {rec.hours} hours ({rec.status.lower()})", ""
+    if isinstance(rec, n.Opportunity):
+        amount = (m(rec.amount) if rec.amount else f"up to {m(rec.max_amount)}" if rec.max_amount else
+                  f"{m(rec.hourly_rate)}/hour" if rec.hourly_rate else "")
+        return rec.deadline, f"{rec.name} ({rec.type.replace('_', ' ')})", amount
+    if isinstance(rec, n.OppRequirement):
+        return None, f"Application needs: {rec.item}", ""
+    if isinstance(rec, n.StudentProfile):
+        return rec.as_of, (f"Your profile: {rec.class_year}, {rec.enrollment}, GPA {rec.gpa}, "
+                           f"{'Pell-eligible' if rec.pell_eligible else 'not Pell-eligible'}, "
+                           f"FAFSA {'on file' if rec.fafsa_on_file else 'not on file'}, {rec.major}"), ""
+    if isinstance(rec, n.MealPlan):
+        return rec.start, f"{rec.name}: {rec.swipes} swipes", m(rec.dining_dollars)
+    if isinstance(rec, n.Meal):
+        return rec.date, f"{rec.place} ({'swipe' if rec.swipes else 'dining dollars'})",             m(rec.dining_dollars) if not rec.swipes else "1 swipe"
     return None, rec.row_id, ""
 
 

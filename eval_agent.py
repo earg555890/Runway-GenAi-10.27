@@ -69,6 +69,8 @@ CASES = [
     Case("Where did my money go in October?", ("spending_summary",), {"start": "2026-10-01"}, new=True),
     Case("How much is left in my food budget?", ("budget_status",), {"category": "food"}, new=True, budget=BUDGET),
     Case("What happens if I stick to my budget?", ("budget_status",), {"category": None}, new=True, budget=BUDGET),
+    Case("Are there any grants or scholarships I qualify for?", ("find_aid",), new=True),
+    Case("Will my dining dollars last?", ("meal_plan",), new=True),
 ]
 
 
