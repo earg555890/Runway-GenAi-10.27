@@ -217,3 +217,23 @@ def test_parse_json_repairs_a_forgotten_closing_brace():
     data = llm_client.parse_json(raw)
     assert data["calls"][0]["args"]["extra_shifts"] == [{"date": "2026-11-07", "hours": 5}]
     assert llm_client.parse_json('{"a": "}]", "b": [1, 2') == {"a": "}]", "b": [1, 2]}   # strings untouched
+
+
+@pytest.mark.parametrize("raw,shifts", [   # Lightning's exact PLAN replies from the final eval (Oct 26): "]}" for "}]"
+    ('{"resolved_question": "What if I pick up a 5 hour shift on Nov 7?", "intent": "what_if", "calls": [{"tool": '
+     '"what_if", "args": {"extra_shifts": [{"date": "2026-11-07", "hours": 5}]}]}, "clarifying_question": null}',
+     [{"date": "2026-11-07", "hours": 5}]),
+    ('{"resolved_question": "What if I work 4 hours this Saturday and next Saturday?", "intent": "what_if", "calls": '
+     '[{"tool": "what_if", "args": {"extra_shifts": [{"date": "2026-10-31", "hours": 4}, {"date": "2026-11-07", '
+     '"hours": 4}]}]}, "clarifying_question": null}',
+     [{"date": "2026-10-31", "hours": 4}, {"date": "2026-11-07", "hours": 4}]),
+])
+def test_swapped_closing_brackets_are_repaired(raw, shifts):
+    data = llm_client.parse_json(raw)
+    assert data["calls"] == [{"tool": "what_if", "args": {"extra_shifts": shifts}}]
+    assert data["clarifying_question"] is None
+
+
+def test_unrepairable_json_still_fails():
+    with pytest.raises(ValueError):
+        llm_client.parse_json('{"calls": [{"tool": "what_if", "args": {"x": ]}')

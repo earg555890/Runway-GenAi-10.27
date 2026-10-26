@@ -175,16 +175,39 @@ def repair_brackets(text):
     return "".join(out) + "".join(reversed(stack))
 
 
+def swapped_closers(text):
+    """Versions of the text with one adjacent pair of different closing brackets swapped, outside strings.
+    (Lightning sometimes writes `...5}]}]}, "clarifying_question"` for `...5}]}}], "clarifying_question"`.)"""
+    in_str = esc = False
+    for i, ch in enumerate(text[:-1]):
+        if in_str:
+            in_str = not (ch == '"' and not esc)
+            esc = ch == "\\" and not esc
+        elif ch == '"':
+            in_str = True
+        elif ch in "}]" and text[i + 1] in "}]" and text[i + 1] != ch:
+            yield text[:i] + text[i + 1] + ch + text[i + 2:]
+
+
 def parse_json(text):
-    """Parse a JSON answer, tolerating a ```json fence around it and forgotten closing brackets. Raises ValueError."""
+    """Parse a JSON answer, tolerating a ```json fence around it, forgotten closing brackets and one pair of swapped
+    closing brackets. Raises ValueError. The caller still validates the shape."""
     text = text.strip()
     match = _FENCE.match(text)
     if match:
         text = match.group(1)
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
-        return json.loads(repair_brackets(text))
+    except json.JSONDecodeError as first:
+        try:
+            return json.loads(repair_brackets(text))
+        except json.JSONDecodeError:
+            for candidate in swapped_closers(text):
+                try:
+                    return json.loads(candidate)
+                except json.JSONDecodeError:
+                    continue
+            raise first
 
 
 def chat_json(messages, thinking=False, *, validate=None, **kwargs):

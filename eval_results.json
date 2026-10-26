@@ -35,7 +35,8 @@
       "facts_ok": true,
       "facts": 4,
       "appended": [],
-      "rewrites": 1,
+      "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -44,18 +45,18 @@
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.55,
-        "execute_s": 0.032,
-        "quick_s": 1.58,
-        "explain_s": 3.68,
-        "total_s": 5.26
+        "plan_s": 1.09,
+        "execute_s": 0.007,
+        "quick_s": 1.1,
+        "explain_s": 1.19,
+        "total_s": 2.29
       },
-      "wall_s": 5.3,
-      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit your verification form today\n2. Cancel Spotify now\nNOTE: Cancelling Apple Music saves $0.00 this semester [C7] because that card bill is paid after the semester ends.",
+      "wall_s": 2.3,
+      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
       "quick": "ANSWER: Yes, if you do 2 things first [C1].\nWHY:\n- Without changes, you'd be $1,862 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\n2. Cancel Spotify. That saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
       "notes": []
     },
@@ -90,6 +91,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -102,14 +104,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 9.21,
-        "execute_s": 0.011,
-        "quick_s": 9.22,
-        "explain_s": 1.91,
-        "total_s": 11.13
+        "plan_s": 0.56,
+        "execute_s": 0.009,
+        "quick_s": 0.57,
+        "explain_s": 1.55,
+        "total_s": 2.12
       },
-      "wall_s": 11.1,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307 [C7].\n- Your checking balance goes below $0 on that day [C4].\n\nDO THIS:\n1. Make the $360 credit card payment before Mon Nov 9 [C1].\n2. Track your checking balance daily after Nov 9 [E1].\n\nNOTE: Assumes no new income or spending beyond what is scheduled.",
+      "wall_s": 2.1,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Checking goes below $0 on that day after the payment [C8].\n- Your balance on Mon Oct 26 was $783.38 [C9].\n\nDO THIS:\n1. Make the $360 payment on Mon Nov 9 [C1].\n2. Track your balance after that payment [C8].\n\nNOTE: I assumed you make no new charges or deposits beyond what's listed.",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
       "notes": []
     },
@@ -144,6 +146,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -156,14 +159,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.54,
-        "execute_s": 0.012,
-        "quick_s": 0.55,
-        "explain_s": 1.56,
-        "total_s": 2.11
+        "plan_s": 0.51,
+        "execute_s": 0.008,
+        "quick_s": 0.52,
+        "explain_s": 4.89,
+        "total_s": 5.41
       },
-      "wall_s": 2.1,
-      "answer": "ANSWER: Cancel Spotify to stop the $22.98 monthly leak and avoid the $35 overdraft fee.\n\nWHY:\n- You pay for Apple Music [C3].\n- You pay for Spotify [C3].\n- Together they cost $22.98 a month [C3].\n- Rent caused a $35 overdraft fee [C9].\n\nDO THIS:\n1. Cancel Spotify now\n2. Check your checking balance after rent\n\nNOTE: Apple Music charges card on day 22, so it won't hit checking before the semester ends.",
+      "wall_s": 5.4,
+      "answer": "ANSWER: Your money leaks from two duplicate subscriptions that cost $22.98 a month, plus a $35 overdraft fee from rent.\n\nWHY:\n- You pay for Apple Music [C3].\n- You pay for Spotify [C3].\n- Together they cost $22.98 a month [C3].\n- Rent caused a $35 overdraft fee [C9].\n\nDO THIS:\n1. Cancel Spotify to save $23.98 before the semester ends [C7].\n2. Set a rent reminder for the 1st to avoid future overdrafts [C13].\n\nNOTE: I assumed you want to stop the leaks before the semester ends on Fri Dec 18, 2026.",
       "quick": "ANSWER: Two things are leaking money.\nWHY:\n- You pay for Apple Music and Spotify: $22.98 a month together [C3].\n- Rent caused a $35 overdraft fee [C9].\nDO THIS:\n1. Cancel Spotify. That saves $23.98 this semester [C7].\nNOTE: Fee savings are estimated.",
       "notes": []
     },
@@ -208,6 +211,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 1,
+      "repaired": "removed duplicate line",
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -217,17 +221,18 @@
       "retries": {
         "plan_json": 0,
         "explain_rewrite": 1,
-        "facts_appended": 0
+        "facts_appended": 0,
+        "repaired": "removed duplicate line"
       },
       "timings": {
-        "plan_s": 4.27,
-        "execute_s": 0.008,
-        "quick_s": 4.28,
-        "explain_s": 3.37,
-        "total_s": 7.65
+        "plan_s": 2.47,
+        "execute_s": 0.018,
+        "quick_s": 2.49,
+        "explain_s": 5.21,
+        "total_s": 7.7
       },
       "wall_s": 7.7,
-      "answer": "ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\n\nWHY:\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\n- Your money runs out on Mon, Nov 9 [C7].\n\nDO THIS:\n1. Work the Nov 7 shift as scheduled.\n2. Plan around the Nov 9 money-out date.\n\nNOTE: Assumes your schedule stays the same.",
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C7]. The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\n\nWHY:\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\n\nDO THIS:\n1. Work the Nov 7 shift to earn the extra $71.69.\n2. Note that any shift after Oct 31 is paid after you run out on Nov 9.\n\nNOTE: I assumed you are asking about the impact of the Nov 7 shift on your current runway.",
       "quick": "ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\nWHY:\n- Your money runs out on Mon, Nov 9 [C7], in 2 weeks [C8].\n- A $360 credit card payment [C4] is due Mon, Nov 9, when you'll have $307.\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
       "notes": [
         "The planner wasn't available (InvalidJSONError); Runway matched your question by keywords."
@@ -269,6 +274,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 1,
+      "repaired": null,
       "answered_by": "template",
       "explain_errors": [],
       "source": "template",
@@ -281,17 +287,17 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.87,
-        "execute_s": 0.011,
-        "quick_s": 0.89,
-        "explain_s": 18.45,
-        "total_s": 19.34
+        "plan_s": 0.85,
+        "execute_s": 0.021,
+        "quick_s": 0.87,
+        "explain_s": 4.62,
+        "total_s": 5.49
       },
-      "wall_s": 19.3,
+      "wall_s": 5.5,
       "answer": "ANSWER: Not right now [C1].\nWHY:\n- Even with every fix, you'd be $144 below zero [C4].\n- That's on Mon, Nov 2 [C5].\nDO THIS:\n1. Try a later date, after your refund arrives.\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27.",
       "quick": "ANSWER: Not right now [C1].\nWHY:\n- Even with every fix, you'd be $144 below zero [C4].\n- That's on Mon, Nov 2 [C5].\nDO THIS:\n1. Try a later date, after your refund arrives.\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27.",
       "notes": [
-        "The AI answer didn't pass Runway's checks (the answer repeats itself (\"You didn't say when you'd buy it, so I assumed tomorrow, Tue\"); -$144.19 has a minus sign; write it as \"$144.19 below zero\"), so this is the quick answer built straight from your numbers."
+        "The AI answer didn't pass Runway's checks (the answer copied a calculation note (\"Without fixes the lowest balance is -$1,612.37; wi\"); say it in plain words; -$1,612.37 has a minus sign; write it as \"$1,612.37 below zero\"), so this is the quick answer built straight from your numbers."
       ]
     },
     {
@@ -330,6 +336,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -342,14 +349,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.95,
-        "execute_s": 0.023,
-        "quick_s": 0.98,
-        "explain_s": 1.57,
-        "total_s": 2.55
+        "plan_s": 0.99,
+        "execute_s": 0.015,
+        "quick_s": 1.0,
+        "explain_s": 1.68,
+        "total_s": 2.69
       },
-      "wall_s": 2.6,
-      "answer": "ANSWER: Yes, if you do 1 thing [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit your verification form to Student Accounts by Tue Oct 27.\n2. Pay the $200 payment-plan installment on Fri Nov 20 from checking.\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
+      "wall_s": 2.7,
+      "answer": "ANSWER: Yes, if you do 1 thing [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit the verification form to release your held refund.\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
       "quick": "ANSWER: Yes, if you do 1 thing first [C1].\nWHY:\n- Without changes, you'd be $1,462 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
       "notes": []
     },
@@ -375,6 +382,7 @@
       "facts": 0,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": null,
       "explain_errors": null,
       "source": "none",
@@ -387,10 +395,10 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.95,
-        "total_s": 0.95
+        "plan_s": 0.48,
+        "total_s": 0.48
       },
-      "wall_s": 0.9,
+      "wall_s": 0.5,
       "answer": "I can help with your money this semester: whether you can afford something, how long your money will last, where it's leaking, your refund, or what changes would help. Try asking one of those!",
       "quick": "",
       "notes": []
@@ -426,6 +434,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -438,14 +447,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.46,
-        "execute_s": 0.01,
-        "quick_s": 0.47,
-        "explain_s": 1.93,
-        "total_s": 2.4
+        "plan_s": 0.55,
+        "execute_s": 0.004,
+        "quick_s": 0.55,
+        "explain_s": 5.75,
+        "total_s": 6.3
       },
-      "wall_s": 2.4,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307 [C7].\n- You have $783.38 now [C9], and spending $7.51/day [C10] will drain it.\n\nDO THIS:\n1. Pay the $360 card bill before Mon Nov 9 [C1].\n2. Track daily spending at $7.51/day [C10].\n\nNOTE: Assumes no new income or large unexpected charges.",
+      "wall_s": 6.3,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Your checking balance goes below $0 on that day [C4].\n\nDO THIS:\n1. Make the $360 credit card payment before Mon Nov 9 [C1].\n2. Track your checking balance daily [C9].\n\nNOTE: I assumed your checking balance and spending continue as projected through the semester.",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
       "notes": []
     },
@@ -480,6 +489,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -492,14 +502,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.72,
-        "execute_s": 0.004,
-        "quick_s": 0.72,
-        "explain_s": 2.09,
-        "total_s": 2.81
+        "plan_s": 0.67,
+        "execute_s": 0.003,
+        "quick_s": 0.67,
+        "explain_s": 2.45,
+        "total_s": 3.12
       },
-      "wall_s": 2.8,
-      "answer": "ANSWER: Your $1,850 refund [C4] is on hold because Financial aid is waiting for your 2026-27 Verification Worksheet [C2] [E2].\n\nWHY:\n- The hold blocks aid disbursement and credit balance refunds [E4]\n- Your 2026-27 Verification Worksheet has not been received [E2]\n- Once you send it, the refund arrives around Thu, Nov 5 [C7]\n\nDO THIS:\n1. Submit your 2026-27 Verification Worksheet to the financial aid office\n2. Wait 7 business days after submission for the refund to process\n\nNOTE: The hold has been active since Thu, Sep 10 [C5] [E4].",
+      "wall_s": 3.1,
+      "answer": "ANSWER: Your $1,850 refund [C4] is on hold because financial aid is waiting for your 2026-27 Verification Worksheet [C2].\n\nWHY:\n- The hold blocks aid disbursement and credit balance refunds [E4]\n- Your worksheet was requested Sep 10 and still isn't received [E2]\n- The refund can release within 7 business days after the form arrives [C6]\n\nDO THIS:\n1. Submit the 2026-27 Verification Worksheet to the financial aid office\n2. Wait 7 business days for the refund to arrive\n\nNOTE: I assumed you submit the form tomorrow, which would make the refund arrive Thu, Nov 5 [C7].",
       "quick": "ANSWER: Your $1,850 refund is on hold [C4].\nWHY:\n- Financial aid is waiting for your verification form.\n- The refund comes 7 business days after that [C6].\nDO THIS:\n1. Send the form. Your refund comes around Thu, Nov 5 [C7].",
       "notes": []
     },
@@ -533,29 +543,32 @@
       "facts_ok": true,
       "facts": 2,
       "appended": [],
-      "rewrites": 0,
-      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "rewrites": 1,
+      "repaired": null,
+      "answered_by": "template",
       "explain_errors": [],
-      "source": "llm",
+      "source": "template",
       "nvidia_error": false,
-      "passed": true,
-      "mode": "live",
+      "passed": false,
+      "mode": "fallback",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 0,
+        "explain_rewrite": 1,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.78,
-        "execute_s": 0.002,
-        "quick_s": 0.78,
-        "explain_s": 4.52,
-        "total_s": 5.3
+        "plan_s": 0.49,
+        "execute_s": 0.005,
+        "quick_s": 0.49,
+        "explain_s": 5.63,
+        "total_s": 6.12
       },
-      "wall_s": 5.3,
-      "answer": "ANSWER: Yes, the week of Nov 18 is tight.\nWHY:\n- A $200 tuition payment [C1] is due Fri, Nov 20.\n- Your Wed, Nov 18 paycheck is only $115 [C8].\n- The installment is $85.30 more than that paycheck [C10].\nDO THIS:\n1. Pay the $200 installment by Fri, Nov 20 [E1].\n2. Plan around the small $115 paycheck on Wed, Nov 18 [E3].\nNOTE: The tight week is Nov 18 to Nov 20.",
+      "wall_s": 6.1,
+      "answer": "ANSWER: One week in November is tight.\nWHY:\n- A $200 tuition payment is due Fri, Nov 20 [C1].\n- Your paycheck before it is only $115 [C8].\n- Your Wed, Nov 18 paycheck is only $115 [C8].\nDO THIS:\n1. Set that money aside now.",
       "quick": "ANSWER: One week in November is tight.\nWHY:\n- A $200 tuition payment is due Fri, Nov 20 [C1].\n- Your paycheck before it is only $115 [C8].\n- Your Wed, Nov 18 paycheck is only $115 [C8].\nDO THIS:\n1. Set that money aside now.",
-      "notes": []
+      "notes": [
+        "The AI answer didn't pass Runway's checks (Mon, Nov 16 is not a date in the facts), so this is the quick answer built straight from your numbers."
+      ]
     },
     {
       "run": 1,
@@ -593,6 +606,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -605,14 +619,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.0,
+        "plan_s": 0.84,
         "execute_s": 0.004,
-        "quick_s": 1.0,
-        "explain_s": 1.04,
-        "total_s": 2.04
+        "quick_s": 0.85,
+        "explain_s": 1.19,
+        "total_s": 2.03
       },
       "wall_s": 2.0,
-      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\nDO THIS:\n1. Review the $461 Shopping total against your budget.\n2. Check if any School charges need a receipt.\nNOTE: All amounts are from Oct 1\u201326, 2026.",
+      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\n\nWHY:\n- Rent: $725 [C2]\n- Shopping: $461 [C3]\n- School: $200 [C4]\n\nDO THIS:\n1. Review the $461 Shopping total to spot any non-essentials\n2. Set a weekly spending limit to stay on track\n\nNOTE: I assumed you wanted Oct 1\u201326 totals, as the facts cover that window.",
       "quick": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n- Groceries: $176 [C5].\nDO THIS:\n1. Look at shopping first: it's your biggest flexible category.\nNOTE: Card payments are not counted: they just move money between your accounts.",
       "notes": []
     },
@@ -654,6 +668,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -666,14 +681,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.67,
-        "execute_s": 0.005,
-        "quick_s": 0.67,
-        "explain_s": 1.26,
-        "total_s": 1.93
+        "plan_s": 0.81,
+        "execute_s": 0.004,
+        "quick_s": 0.81,
+        "explain_s": 1.36,
+        "total_s": 2.18
       },
-      "wall_s": 1.9,
-      "answer": "ANSWER: You spent $570 [C2]. That's 17 transactions [C1].\n\nWHY:\n- 17 purchases from July to October [C1]\n- Total of $570 across all buys [C2]\n\nDO THIS:\n1. Review these 17 trips for budgeting\n2. Note the Oct 26 visit of $47.19 [C3]\n\nNOTE: Records span from July 18 to October 26, 2026.",
+      "wall_s": 2.2,
+      "answer": "ANSWER: You spent $570 at Kroger.\nWHY:\n- That's 17 transactions [C1].\n- Total spending was $570 [C2].\nDO THIS:\n1. Review your 17 Kroger purchases.\nNOTE: You provided records from Mon, Oct 26 to Sat, Jul 18.",
       "quick": "ANSWER: You spent $570 at Kroger [C2].\nWHY:\n- That's 17 transactions from Sat, Jul 18 to Mon, Oct 26 [C1].\n- The most recent one was on Mon, Oct 26 [C3].",
       "notes": []
     },
@@ -711,6 +726,7 @@
       "facts": 1,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -723,14 +739,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.06,
-        "execute_s": 0.006,
-        "quick_s": 1.07,
-        "explain_s": 1.08,
-        "total_s": 2.15
+        "plan_s": 0.89,
+        "execute_s": 0.008,
+        "quick_s": 0.9,
+        "explain_s": 1.29,
+        "total_s": 2.19
       },
       "wall_s": 2.2,
-      "answer": "ANSWER: Rent of $725 is due on Sun, Nov 1 [C2].\n\nWHY:\n- Rent is due on Sun, Nov 1 [C2].\n- The rent amount is $725.00 [C2].\n\nDO THIS:\n1. Pay $725 by Sun, Nov 1 [C2].\n2. Check checking balance after payment [C3].\n\nNOTE: Checking balance on 2026-10-26 is $783.38 [C4].",
+      "answer": "ANSWER: Rent of $725 is due on Sun, Nov 1 [C2].\n\nWHY:\n- Rent is due on Sun, Nov 1 [C2].\n- The rent amount is $725 [C2].\n\nDO THIS:\n1. Pay rent of $725 by Sun, Nov 1 [C2].\n2. Check checking balance of $13.32 after payment [C3].\n\nNOTE: You didn't say when you'd pay rent, so I assumed you pay on the due date Sun, Nov 1.",
       "quick": "ANSWER: You have 1 bill due from Tue, Oct 27 to Sun, Nov 1: $725 in all [C1].\nWHY:\n- Rent: $725 on Sun, Nov 1 [C2].\nDO THIS:\n1. Keep that money in checking before each due date.\nNOTE: Your balance at the end of Sun, Nov 1 would be $13.32 [C3].",
       "notes": []
     },
@@ -768,6 +784,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -780,14 +797,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.94,
-        "execute_s": 0.002,
-        "quick_s": 0.94,
-        "explain_s": 2.21,
-        "total_s": 3.15
+        "plan_s": 1.28,
+        "execute_s": 0.005,
+        "quick_s": 1.29,
+        "explain_s": 1.55,
+        "total_s": 2.84
       },
-      "wall_s": 3.2,
-      "answer": "ANSWER: You worked 64 hours in October [C1].\n\nWHY:\n- You're scheduled for 4 more hours [C2].\n- Paychecks in that time add up to $1,090 [C3].\n\nDO THIS:\n1. Check your schedule for the 4 remaining hours.\n2. Review your pay stubs for October totals.\n\nNOTE: Today is Mon, Oct 26, 2026.",
+      "wall_s": 2.8,
+      "answer": "ANSWER: You worked 64 hours in October [C1].\n\nWHY:\n- You're scheduled for 4 more hours [C2].\n- Paychecks in that time add up to $1,090 [C3].\n\nDO THIS:\n1. Check your schedule for the 4 remaining hours.\n2. Review your pay stubs to see the $1,090 total.\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: You worked 64 hours from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- You're scheduled for 4 more hours [C2].\n- Your Fri, Oct 2 paycheck: $516 [C4].\n- Your Fri, Oct 16 paycheck: $574 [C6].\n- Paychecks in that time add up to $1,090 [C3].\nNOTE: Pay is after withholding.",
       "notes": []
     },
@@ -823,29 +840,32 @@
       "facts_ok": true,
       "facts": 1,
       "appended": [],
-      "rewrites": 0,
-      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "rewrites": 1,
+      "repaired": null,
+      "answered_by": "template",
       "explain_errors": [],
-      "source": "llm",
+      "source": "template",
       "nvidia_error": false,
-      "passed": true,
-      "mode": "live",
+      "passed": false,
+      "mode": "fallback",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 0,
+        "explain_rewrite": 1,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.7,
-        "execute_s": 0.007,
-        "quick_s": 0.7,
-        "explain_s": 1.46,
-        "total_s": 2.16
+        "plan_s": 0.63,
+        "execute_s": 0.006,
+        "quick_s": 0.64,
+        "explain_s": 8.85,
+        "total_s": 9.49
       },
-      "wall_s": 2.2,
-      "answer": "ANSWER: On Thu, Nov 26, your checking balance is $285 below zero [C1].\n\nWHY:\n- The balance on Thu Nov 26 is projected from current data [C1].\n- Daily spending averages $7.51 over 64 days [C3].\n- Thanksgiving falls on Thu Nov 26, 2026 [Context].\n\nDO THIS:\n1. Check your balance before Thanksgiving travel.\n2. Set up low-balance alerts for the holiday.\n\nNOTE: Assumes no deposits or large charges between Oct 26 and Nov 26.",
+      "wall_s": 9.5,
+      "answer": "ANSWER: On Thu, Nov 26, your checking balance would be $285 below zero [C1].\nWHY:\n- Only everyday spending that day.\nNOTE: This is a projection.",
       "quick": "ANSWER: On Thu, Nov 26, your checking balance would be $285 below zero [C1].\nWHY:\n- Only everyday spending that day.\nNOTE: This is a projection.",
-      "notes": []
+      "notes": [
+        "The AI answer didn't pass Runway's checks (the answer copied a calculation note (\"is the projected end-of-day balance on Thu Nov 26,\"); say it in plain words), so this is the quick answer built straight from your numbers."
+      ]
     },
     {
       "run": 1,
@@ -867,7 +887,7 @@
           "args": {}
         }
       ],
-      "resolved": "What can I do to make money before this?",
+      "resolved": "What can I do to make money before I run out?",
       "expected_verdict": "runs_out",
       "verdict": "runs_out",
       "tool_ok": true,
@@ -878,6 +898,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -890,14 +911,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.59,
-        "execute_s": 0.013,
-        "quick_s": 1.61,
-        "explain_s": 1.28,
-        "total_s": 2.88
+        "plan_s": 1.3,
+        "execute_s": 0.008,
+        "quick_s": 1.31,
+        "explain_s": 1.64,
+        "total_s": 2.95
       },
-      "wall_s": 2.9,
-      "answer": "ANSWER: Money runs out Mon, Nov 9 [C1].\n\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\n\nDO THIS:\n1. Work the extra shift on Sat, Oct 31 [E4].\n2. Send the verification form today [E1].\n\nNOTE: The refund form takes 7 business days to process after submission.",
+      "wall_s": 3.0,
+      "answer": "ANSWER: Money runs out Mon, Nov 9 [C1].\n\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\n\nDO THIS:\n1. Work the extra shift on Sat, Oct 31 [E4].\n2. Send the verification form today [E1].\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: Here are 2 ways to get money before you run out on Mon, Nov 9 [C1].\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\nDO THIS:\n1. Work an extra shift by Sat, Oct 31.\nNOTE: Ranked by when the money arrives.",
       "notes": []
     },
@@ -936,7 +957,8 @@
       "facts_ok": true,
       "facts": 4,
       "appended": [],
-      "rewrites": 1,
+      "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -945,18 +967,18 @@
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.38,
-        "execute_s": 0.015,
-        "quick_s": 1.4,
-        "explain_s": 3.16,
-        "total_s": 4.55
+        "plan_s": 1.13,
+        "execute_s": 0.02,
+        "quick_s": 1.15,
+        "explain_s": 1.64,
+        "total_s": 2.79
       },
-      "wall_s": 4.6,
-      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit your verification form today\n2. Cancel Spotify now\nNOTE: Cancelling Apple Music saves $0.00 this semester [C7] because that card bill is paid after the semester ends.",
+      "wall_s": 2.8,
+      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
       "quick": "ANSWER: Yes, if you do 2 things first [C1].\nWHY:\n- Without changes, you'd be $1,862 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\n2. Cancel Spotify. That saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
       "notes": []
     },
@@ -1003,6 +1025,7 @@
       "facts": 9,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1015,14 +1038,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.62,
+        "plan_s": 0.69,
         "execute_s": 0.015,
-        "quick_s": 0.63,
-        "explain_s": 2.34,
-        "total_s": 2.97
+        "quick_s": 0.71,
+        "explain_s": 3.75,
+        "total_s": 4.46
       },
-      "wall_s": 3.0,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307 [C7].\n- You run out on Mon, Nov 9 [C13].\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\n- You pay for Apple Music [C23].\n- You pay for Spotify [C23].\n- Together they cost $22.98 a month [C23].\n- Rent caused a $35 overdraft fee [C29].\n\nDO THIS:\n1. Work the extra shift on Sat, Oct 31\n2. Send the verification form for your refund\n\nNOTE: Your checking balance goes below $0 on Mon, Nov 9 if no changes are made.",
+      "wall_s": 4.5,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307 [C7].\n- You run out on Mon, Nov 9 [C13].\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\n- You pay for Apple Music [C23].\n- You pay for Spotify [C23].\n- Together they cost $22.98 a month [C23].\n- Rent caused a $35 overdraft fee [C29].\n\nDO THIS:\n1. Work the extra shift on Sat, Oct 31\n2. Send the verification form for your refund\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Here are 2 ways to get money before you run out on Mon, Nov 9 [C13].\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n- Two things are leaking money.\n- You pay for Apple Music and Spotify: $22.98 a month together [C23].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\n- Rent caused a $35 overdraft fee [C29].\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.\n2. Work an extra shift by Sat, Oct 31.\n3. Cancel Spotify. That saves $23.98 this semester [C27].\nNOTE: Ranked by when the money arrives. Fee savings are estimated.",
       "notes": []
     },
@@ -1059,6 +1082,7 @@
       "facts": 0,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1071,13 +1095,13 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.54,
-        "execute_s": 0.0,
-        "explain_s": 1.31,
-        "total_s": 1.86
+        "plan_s": 0.64,
+        "execute_s": 0.001,
+        "explain_s": 0.86,
+        "total_s": 1.51
       },
-      "wall_s": 1.9,
-      "answer": "ANSWER: FAFSA verification is a process where your school checks your financial info.\n\nWHY:\n- It confirms the data you reported is accurate\n- Schools may ask for tax returns or other documents\n- It helps determine your actual aid eligibility\n\nDO THIS:\n1. Check your email for a verification notice from your school\n2. Gather requested documents like tax forms\n3. Submit them to your financial aid office promptly\n\nNOTE: Contact your school's financial aid office if you have questions about their specific process.",
+      "wall_s": 1.5,
+      "answer": "ANSWER: FAFSA verification is a process where your school checks your financial aid info.\n\nWHY:\n- Confirms data matches tax records\n- Ensures aid goes to the right student\n\nDO THIS:\n1. Check your email for a verification notice\nNOTE: Contact your financial aid office if you have questions.",
       "quick": "",
       "notes": []
     },
@@ -1111,31 +1135,30 @@
       "facts_ok": true,
       "facts": 2,
       "appended": [],
-      "rewrites": 1,
-      "answered_by": "template",
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
-      "source": "template",
+      "source": "llm",
       "nvidia_error": false,
-      "passed": false,
-      "mode": "fallback",
+      "passed": true,
+      "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.64,
+        "plan_s": 0.46,
         "execute_s": 0.005,
-        "quick_s": 0.64,
-        "explain_s": 3.35,
-        "total_s": 3.99
+        "quick_s": 0.46,
+        "explain_s": 1.46,
+        "total_s": 1.92
       },
-      "wall_s": 4.0,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
+      "wall_s": 1.9,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- You have no cushion after that payment, so any other charge pushes you below zero.\n- Your checking balance on Mon, Oct 26 was $783.38 [C9].\n\nDO THIS:\n1. Pay the $360 credit card bill before Mon, Nov 9 [C1].\n2. Track every $7.51 daily spend to avoid surprise drops [C10].\n\nNOTE: I assumed the $360 payment posts on Mon, Nov 9 as scheduled [C1].",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
-      "notes": [
-        "The AI answer didn't pass Runway's checks (Wed Nov 3 has the wrong weekday (it is a Tuesday)), so this is the quick answer built straight from your numbers."
-      ]
+      "notes": []
     },
     {
       "run": 1,
@@ -1170,7 +1193,8 @@
       "facts_ok": true,
       "facts": 2,
       "appended": [],
-      "rewrites": 1,
+      "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1179,18 +1203,18 @@
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.73,
-        "execute_s": 0.006,
-        "quick_s": 0.73,
-        "explain_s": 9.42,
-        "total_s": 10.15
+        "plan_s": 0.78,
+        "execute_s": 0.009,
+        "quick_s": 0.79,
+        "explain_s": 2.07,
+        "total_s": 2.86
       },
-      "wall_s": 10.2,
-      "answer": "ANSWER: Send your verification form tomorrow so your $1,850 refund arrives Thu, Nov 5. Pay rent Sun, Nov 1 and you will have $13.32 left. Avoid a $35 fee by keeping enough cash.\n\nWHY:\n- Missing the form delays your refund by 7 business days [C3].\n- Rent of $725 due Sun, Nov 1 leaves only $13.32 in checking [C7].\n- Last time rent before payday triggered a $35 fee [C8].\n\nDO THIS:\n1. Mail or upload your verification form by Tue, Oct 27 [C1].\n2. Set aside $725 for rent before Sun, Nov 1 [C5].\n\nNOTE: Your checking balance on Mon, Oct 26 is $783.38 [C16].",
+      "wall_s": 2.9,
+      "answer": "ANSWER: Send your verification form tomorrow so your $1,850 refund arrives Thu, Nov 5. Pay rent Sun, Nov 1 and you have $13.32 left.\n\nWHY:\n- Missing form delays your $1,850 refund [C2][C3]\n- Rent of $725 is due Sun, Nov 1 [C5][C6] and leaves $13.32 [C7]\n- Last time rent before payday cost a $35 fee [C8]\n\nDO THIS:\n1. Mail or upload your verification form by Tue, Oct 27 [C1]\n2. Pay rent Sun, Nov 1 before it's due [C5][C8]\n\nNOTE: You didn't say when you'd pay rent, so I assumed you'll pay on the due date Sun, Nov 1.",
       "quick": "ANSWER: 2 things need you from Mon, Oct 26 to Sun, Nov 1 [C11].\nWHY:\n- Send your verification form: your $1,850 refund [C2] then arrives around Thu, Nov 5 [C3].\n- Rent of $725 [C6] is due Sun, Nov 1 [C5] and leaves you just $13.32 [C7]. Last time, rent before payday cost a $35 fee [C8].\nDO THIS:\n1. Send your verification form to financial aid.\n2. Keep $725 in checking for rent on Sun, Nov 1.\nNOTE: Most urgent first: the money at stake and how soon it's due.",
       "notes": []
     },
@@ -1230,6 +1254,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1242,14 +1267,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.85,
-        "execute_s": 0.005,
-        "quick_s": 0.86,
-        "explain_s": 1.34,
-        "total_s": 2.19
+        "plan_s": 0.81,
+        "execute_s": 0.003,
+        "quick_s": 0.81,
+        "explain_s": 2.04,
+        "total_s": 2.85
       },
-      "wall_s": 2.2,
-      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\n\nWHY:\n- Rent: $725 [C2]\n- Shopping: $461 [C3]\n- School: $200 [C4]\n\nDO THIS:\n1. Review the $461 in Shopping charges\n2. Check the $200 School payment\n\nNOTE: Card payments are transfers between your own accounts, not spending.",
+      "wall_s": 2.9,
+      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\n\nWHY:\n- Rent: $725 [C2]\n- Shopping: $461 [C3]\n- School: $200 [C4]\n\nDO THIS:\n1. Review the $461 in Shopping charges\n2. Check the $200 School payment\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n- Groceries: $176 [C5].\nDO THIS:\n1. Look at shopping first: it's your biggest flexible category.\nNOTE: Card payments are not counted: they just move money between your accounts.",
       "notes": []
     },
@@ -1286,31 +1311,30 @@
       "facts_ok": true,
       "facts": 2,
       "appended": [],
-      "rewrites": 1,
-      "answered_by": "template",
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
-      "source": "template",
+      "source": "llm",
       "nvidia_error": false,
-      "passed": false,
-      "mode": "fallback",
+      "passed": true,
+      "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.7,
-        "execute_s": 0.004,
-        "quick_s": 0.71,
-        "explain_s": 6.28,
-        "total_s": 6.99
+        "plan_s": 0.57,
+        "execute_s": 0.006,
+        "quick_s": 0.58,
+        "explain_s": 1.86,
+        "total_s": 2.44
       },
-      "wall_s": 7.0,
-      "answer": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
+      "wall_s": 2.4,
+      "answer": "ANSWER: You have $23.19 left [C1]. You've spent $258 [C2] this month, against a budget of $281.\n\nWHY:\n- Groceries $176.49 [C4] plus Eating out $81.32 [C6] totals $257.81 spent\n- Budget $281.00 [C3] minus $257.81 spent leaves $23.19 remaining\n\nDO THIS:\n1. Check your receipts to confirm the $257.81 total spent\n2. Plan meals to stretch the remaining $23.19\n\nNOTE: Assumed current date Mon Oct 26, 2026 for all spending period calculations.",
       "quick": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
-      "notes": [
-        "The AI answer didn't pass Runway's checks (- $281 has a minus sign; write it as \"$281 below zero\"), so this is the quick answer built straight from your numbers."
-      ]
+      "notes": []
     },
     {
       "run": 1,
@@ -1346,6 +1370,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 1,
+      "repaired": null,
       "answered_by": "template",
       "explain_errors": [],
       "source": "template",
@@ -1358,17 +1383,17 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.68,
-        "execute_s": 0.014,
-        "quick_s": 0.69,
-        "explain_s": 3.61,
-        "total_s": 4.3
+        "plan_s": 0.8,
+        "execute_s": 0.012,
+        "quick_s": 0.81,
+        "explain_s": 4.17,
+        "total_s": 4.99
       },
-      "wall_s": 4.3,
+      "wall_s": 5.0,
       "answer": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
       "quick": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
       "notes": [
-        "The AI answer didn't pass Runway's checks (October\n2 is not a date in the facts), so this is the quick answer built straight from your numbers."
+        "The AI answer didn't pass Runway's checks (Fri Nov 6 is not a date in the facts), so this is the quick answer built straight from your numbers."
       ]
     },
     {
@@ -1403,7 +1428,8 @@
       "facts_ok": true,
       "facts": 4,
       "appended": [],
-      "rewrites": 1,
+      "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1412,19 +1438,19 @@
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.8,
-        "execute_s": 0.015,
-        "quick_s": 0.82,
-        "explain_s": 3.26,
-        "total_s": 4.07
+        "plan_s": 0.56,
+        "execute_s": 0.003,
+        "quick_s": 0.56,
+        "explain_s": 1.65,
+        "total_s": 2.21
       },
-      "wall_s": 4.1,
-      "answer": "ANSWER: You may qualify for up to $1,750 [C1], if approved.\n\nWHY:\n- None of this is certain until it's approved\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4]\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12]\n\nDO THIS:\n1. Apply for the Student Emergency Grant anytime\n2. Check your email for work-study hiring updates\n\nNOTE: Assumes you meet the Pell-eligible and full-time student profile requirements [E11].",
-      "quick": "ANSWER: You may qualify for 3 awards worth up to $1,750 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n- Textbook & Supplies Scholarship: $250 [C6]; if approved, it arrives around Fri, Nov 27 [C7].\n- Spring Opportunity Scholarship: $1,000 [C9]; if approved, it's paid Fri, Jan 15, 2027 [C10], after the semester, so it adds $0.00 this semester.\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved. You'd need a 3.50 GPA (yours is 3.40) for the Dean's Merit Scholarship.",
+      "wall_s": 2.2,
+      "answer": "ANSWER: You may qualify for up to $1,750 [C1], if approved.\n\nWHY:\n- None of this is certain until it's approved.\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n\nDO THIS:\n1. Check your student portal for grant and scholarship application deadlines.\n2. Apply for Federal Work-Study by contacting the financial aid office.\n\nNOTE: I assumed you haven't applied yet, so these are potential amounts you could receive.",
+      "quick": "ANSWER: You may qualify for 3 awards worth up to $1,750 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n- Textbook & Supplies Scholarship: $250 [C6]; if approved, it arrives around Fri, Nov 27 [C7].\n- Spring Opportunity Scholarship: $1,000 [C9]; if approved, it's paid Fri, Jan 15, 2027 [C10], after the semester. So it adds $0.00 this semester.\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved. You'd need a 3.50 GPA (yours is 3.40) for the Dean's Merit Scholarship.",
       "notes": []
     },
     {
@@ -1457,31 +1483,30 @@
       "facts_ok": true,
       "facts": 3,
       "appended": [],
-      "rewrites": 1,
-      "answered_by": "template",
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
-      "source": "template",
+      "source": "llm",
       "nvidia_error": false,
-      "passed": false,
-      "mode": "fallback",
+      "passed": true,
+      "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.86,
-        "execute_s": 0.003,
-        "quick_s": 0.86,
-        "explain_s": 2.86,
-        "total_s": 3.72
+        "plan_s": 0.47,
+        "execute_s": 0.006,
+        "quick_s": 0.48,
+        "explain_s": 1.55,
+        "total_s": 2.03
       },
-      "wall_s": 3.7,
-      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
+      "wall_s": 2.0,
+      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10]. You'll have about 40 swipes left on Fri, Dec 18 [C11]. Checking pays $0.00 for meals [C12].\n\nWHY:\n- You have $117 dining dollars left after spending $283 so far [C3].\n- At $4.42 per day, your balance reaches zero on Nov 22 [C9].\n- Your meal plan covers all remaining meals through swipes and checking [C12].\n\nDO THIS:\n1. Plan meals around the Nov 22 cutoff for dining dollars.\n2. Use swipes for meals after that date.\n\nNOTE: Assumed constant daily spending through Nov 22.",
       "quick": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
-      "notes": [
-        "The AI answer didn't pass Runway's checks (the answer is not in the ANSWER / WHY / DO THIS format), so this is the quick answer built straight from your numbers."
-      ]
+      "notes": []
     },
     {
       "run": 1,
@@ -1516,6 +1541,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1528,14 +1554,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.09,
+        "plan_s": 0.77,
         "execute_s": 0.013,
-        "quick_s": 1.11,
-        "explain_s": 1.46,
-        "total_s": 2.57
+        "quick_s": 0.78,
+        "explain_s": 2.25,
+        "total_s": 3.03
       },
-      "wall_s": 2.6,
-      "answer": "ANSWER: The Student Emergency Grant would arrive around Mon, Nov 2 if approved.\n\nWHY:\n- None of this is certain until it's approved.\n- You may qualify for up to $500 [C1], if approved.\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n\nDO THIS:\n1. Submit the emergency grant application through your school's aid office.\n2. Watch for the deposit to arrive by Mon, Nov 2 if approved.\n\nNOTE: The grant amount and timing depend on approval and direct deposit processing.",
+      "wall_s": 3.0,
+      "answer": "ANSWER: The emergency grant could give you up to $500 if approved, and it would arrive around Mon, Nov 2.\n\nWHY:\n- None of this is certain until it's approved.\n- You may qualify for up to $500 [C1], if approved.\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n\nDO THIS:\n1. Submit the emergency grant application as soon as possible.\n2. Watch for the decision and direct deposit on Mon, Nov 2.\n\nNOTE: I assumed you apply tomorrow, so the grant could arrive Mon, Nov 2 if approved.",
       "quick": "ANSWER: You may qualify for 1 award worth up to $500 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved.",
       "notes": []
     },
@@ -1569,11 +1595,70 @@
       "facts_ok": true,
       "facts": 3,
       "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.56,
+        "execute_s": 0.004,
+        "quick_s": 0.56,
+        "explain_s": 3.33,
+        "total_s": 3.9
+      },
+      "wall_s": 3.9,
+      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10]. You'll have about 40 swipes left on Fri, Dec 18 [C11]. Checking pays $0.00 for meals [C12].\n\nWHY:\n- Dining dollars left after use: $117.00 [C3].\n- At $4.42 per day, they last until Nov 22 [C9].\n- Swipes total 75, 19 used, leaving 56 [C6].\n\nDO THIS:\n1. Check your meal plan balance on Nov 22.\n2. Use swipes for meals after dining dollars end.\n\nNOTE: Assumed 2 meals a week on swipes after dining dollars run out.",
+      "quick": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
+      "notes": []
+    },
+    {
+      "run": 1,
+      "think": false,
+      "n": 29,
+      "question": "What if I work 4 hours this Saturday and next Saturday?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "what_if"
+      ],
+      "tools": [
+        "work_summary"
+      ],
+      "plan_source": "keywords",
+      "calls": [
+        {
+          "tool": "work_summary",
+          "args": {
+            "start": "2026-10-01",
+            "end": "2026-12-18"
+          }
+        }
+      ],
+      "resolved": null,
+      "expected_verdict": "runs_out",
+      "verdict": null,
+      "tool_ok": false,
+      "verdict_ok": false,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
       "rewrites": 1,
+      "repaired": null,
       "answered_by": "template",
       "explain_errors": [],
       "source": "template",
-      "nvidia_error": false,
+      "nvidia_error": true,
       "passed": false,
       "mode": "fallback",
       "retries": {
@@ -1582,17 +1667,18 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.65,
-        "execute_s": 0.001,
-        "quick_s": 0.65,
-        "explain_s": 2.3,
-        "total_s": 2.95
+        "plan_s": 3.38,
+        "execute_s": 0.007,
+        "quick_s": 3.38,
+        "explain_s": 8.75,
+        "total_s": 12.14
       },
-      "wall_s": 2.9,
-      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
-      "quick": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
+      "wall_s": 12.2,
+      "answer": "ANSWER: You worked 64 hours from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- You're scheduled for 20 more hours [C2].\n- Your Fri, Oct 2 paycheck: $516 [C4].\n- Your Fri, Oct 16 paycheck: $574 [C6].\n- Your Tue, Nov 3 paycheck: $401 [C8].\n- Your Wed, Nov 18 paycheck: $115 [C10].\n- Paychecks in that time add up to $1,721 [C3].\nNOTE: Pay is after withholding.",
+      "quick": "ANSWER: You worked 64 hours from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- You're scheduled for 20 more hours [C2].\n- Your Fri, Oct 2 paycheck: $516 [C4].\n- Your Fri, Oct 16 paycheck: $574 [C6].\n- Your Tue, Nov 3 paycheck: $401 [C8].\n- Your Wed, Nov 18 paycheck: $115 [C10].\n- Paychecks in that time add up to $1,721 [C3].\nNOTE: Pay is after withholding.",
       "notes": [
-        "The AI answer didn't pass Runway's checks (the answer is not in the ANSWER / WHY / DO THIS format), so this is the quick answer built straight from your numbers."
+        "The planner wasn't available (InvalidJSONError); Runway matched your question by keywords.",
+        "The AI answer didn't pass Runway's checks ($992 is not in the facts; $921.60 is not in the facts; $799.40 is not in the facts), so this is the quick answer built straight from your numbers."
       ]
     }
   ],
@@ -1633,6 +1719,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 1,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1645,14 +1732,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 3.93,
-        "execute_s": 0.009,
-        "quick_s": 3.94,
-        "explain_s": 3.18,
-        "total_s": 7.12
+        "plan_s": 1.33,
+        "execute_s": 0.015,
+        "quick_s": 1.34,
+        "explain_s": 9.94,
+        "total_s": 11.28
       },
-      "wall_s": 7.1,
-      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit your verification form today\n2. Cancel Spotify now\nNOTE: Cancelling Apple Music saves $0.00 this semester [C7] because that card bill is paid after the semester ends.",
+      "wall_s": 11.3,
+      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit your verification form today\n2. Cancel your Spotify subscription\nNOTE: Cancelling Apple Music saves $0.00 this semester [C7] because that card bill is paid after the semester ends.",
       "quick": "ANSWER: Yes, if you do 2 things first [C1].\nWHY:\n- Without changes, you'd be $1,862 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\n2. Cancel Spotify. That saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
       "notes": []
     },
@@ -1676,7 +1763,7 @@
           "args": {}
         }
       ],
-      "resolved": "How long will my money last? / Am I ok? / Money stuff is stressing me out",
+      "resolved": "How long will my money last?",
       "expected_verdict": "runs_out",
       "verdict": "runs_out",
       "tool_ok": true,
@@ -1686,31 +1773,30 @@
       "facts_ok": true,
       "facts": 2,
       "appended": [],
-      "rewrites": 1,
-      "answered_by": "template",
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
-      "source": "template",
+      "source": "llm",
       "nvidia_error": false,
-      "passed": false,
-      "mode": "fallback",
+      "passed": true,
+      "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.18,
-        "execute_s": 0.003,
-        "quick_s": 2.18,
-        "explain_s": 3.74,
-        "total_s": 5.92
+        "plan_s": 0.65,
+        "execute_s": 0.011,
+        "quick_s": 0.66,
+        "explain_s": 1.67,
+        "total_s": 2.33
       },
-      "wall_s": 5.9,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
+      "wall_s": 2.3,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Checking goes below $0 on that day after the payment [C8].\n\nDO THIS:\n1. Pay the $360 card bill before Mon Nov 9 [C1].\n2. Track daily spending at $7.51/day [C10].\n\nNOTE: I assumed you make no new deposits or changes to your schedule.",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
-      "notes": [
-        "The AI answer didn't pass Runway's checks ($53 is not in the facts), so this is the quick answer built straight from your numbers."
-      ]
+      "notes": []
     },
     {
       "run": 2,
@@ -1742,7 +1828,8 @@
       "facts_ok": true,
       "facts": 4,
       "appended": [],
-      "rewrites": 1,
+      "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1751,18 +1838,18 @@
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.86,
-        "execute_s": 0.003,
-        "quick_s": 1.86,
-        "explain_s": 3.4,
-        "total_s": 5.26
+        "plan_s": 2.1,
+        "execute_s": 0.009,
+        "quick_s": 2.11,
+        "explain_s": 2.17,
+        "total_s": 4.28
       },
-      "wall_s": 5.3,
-      "answer": "ANSWER: Cancel Spotify to stop the money leak and avoid more fees.\n\nWHY:\n- You pay for Spotify [C3].\n- Together they cost $22.98 a month [C3].\n- Cancelling Spotify saves checking $23.98 before the semester ends [C7].\n- Rent caused a $35 overdraft fee on Thu Oct 1, 2026 [C9].\n\nDO THIS:\n1. Cancel Spotify subscription now.\n2. Keep Apple Music if you want it.\n\nNOTE: Apple Music charges card, not checking, so cancelling it saves $0 before the semester ends.",
+      "wall_s": 4.3,
+      "answer": "ANSWER: Your money leaks from duplicate Apple Music and Spotify subscriptions totaling $22.98 monthly, plus a $35 overdraft fee from rent.\n\nWHY:\n- You pay for Apple Music [C3].\n- You pay for Spotify [C3].\n- Together they cost $22.98 a month [C3].\n- Rent caused a $35 overdraft fee [C9].\n\nDO THIS:\n1. Cancel Spotify to save $23.98 before the semester ends [C7].\n2. Monitor checking balance to avoid future overdraft fees [C15].\n\nNOTE: You didn't say when you'd cancel, so I assumed now.",
       "quick": "ANSWER: Two things are leaking money.\nWHY:\n- You pay for Apple Music and Spotify: $22.98 a month together [C3].\n- Rent caused a $35 overdraft fee [C9].\nDO THIS:\n1. Cancel Spotify. That saves $23.98 this semester [C7].\nNOTE: Fee savings are estimated.",
       "notes": []
     },
@@ -1806,30 +1893,32 @@
       "facts_ok": true,
       "facts": 3,
       "appended": [],
-      "rewrites": 0,
-      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "rewrites": 1,
+      "repaired": null,
+      "answered_by": "template",
       "explain_errors": [],
-      "source": "llm",
+      "source": "template",
       "nvidia_error": true,
-      "passed": true,
+      "passed": false,
       "mode": "fallback",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 0,
+        "explain_rewrite": 1,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 6.19,
-        "execute_s": 0.004,
-        "quick_s": 6.2,
-        "explain_s": 1.67,
-        "total_s": 7.87
+        "plan_s": 2.46,
+        "execute_s": 0.017,
+        "quick_s": 2.47,
+        "explain_s": 6.53,
+        "total_s": 9.01
       },
-      "wall_s": 7.9,
-      "answer": "ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\n\nWHY:\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\n- Your money runs out on Mon, Nov 9 [C7].\n\nDO THIS:\n1. Work the Nov 7 shift as scheduled.\n2. Plan around the Nov 9 cutoff for spending.\n\nNOTE: The extra shift does not change how many weeks you have before money runs out.",
+      "wall_s": 9.0,
+      "answer": "ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\nWHY:\n- Your money runs out on Mon, Nov 9 [C7], in 2 weeks [C8].\n- A $360 credit card payment [C4] is due Mon, Nov 9, when you'll have $307.\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
       "quick": "ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\nWHY:\n- Your money runs out on Mon, Nov 9 [C7], in 2 weeks [C8].\n- A $360 credit card payment [C4] is due Mon, Nov 9, when you'll have $307.\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
       "notes": [
-        "The planner wasn't available (InvalidJSONError); Runway matched your question by keywords."
+        "The planner wasn't available (InvalidJSONError); Runway matched your question by keywords.",
+        "The AI answer didn't pass Runway's checks (the answer repeats itself (\"The extra shift adds $71.69 to your Wed, Nov 18 paycheck.\")), so this is the quick answer built straight from your numbers."
       ]
     },
     {
@@ -1868,6 +1957,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 1,
+      "repaired": null,
       "answered_by": "template",
       "explain_errors": [],
       "source": "template",
@@ -1880,17 +1970,17 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.82,
-        "execute_s": 0.008,
-        "quick_s": 2.83,
-        "explain_s": 9.4,
-        "total_s": 12.23
+        "plan_s": 0.81,
+        "execute_s": 0.026,
+        "quick_s": 0.83,
+        "explain_s": 13.84,
+        "total_s": 14.67
       },
-      "wall_s": 12.2,
+      "wall_s": 14.7,
       "answer": "ANSWER: Not right now [C1].\nWHY:\n- Even with every fix, you'd be $144 below zero [C4].\n- That's on Mon, Nov 2 [C5].\nDO THIS:\n1. Try a later date, after your refund arrives.\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27.",
       "quick": "ANSWER: Not right now [C1].\nWHY:\n- Even with every fix, you'd be $144 below zero [C4].\n- That's on Mon, Nov 2 [C5].\nDO THIS:\n1. Try a later date, after your refund arrives.\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27.",
       "notes": [
-        "The AI answer didn't pass Runway's checks (the answer repeats itself (\"You didn't say when you'd buy it, so I assumed tomorrow, Tue\"); -$144.19 has a minus sign; write it as \"$144.19 below zero\"), so this is the quick answer built straight from your numbers."
+        "The AI answer didn't pass Runway's checks (the answer copied a calculation note (\"Without fixes the lowest balance is -$1,612.37; ev\"); say it in plain words; -$1,612.37 has a minus sign; write it as \"$1,612.37 below zero\"), so this is the quick answer built straight from your numbers."
       ]
     },
     {
@@ -1929,6 +2019,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -1941,14 +2032,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 3.62,
-        "execute_s": 0.007,
-        "quick_s": 3.62,
-        "explain_s": 5.61,
-        "total_s": 9.24
+        "plan_s": 7.3,
+        "execute_s": 0.015,
+        "quick_s": 7.32,
+        "explain_s": 1.77,
+        "total_s": 9.09
       },
-      "wall_s": 9.2,
-      "answer": "ANSWER: Yes, if you do 1 thing [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit the verification form to Student Accounts by Tue Oct 27\n2. Wait for the $1,850 refund to arrive by Thu Nov 5\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
+      "wall_s": 9.1,
+      "answer": "ANSWER: Yes, if you do 1 thing [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit the verification form by Tue Oct 27, 2026\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
       "quick": "ANSWER: Yes, if you do 1 thing first [C1].\nWHY:\n- Without changes, you'd be $1,462 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
       "notes": []
     },
@@ -1974,6 +2065,7 @@
       "facts": 0,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": null,
       "explain_errors": null,
       "source": "none",
@@ -1986,10 +2078,10 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.46,
-        "total_s": 1.46
+        "plan_s": 0.48,
+        "total_s": 0.48
       },
-      "wall_s": 1.5,
+      "wall_s": 0.5,
       "answer": "I can help with your money this semester: whether you can afford something, how long your money will last, where it's leaking, your refund, or what changes would help. Try asking one of those!",
       "quick": "",
       "notes": []
@@ -2025,6 +2117,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2037,14 +2130,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.5,
-        "execute_s": 0.004,
-        "quick_s": 1.5,
-        "explain_s": 1.74,
-        "total_s": 3.24
+        "plan_s": 0.48,
+        "execute_s": 0.008,
+        "quick_s": 0.49,
+        "explain_s": 10.91,
+        "total_s": 11.39
       },
-      "wall_s": 3.2,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307 [C7].\n- Your checking balance drops below $0 on Mon, Nov 9 [C4].\n- You have no income between now and that payment date.\n\nDO THIS:\n1. Pay the $360 credit card bill before Mon Nov 9 to avoid late fees.\n2. Track spending so the $7.51 daily variable cost does not push you lower sooner.\n\nNOTE: This assumes no unexpected income or large purchases before Mon Nov 9.",
+      "wall_s": 11.4,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Your checking balance goes below $0 on that day [C4].\n\nDO THIS:\n1. Make the $360 credit card payment before Mon Nov 9 [C1].\n2. Track your checking balance daily [E1].\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
       "notes": []
     },
@@ -2079,6 +2172,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2091,14 +2185,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.95,
-        "execute_s": 0.001,
-        "quick_s": 1.96,
-        "explain_s": 2.32,
-        "total_s": 4.27
+        "plan_s": 0.62,
+        "execute_s": 0.004,
+        "quick_s": 0.62,
+        "explain_s": 2.45,
+        "total_s": 3.07
       },
-      "wall_s": 4.3,
-      "answer": "ANSWER: Your $1,850 refund [C4] is on hold because Financial aid is waiting for your 2026-27 Verification Worksheet [C2].\n\nWHY:\n- The refund is held while verification documents are missing [C3]\n- The worksheet was due by Thu, Sep 10 [E2]\n- The refund would arrive Thu, Nov 5 [C7] if you submit the form\n\nDO THIS:\n1. Submit the 2026-27 Verification Worksheet to the financial aid office\n2. The refund will be released within 7 business days\n\nNOTE: The hold started Thu, Sep 10 and blocks both aid disbursement and refunds.",
+      "wall_s": 3.1,
+      "answer": "ANSWER: Your $1,850 refund [C4] is on hold because Financial aid is waiting for your 2026-27 Verification Worksheet [C2].\n\nWHY:\n- The refund is held until the verification worksheet is submitted\n- Once submitted, the refund arrives around Thu, Nov 5 [C7]\n\nDO THIS:\n1. Submit the 2026-27 Verification Worksheet to the financial aid office\n2. The refund will be released within 7 business days after submission\n\nNOTE: You didn't say when you'd submit it, so I assumed tomorrow.",
       "quick": "ANSWER: Your $1,850 refund is on hold [C4].\nWHY:\n- Financial aid is waiting for your verification form.\n- The refund comes 7 business days after that [C6].\nDO THIS:\n1. Send the form. Your refund comes around Thu, Nov 5 [C7].",
       "notes": []
     },
@@ -2133,6 +2227,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2145,14 +2240,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.37,
-        "execute_s": 0.002,
-        "quick_s": 2.37,
-        "explain_s": 4.73,
-        "total_s": 7.1
+        "plan_s": 0.91,
+        "execute_s": 0.013,
+        "quick_s": 0.92,
+        "explain_s": 1.4,
+        "total_s": 2.32
       },
-      "wall_s": 7.1,
-      "answer": "ANSWER: Yes, the week of Nov 18 is tight.\nWHY:\n- A $200 tuition payment [C1] is due Fri, Nov 20.\n- Your Wed, Nov 18 paycheck is only $115 [C8].\n- The $200 installment is $85.30 more than that paycheck [C10].\nDO THIS:\n1. Pay the $200 installment on Fri, Nov 20 [C2].\n2. Wait for your Wed, Nov 18 paycheck of $115 [C8].\nNOTE: The tight week happens because the installment and paycheck fall in the same week.",
+      "wall_s": 2.3,
+      "answer": "ANSWER: Yes, the week of Nov 18 is tight.\nWHY:\n- A $200 tuition payment [C1] is due Fri, Nov 20.\n- Your Wed, Nov 18 paycheck is only $115 [C8].\n- That payment is $85 more than your paycheck [C10].\nDO THIS:\n1. Pay the $200 installment on Fri, Nov 20 [E1].\n2. Plan meals around Thanksgiving Thu, Nov 26 [E4].\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: One week in November is tight.\nWHY:\n- A $200 tuition payment is due Fri, Nov 20 [C1].\n- Your paycheck before it is only $115 [C8].\n- Your Wed, Nov 18 paycheck is only $115 [C8].\nDO THIS:\n1. Set that money aside now.",
       "notes": []
     },
@@ -2192,6 +2287,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2204,14 +2300,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 3.28,
-        "execute_s": 0.002,
-        "quick_s": 3.28,
-        "explain_s": 2.31,
-        "total_s": 5.59
+        "plan_s": 1.13,
+        "execute_s": 0.005,
+        "quick_s": 1.13,
+        "explain_s": 1.56,
+        "total_s": 2.7
       },
-      "wall_s": 5.6,
-      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\nDO THIS:\n1. Review the $461 Shopping total to see if any items can wait until after exams.\n2. Set a $200 weekly limit for Eating out to match your October spending pattern.\nNOTE: All amounts are from Oct 1 to Oct 26, 2026 only.",
+      "wall_s": 2.7,
+      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\n\nWHY:\n- Rent: $725 [C2]\n- Shopping: $461 [C3]\n- School: $200 [C4]\n\nDO THIS:\n1. Review the $461 Shopping total to spot any non-essentials\n2. Set a weekly spending limit for the rest of October\n\nNOTE: I assumed you want a full October 1\u201326 summary, as the facts cover that exact span.",
       "quick": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n- Groceries: $176 [C5].\nDO THIS:\n1. Look at shopping first: it's your biggest flexible category.\nNOTE: Card payments are not counted: they just move money between your accounts.",
       "notes": []
     },
@@ -2253,6 +2349,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2265,14 +2362,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.78,
-        "execute_s": 0.001,
-        "quick_s": 2.78,
-        "explain_s": 2.04,
-        "total_s": 4.82
+        "plan_s": 0.64,
+        "execute_s": 0.007,
+        "quick_s": 0.64,
+        "explain_s": 1.6,
+        "total_s": 2.24
       },
-      "wall_s": 4.8,
-      "answer": "ANSWER: You spent $570 [C2]. That's 17 transactions [C1].\n\nWHY:\n- 17 purchases from July 18 to October 26 [C1]\n- Total spending of $570.03 [C2]\n\nDO THIS:\n1. Review your last 17 Kroger trips\n2. Check if any charges need to be reclassified\n\nNOTE: Assumes all Kroger purchases are from your checking account.",
+      "wall_s": 2.2,
+      "answer": "ANSWER: You spent $570 [C2]. That's 17 transactions [C1].\n\nWHY:\n- 17 purchases from July to October [C1]\n- Total of $570.03 [C2]\n\nDO THIS:\n1. Check your Oct 26 Kroger charge of $47.19 [C3]\n2. Review your other Kroger buys this month\n\nNOTE: Records span from Sat Jul 18 to Mon Oct 26, 2026.",
       "quick": "ANSWER: You spent $570 at Kroger [C2].\nWHY:\n- That's 17 transactions from Sat, Jul 18 to Mon, Oct 26 [C1].\n- The most recent one was on Mon, Oct 26 [C3].",
       "notes": []
     },
@@ -2310,6 +2407,7 @@
       "facts": 1,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2322,14 +2420,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 3.17,
-        "execute_s": 0.002,
-        "quick_s": 3.17,
-        "explain_s": 1.1,
-        "total_s": 4.28
+        "plan_s": 0.89,
+        "execute_s": 0.007,
+        "quick_s": 0.9,
+        "explain_s": 1.76,
+        "total_s": 2.66
       },
-      "wall_s": 4.3,
-      "answer": "ANSWER: Rent of $725 is due on Sun, Nov 1 [C2].\n\nWHY:\n- Rent is due on Sun, Nov 1 [C2].\n- The rent amount is $725.00 [C2].\n\nDO THIS:\n1. Check checking balance before Nov 1 [C3].\n2. Transfer funds if needed to cover rent [C3].\n\nNOTE: Balance on Mon, Oct 26 is $783.38 [E1].",
+      "wall_s": 2.7,
+      "answer": "ANSWER: Rent of $725 is due on Sun, Nov 1 [C2].\n\nWHY:\n- Rent is a scheduled payment of $725 [C1]\n- The payment date is Sun, Nov 1 [C2]\n\nDO THIS:\n1. Pay $725 rent by Sun, Nov 1 [C2]\n2. Check checking balance of $783.38 [E1]\n\nNOTE: You didn't say when you'd pay, so I assumed you'll pay on the due date Sun, Nov 1.",
       "quick": "ANSWER: You have 1 bill due from Tue, Oct 27 to Sun, Nov 1: $725 in all [C1].\nWHY:\n- Rent: $725 on Sun, Nov 1 [C2].\nDO THIS:\n1. Keep that money in checking before each due date.\nNOTE: Your balance at the end of Sun, Nov 1 would be $13.32 [C3].",
       "notes": []
     },
@@ -2367,6 +2465,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2379,14 +2478,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 3.04,
-        "execute_s": 0.001,
-        "quick_s": 3.04,
-        "explain_s": 1.27,
-        "total_s": 4.31
+        "plan_s": 0.8,
+        "execute_s": 0.002,
+        "quick_s": 0.8,
+        "explain_s": 1.43,
+        "total_s": 2.23
       },
-      "wall_s": 4.3,
-      "answer": "ANSWER: You worked 64 hours in October [C1].\n\nWHY:\n- You worked 64 hours [C1]\n- You're scheduled for 4 more hours [C2]\n- Paychecks in that time add up to $1,090 [C3]\n\nDO THIS:\n1. Check your schedule for the 4 remaining hours\n2. Review your pay stubs for October\n\nNOTE: Today is Mon, Oct 26, 2026.",
+      "wall_s": 2.2,
+      "answer": "ANSWER: You worked 64 hours in October [C1].\n\nWHY:\n- 16 shifts from Thu Oct 1 to Sat Oct 31 [C1]\n- Paychecks in that time add up to $1,090 [C3]\n- You're scheduled for 4 more hours [C2]\n\nDO THIS:\n1. Check your schedule for the 4 remaining hours\n2. Track hours for November pay\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: You worked 64 hours from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- You're scheduled for 4 more hours [C2].\n- Your Fri, Oct 2 paycheck: $516 [C4].\n- Your Fri, Oct 16 paycheck: $574 [C6].\n- Paychecks in that time add up to $1,090 [C3].\nNOTE: Pay is after withholding.",
       "notes": []
     },
@@ -2423,6 +2522,7 @@
       "facts": 1,
       "appended": [],
       "rewrites": 1,
+      "repaired": null,
       "answered_by": "template",
       "explain_errors": [],
       "source": "template",
@@ -2435,17 +2535,17 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.66,
-        "execute_s": 0.002,
-        "quick_s": 2.66,
-        "explain_s": 5.68,
-        "total_s": 8.34
+        "plan_s": 0.93,
+        "execute_s": 0.007,
+        "quick_s": 0.94,
+        "explain_s": 8.12,
+        "total_s": 9.06
       },
-      "wall_s": 8.3,
+      "wall_s": 9.1,
       "answer": "ANSWER: On Thu, Nov 26, your checking balance would be $285 below zero [C1].\nWHY:\n- Only everyday spending that day.\nNOTE: This is a projection.",
       "quick": "ANSWER: On Thu, Nov 26, your checking balance would be $285 below zero [C1].\nWHY:\n- Only everyday spending that day.\nNOTE: This is a projection.",
       "notes": [
-        "The AI answer didn't pass Runway's checks (ACCT-CHK-01 is a record ID; never write record IDs; the answer copied a calculation note (\"Projected end-of-day balance on Thu Nov 26, 2026 (\"); say it in plain words; - $480.83 has a minus sign; write it as \"$480.83 below zero\"), so this is the quick answer built straight from your numbers."
+        "The AI answer didn't pass Runway's checks (-$284.80 has a minus sign; write it as \"$284.80 below zero\"), so this is the quick answer built straight from your numbers."
       ]
     },
     {
@@ -2479,6 +2579,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2491,14 +2592,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 0.83,
-        "execute_s": 0.011,
-        "quick_s": 0.84,
-        "explain_s": 2.19,
-        "total_s": 3.03
+        "plan_s": 0.75,
+        "execute_s": 0.015,
+        "quick_s": 0.76,
+        "explain_s": 1.71,
+        "total_s": 2.47
       },
-      "wall_s": 3.0,
-      "answer": "ANSWER: You run out on Mon, Nov 9 [C1].\n\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\n\nDO THIS:\n1. Work the extra shift on Sat, Oct 31 [E4].\n2. Send the verification form today [E1].\n\nNOTE: The refund is held until the form arrives.",
+      "wall_s": 2.5,
+      "answer": "ANSWER: Money runs out Mon, Nov 9 [C1].\n\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\n\nDO THIS:\n1. Work the extra shift on Sat, Oct 31 [E4].\n2. Send the verification form now [E1].\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: Here are 2 ways to get money before you run out on Mon, Nov 9 [C1].\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\nDO THIS:\n1. Work an extra shift by Sat, Oct 31.\nNOTE: Ranked by when the money arrives.",
       "notes": []
     },
@@ -2527,7 +2628,7 @@
           }
         }
       ],
-      "resolved": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 17 instead?",
+      "resolved": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 17 instead of Nov 10?",
       "expected_verdict": "yes_if",
       "verdict": "yes_if",
       "tool_ok": true,
@@ -2538,6 +2639,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2550,13 +2652,13 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.71,
-        "execute_s": 0.007,
-        "quick_s": 1.72,
-        "explain_s": 1.79,
-        "total_s": 3.5
+        "plan_s": 1.17,
+        "execute_s": 0.027,
+        "quick_s": 1.2,
+        "explain_s": 2.47,
+        "total_s": 3.66
       },
-      "wall_s": 3.5,
+      "wall_s": 3.7,
       "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
       "quick": "ANSWER: Yes, if you do 2 things first [C1].\nWHY:\n- Without changes, you'd be $1,862 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\n2. Cancel Spotify. That saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
       "notes": []
@@ -2604,6 +2706,7 @@
       "facts": 9,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2616,14 +2719,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.39,
-        "execute_s": 0.012,
-        "quick_s": 1.4,
-        "explain_s": 2.45,
-        "total_s": 3.85
+        "plan_s": 2.02,
+        "execute_s": 0.026,
+        "quick_s": 2.05,
+        "explain_s": 10.99,
+        "total_s": 13.03
       },
-      "wall_s": 3.9,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307 [C7].\n- You run out on Mon, Nov 9 [C13].\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\n- You pay for Apple Music [C23].\n- You pay for Spotify [C23].\n- Together they cost $22.98 a month [C23].\n- Rent caused a $35 overdraft fee [C29].\n\nDO THIS:\n1. Work the extra shift on Sat, Oct 31\n2. Send the verification form now\n\nNOTE: Your checking balance first goes below $0 on Mon, Nov 9 [C4].",
+      "wall_s": 13.0,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307 [C7].\n- You run out on Mon, Nov 9 [C13].\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\n- You pay for Apple Music [C23].\n- You pay for Spotify [C23].\n- Together they cost $22.98 a month [C23].\n- Rent caused a $35 overdraft fee [C29].\n\nDO THIS:\n1. Work the extra shift on Sat Oct 31\n2. Send the verification form now\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Here are 2 ways to get money before you run out on Mon, Nov 9 [C13].\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n- Two things are leaking money.\n- You pay for Apple Music and Spotify: $22.98 a month together [C23].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\n- Rent caused a $35 overdraft fee [C29].\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.\n2. Work an extra shift by Sat, Oct 31.\n3. Cancel Spotify. That saves $23.98 this semester [C27].\nNOTE: Ranked by when the money arrives. Fee savings are estimated.",
       "notes": []
     },
@@ -2660,6 +2763,7 @@
       "facts": 0,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2672,13 +2776,13 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.22,
+        "plan_s": 0.67,
         "execute_s": 0.0,
-        "explain_s": 1.08,
-        "total_s": 3.3
+        "explain_s": 1.47,
+        "total_s": 2.15
       },
-      "wall_s": 3.3,
-      "answer": "ANSWER: FAFSA verification is a process where your school checks your financial info.\n\nWHY:\n- Confirms data matches tax records\n- Ensures aid eligibility is correct\n\nDO THIS:\n1. Check your email for verification requests\nNOTE: Contact your financial aid office if you have questions.",
+      "wall_s": 2.1,
+      "answer": "ANSWER: FAFSA verification is a process where your school checks your financial aid data.\n\nWHY:\n- Schools must confirm information is correct before awarding aid\n- It helps prevent errors or fraud in your aid package\n\nDO THIS:\n1. Check your email for a verification notice from your school\n2. Submit any requested documents promptly\n\nNOTE: Contact your financial aid office if you have questions about the process.",
       "quick": "",
       "notes": []
     },
@@ -2713,6 +2817,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2725,14 +2830,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.71,
-        "execute_s": 0.005,
-        "quick_s": 1.71,
-        "explain_s": 1.73,
-        "total_s": 3.45
+        "plan_s": 0.6,
+        "execute_s": 0.011,
+        "quick_s": 0.62,
+        "explain_s": 1.74,
+        "total_s": 2.36
       },
-      "wall_s": 3.5,
-      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- You have $783.38 in checking [C9], and spending $7.51/day [C10] plus fixed bills will drain it.\n\nDO THIS:\n1. Pay the $360 card bill before Mon Nov 9 so it doesn't push you below zero sooner.\n2. Track daily spending at $7.51 to see where your money goes.\n\nNOTE: This assumes no new income or changes to your schedule.",
+      "wall_s": 2.4,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Your checking balance drops below $0 on Mon, Nov 9 [C4].\n\nDO THIS:\n1. Pay the $360 credit card bill by Mon Nov 9 [C1].\n2. Track your $7.51 daily spending after Nov 9 [C10].\n\nNOTE: I assumed the $360 payment posts on Mon Nov 9 as the due date [C1].",
       "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
       "notes": []
     },
@@ -2769,31 +2874,30 @@
       "facts_ok": true,
       "facts": 2,
       "appended": [],
-      "rewrites": 1,
-      "answered_by": "template",
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
-      "source": "template",
+      "source": "llm",
       "nvidia_error": false,
-      "passed": false,
-      "mode": "fallback",
+      "passed": true,
+      "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.86,
-        "execute_s": 0.005,
-        "quick_s": 2.87,
-        "explain_s": 6.97,
-        "total_s": 9.84
+        "plan_s": 4.52,
+        "execute_s": 0.023,
+        "quick_s": 4.54,
+        "explain_s": 5.38,
+        "total_s": 9.92
       },
-      "wall_s": 9.8,
-      "answer": "ANSWER: 2 things need you from Mon, Oct 26 to Sun, Nov 1 [C11].\nWHY:\n- Send your verification form: your $1,850 refund [C2] then arrives around Thu, Nov 5 [C3].\n- Rent of $725 [C6] is due Sun, Nov 1 [C5] and leaves you just $13.32 [C7]. Last time, rent before payday cost a $35 fee [C8].\nDO THIS:\n1. Send your verification form to financial aid.\n2. Keep $725 in checking for rent on Sun, Nov 1.\nNOTE: Most urgent first: the money at stake and how soon it's due.",
+      "wall_s": 9.9,
+      "answer": "ANSWER: Send your verification form tomorrow so your $1,850 refund arrives Thu Nov 5, and pay rent Sun Nov 1 before it leaves you $13.32.\n\nWHY:\n- Missing form delays your $1,850 refund [C2][C3]\n- Rent of $725 due Sun Nov 1 leaves only $13.32 [C6][C7]\n- Last time rent before payday cost a $35 fee [C8]\n\nDO THIS:\n1. Mail or upload your verification form by Tue Oct 27 [C1]\n2. Pay rent Sun Nov 1 before it leaves you $13.32 [C5][C7]\n\nNOTE: I assumed you send the form tomorrow unless you said otherwise.",
       "quick": "ANSWER: 2 things need you from Mon, Oct 26 to Sun, Nov 1 [C11].\nWHY:\n- Send your verification form: your $1,850 refund [C2] then arrives around Thu, Nov 5 [C3].\n- Rent of $725 [C6] is due Sun, Nov 1 [C5] and leaves you just $13.32 [C7]. Last time, rent before payday cost a $35 fee [C8].\nDO THIS:\n1. Send your verification form to financial aid.\n2. Keep $725 in checking for rent on Sun, Nov 1.\nNOTE: Most urgent first: the money at stake and how soon it's due.",
-      "notes": [
-        "The AI answer didn't pass Runway's checks (the answer stops mid-sentence), so this is the quick answer built straight from your numbers."
-      ]
+      "notes": []
     },
     {
       "run": 2,
@@ -2831,6 +2935,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2843,14 +2948,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 3.01,
-        "execute_s": 0.001,
-        "quick_s": 3.01,
-        "explain_s": 1.44,
-        "total_s": 4.45
+        "plan_s": 0.97,
+        "execute_s": 0.005,
+        "quick_s": 0.98,
+        "explain_s": 1.47,
+        "total_s": 2.45
       },
-      "wall_s": 4.4,
-      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\n\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n\nDO THIS:\n1. Review the $461 in Shopping charges on your card and checking.\n2. Check the $200 School payment on Oct 20.\n\nNOTE: All amounts are from Oct 1 to Oct 26, 2026.",
+      "wall_s": 2.5,
+      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\n\nWHY:\n- Rent: $725 [C2]\n- Shopping: $461 [C3]\n- School: $200 [C4]\n\nDO THIS:\n1. Review the $461 in Shopping charges from Burlington and uBreakiFix\n2. Plan study breaks instead of DoorDash runs on study nights\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
       "quick": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n- Groceries: $176 [C5].\nDO THIS:\n1. Look at shopping first: it's your biggest flexible category.\nNOTE: Card payments are not counted: they just move money between your accounts.",
       "notes": []
     },
@@ -2888,6 +2993,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2900,14 +3006,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 3.06,
-        "execute_s": 0.004,
-        "quick_s": 3.07,
-        "explain_s": 1.64,
-        "total_s": 4.7
+        "plan_s": 0.79,
+        "execute_s": 0.012,
+        "quick_s": 0.8,
+        "explain_s": 1.28,
+        "total_s": 2.08
       },
-      "wall_s": 4.7,
-      "answer": "ANSWER: You have $23.19 left [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- Groceries $176.49 + Eating out $81.32 + Meal plan $0.00.\nDO THIS:\n1. Check your remaining $23.19 before buying more food.\nNOTE: Budget Shopping $227.00/month, Groceries $185.00/month, Eating out $96.00/month, Transportation $14.00/month.",
+      "wall_s": 2.1,
+      "answer": "ANSWER: You have $23.19 left [C1]. You've spent $258 [C2] this month, against a budget of $281.\n\nWHY:\n- You spent $257.81 [C2] out of $281 budget [C3]\n- That leaves $23.19 [C1] remaining\n\nDO THIS:\n1. Check your next meal plan charge\n2. Plan meals around what's left\n\nNOTE: I assumed you want the October food budget status.",
       "quick": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
       "notes": []
     },
@@ -2945,6 +3051,7 @@
       "facts": 2,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -2957,14 +3064,14 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.25,
-        "execute_s": 0.003,
-        "quick_s": 2.25,
-        "explain_s": 5.99,
-        "total_s": 8.24
+        "plan_s": 0.65,
+        "execute_s": 0.016,
+        "quick_s": 0.67,
+        "explain_s": 2.17,
+        "total_s": 2.84
       },
-      "wall_s": 8.2,
-      "answer": "ANSWER: You have $23.19 left [C1]. You've spent $258 [C2] this month, against a budget of $281.\n\nWHY:\n- You spent $257.81 on food so far [C2]\n- Your food budget is $281.00 [C3]\n\nDO THIS:\n1. Track your next food purchase to stay within $23.19\n2. Choose cheaper meals to use the remaining budget\n\nNOTE: Assumes your food spending pattern continues at the same rate through month-end.",
+      "wall_s": 2.8,
+      "answer": "ANSWER: You have $23.19 left [C1]. You've spent $258 [C2] this month, against a budget of $281.\n\nWHY:\n- You spent $257.81 so far [C2], leaving $23.19 [C1]\n- Your food budget is $281.00 [C3] for the month\n- You have 5 days left in October [C10]\n\nDO THIS:\n1. Plan meals using what you have at home\n2. Avoid extra eating out for the rest of October\n\nNOTE: I assumed you'll continue normal spending patterns through the semester.",
       "quick": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
       "notes": []
     },
@@ -3001,6 +3108,7 @@
       "facts": 4,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -3013,15 +3121,15 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.43,
-        "execute_s": 0.004,
-        "quick_s": 2.43,
-        "explain_s": 5.53,
-        "total_s": 7.97
+        "plan_s": 6.67,
+        "execute_s": 0.007,
+        "quick_s": 6.67,
+        "explain_s": 6.17,
+        "total_s": 12.84
       },
-      "wall_s": 8.0,
-      "answer": "ANSWER: You may qualify for up to $1,750 [C1], if approved.\n\nWHY:\n- None of this is certain until it's approved.\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n\nDO THIS:\n1. Apply for the Student Emergency Grant before the deadline.\n2. Check your email for work-study hiring updates.\n\nNOTE: All aid amounts depend on approval.",
-      "quick": "ANSWER: You may qualify for 3 awards worth up to $1,750 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n- Textbook & Supplies Scholarship: $250 [C6]; if approved, it arrives around Fri, Nov 27 [C7].\n- Spring Opportunity Scholarship: $1,000 [C9]; if approved, it's paid Fri, Jan 15, 2027 [C10], after the semester, so it adds $0.00 this semester.\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved. You'd need a 3.50 GPA (yours is 3.40) for the Dean's Merit Scholarship.",
+      "wall_s": 12.8,
+      "answer": "ANSWER: You may qualify for up to $1,750 [C1], if approved.\n\nWHY:\n- None of this is certain until it's approved.\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n\nDO THIS:\n1. Check your student portal for the Student Emergency Grant application status.\n2. Apply for Federal Work-Study if you haven't already.\n\nNOTE: I assumed you haven't applied yet; if you have, check your application status.",
+      "quick": "ANSWER: You may qualify for 3 awards worth up to $1,750 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n- Textbook & Supplies Scholarship: $250 [C6]; if approved, it arrives around Fri, Nov 27 [C7].\n- Spring Opportunity Scholarship: $1,000 [C9]; if approved, it's paid Fri, Jan 15, 2027 [C10], after the semester. So it adds $0.00 this semester.\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved. You'd need a 3.50 GPA (yours is 3.40) for the Dean's Merit Scholarship.",
       "notes": []
     },
     {
@@ -3054,31 +3162,30 @@
       "facts_ok": true,
       "facts": 3,
       "appended": [],
-      "rewrites": 1,
-      "answered_by": "template",
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
-      "source": "template",
+      "source": "llm",
       "nvidia_error": false,
-      "passed": false,
-      "mode": "fallback",
+      "passed": true,
+      "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 1.65,
-        "execute_s": 0.001,
-        "quick_s": 1.66,
-        "explain_s": 6.49,
-        "total_s": 8.14
+        "plan_s": 1.21,
+        "execute_s": 0.004,
+        "quick_s": 1.21,
+        "explain_s": 5.31,
+        "total_s": 6.52
       },
-      "wall_s": 8.1,
-      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
+      "wall_s": 6.5,
+      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10]. You'll have about 40 swipes left on Fri, Dec 18 [C11]. Checking pays $0.00 for meals [C12].\n\nWHY:\n- Dining dollars left are $117.00 [C3].\n- At $4.42 per day, they last until Nov 22 [C9].\n- Swipes cover all remaining meals after dollars end [C12].\n\nDO THIS:\n1. Track daily dining-dollar spending.\n2. Use swipes for meals after Nov 22.\n\nNOTE: Assumed 2 meals a week on swipes after dollars run out.",
       "quick": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
-      "notes": [
-        "The AI answer didn't pass Runway's checks (the answer is not in the ANSWER / WHY / DO THIS format; the answer repeats itself (\"- You'll have about 40 swipes left on Fri, Dec 18.\")), so this is the quick answer built straight from your numbers."
-      ]
+      "notes": []
     },
     {
       "run": 2,
@@ -3112,7 +3219,8 @@
       "facts_ok": true,
       "facts": 3,
       "appended": [],
-      "rewrites": 1,
+      "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -3121,18 +3229,18 @@
       "mode": "live",
       "retries": {
         "plan_json": 0,
-        "explain_rewrite": 1,
+        "explain_rewrite": 0,
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.41,
-        "execute_s": 0.004,
-        "quick_s": 2.41,
-        "explain_s": 12.71,
-        "total_s": 15.12
+        "plan_s": 1.39,
+        "execute_s": 0.014,
+        "quick_s": 1.4,
+        "explain_s": 2.62,
+        "total_s": 4.02
       },
-      "wall_s": 15.1,
-      "answer": "ANSWER: The Student Emergency Grant would arrive around Mon, Nov 2 if approved.\n\nWHY:\n- None of this is certain until it's approved [E11]\n- You may qualify for up to $500 [C1] [E11]\n- Student Emergency Grant: up to $500 [C3] [E11]; if approved, it arrives around Mon, Nov 2 [C4] [E11]\n\nDO THIS:\n1. Submit the emergency grant application through your school's aid office\n2. Watch for the decision by Fri, Oct 30\n\nNOTE: The grant would add $500 to your checking if approved, before the semester ends on Fri, Dec 18 [C5] [E11]",
+      "wall_s": 4.0,
+      "answer": "ANSWER: None of this is certain until it's approved. You may qualify for up to $500 [C1], if approved. Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n\nWHY:\n- The grant is only awarded if your application is approved [C1]\n- The Student Emergency Grant gives up to $500 if you qualify [C3]\n- If approved, the money arrives around Mon, Nov 2 [C4]\n\nDO THIS:\n1. Submit the emergency grant application through your school's aid office\n2. Watch for a decision notice by Fri, Oct 30\n\nNOTE: You didn't say when you'd apply, so I assumed you'd apply tomorrow.",
       "quick": "ANSWER: You may qualify for 1 award worth up to $500 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved.",
       "notes": []
     },
@@ -3167,6 +3275,7 @@
       "facts": 3,
       "appended": [],
       "rewrites": 0,
+      "repaired": null,
       "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
       "explain_errors": [],
       "source": "llm",
@@ -3179,15 +3288,1765 @@
         "facts_appended": 0
       },
       "timings": {
-        "plan_s": 2.07,
-        "execute_s": 0.002,
-        "quick_s": 2.07,
-        "explain_s": 2.07,
-        "total_s": 4.14
+        "plan_s": 0.64,
+        "execute_s": 0.003,
+        "quick_s": 0.64,
+        "explain_s": 1.81,
+        "total_s": 2.46
+      },
+      "wall_s": 2.5,
+      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10]. You'll have about 40 swipes left on Fri, Dec 18 [C11]. Checking pays $0.00 for meals [C12].\n\nWHY:\n- Dining dollars left after use: $117.00 [C3].\n- Daily spending rate: $4.42/day [C8] until they run out.\n- Swipes remain because they cover meals after dining dollars end.\n\nDO THIS:\n1. Track remaining dining dollars daily until Nov 22.\n2. Use your swipes for meals after dining dollars end.\n\nNOTE: You didn't say when you'd buy extra meals, so I assumed you'll use swipes as planned.",
+      "quick": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
+      "notes": []
+    },
+    {
+      "run": 2,
+      "think": false,
+      "n": 29,
+      "question": "What if I work 4 hours this Saturday and next Saturday?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "what_if"
+      ],
+      "tools": [
+        "work_summary"
+      ],
+      "plan_source": "keywords",
+      "calls": [
+        {
+          "tool": "work_summary",
+          "args": {
+            "start": "2026-10-01",
+            "end": "2026-12-18"
+          }
+        }
+      ],
+      "resolved": null,
+      "expected_verdict": "runs_out",
+      "verdict": null,
+      "tool_ok": false,
+      "verdict_ok": false,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": true,
+      "passed": false,
+      "mode": "fallback",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 2.6,
+        "execute_s": 0.006,
+        "quick_s": 2.6,
+        "explain_s": 1.44,
+        "total_s": 4.04
       },
       "wall_s": 4.1,
-      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10]. You'll have about 40 swipes left on Fri, Dec 18 [C11]. Checking pays $0.00 for meals [C12].\n\nWHY:\n- Dining dollars left after use: $117.00 [C3].\n- Dining dollars spent each day: $4.42 [C7].\n- Dining dollars last until Nov 22 at that pace [C10].\n\nDO THIS:\n1. Check your meal plan balance before Thanksgiving.\n2. Use swipes for meals after dining dollars end.\n\nNOTE: Thanksgiving break (Nov 26) pauses dining dollar spending.",
+      "answer": "ANSWER: You earn $1,721 after working 64 hours and 20 scheduled hours.\n\nWHY:\n- You worked 64 hours [C1].\n- You're scheduled for 20 more hours [C2].\n- Paychecks in that time add up to $1,721 [C3].\n\nDO THIS:\n1. Work 4 hours this Saturday.\n2. Work 4 hours next Saturday.\n\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow.",
+      "quick": "ANSWER: You worked 64 hours from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- You're scheduled for 20 more hours [C2].\n- Your Fri, Oct 2 paycheck: $516 [C4].\n- Your Fri, Oct 16 paycheck: $574 [C6].\n- Your Tue, Nov 3 paycheck: $401 [C8].\n- Your Wed, Nov 18 paycheck: $115 [C10].\n- Paychecks in that time add up to $1,721 [C3].\nNOTE: Pay is after withholding.",
+      "notes": [
+        "The planner wasn't available (InvalidJSONError); Runway matched your question by keywords."
+      ]
+    }
+  ],
+  [
+    {
+      "run": 3,
+      "think": true,
+      "n": 1,
+      "question": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "can_afford"
+      ],
+      "tools": [
+        "can_afford"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "can_afford",
+          "args": {
+            "cost": "400.00",
+            "item": "flight home",
+            "account": "checking",
+            "date": "2026-11-10"
+          }
+        }
+      ],
+      "resolved": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?",
+      "expected_verdict": "yes_if",
+      "verdict": "yes_if",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 4,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 1.55,
+        "execute_s": 0.022,
+        "quick_s": 1.58,
+        "explain_s": 75.96,
+        "total_s": 77.54
+      },
+      "wall_s": 77.6,
+      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form.\n2. Cancel Spotify.\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Apple Music is billed to the credit card. That card bill is paid after the semester ends.",
+      "quick": "ANSWER: Yes, if you do 2 things first [C1].\nWHY:\n- Without changes, you'd be $1,862 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\n2. Cancel Spotify. That saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 2,
+      "question": "How long will my money last?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "runway"
+      ],
+      "tools": [
+        "runway"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "runway",
+          "args": {}
+        }
+      ],
+      "resolved": "How long will my money last?",
+      "expected_verdict": "runs_out",
+      "verdict": "runs_out",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 83.14,
+        "execute_s": 0.01,
+        "quick_s": 83.15,
+        "explain_s": 132.62,
+        "total_s": 215.76
+      },
+      "wall_s": 215.8,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9 [C4].\n- You will have $307 [C7] that day.\nDO THIS:\n1. Add money to checking before Mon, Nov 9 [C4].\n2. Check the card payment [C1] due Mon, Nov 9 [C4].\nNOTE: This assumes nothing changes.",
+      "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 3,
+      "question": "Where is my money leaking?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "find_leaks"
+      ],
+      "tools": [
+        "find_leaks"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "find_leaks",
+          "args": {}
+        }
+      ],
+      "resolved": "Where is my money leaking?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 4,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.7,
+        "execute_s": 0.008,
+        "quick_s": 0.71,
+        "explain_s": 33.63,
+        "total_s": 34.34
+      },
+      "wall_s": 34.4,
+      "answer": "ANSWER: Your money leaks from music subscriptions and a rent overdraft fee.\nWHY:\n- You pay for Apple Music [C3].\n- You pay for Spotify [C3].\n- Together they cost $22.98 a month [C3].\n- Rent caused a $35 overdraft fee [C9].\nDO THIS:\n1. Cancel Spotify [C8].\n2. Keep checking above zero before rent on the 1st [C13].\nNOTE: Rent is due on day 1 [C13].",
+      "quick": "ANSWER: Two things are leaking money.\nWHY:\n- You pay for Apple Music and Spotify: $22.98 a month together [C3].\n- Rent caused a $35 overdraft fee [C9].\nDO THIS:\n1. Cancel Spotify. That saves $23.98 this semester [C7].\nNOTE: Fee savings are estimated.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 4,
+      "question": "What if I pick up a 5 hour shift on Nov 7?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "what_if"
+      ],
+      "tools": [
+        "what_if"
+      ],
+      "plan_source": "keywords",
+      "calls": [
+        {
+          "tool": "what_if",
+          "args": {
+            "cancel_subscriptions": [],
+            "extra_shifts": [
+              {
+                "date": "2026-11-07",
+                "hours": "5.00"
+              }
+            ],
+            "send_verification_form": false,
+            "form_date": "2026-10-27"
+          }
+        }
+      ],
+      "resolved": null,
+      "expected_verdict": "runs_out",
+      "verdict": "runs_out",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": true,
+      "passed": true,
+      "mode": "fallback",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 7.41,
+        "execute_s": 0.013,
+        "quick_s": 7.43,
+        "explain_s": 91.15,
+        "total_s": 98.58
+      },
+      "wall_s": 98.6,
+      "answer": "ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\nWHY:\n- Your money runs out on Mon, Nov 9 [C7].\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\nDO THIS:\n1. Work a shift by Sat, Oct 31 to be paid Tue, Nov 3 [C16].\nNOTE: The Sat, Nov 7 shift pay arrives after the money runs out [C15].",
+      "quick": "ANSWER: The extra shift adds $71.69 to your Wed, Nov 18 paycheck [C15].\nWHY:\n- Your money runs out on Mon, Nov 9 [C7], in 2 weeks [C8].\n- A $360 credit card payment [C4] is due Mon, Nov 9, when you'll have $307.\n- A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out [C16].\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
+      "notes": [
+        "The planner wasn't available (InvalidJSONError); Runway matched your question by keywords."
+      ]
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 5,
+      "question": "Can I afford new headphones for $150?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "can_afford"
+      ],
+      "tools": [
+        "can_afford"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "can_afford",
+          "args": {
+            "cost": "150.00",
+            "item": "headphones",
+            "account": "checking",
+            "date": "2026-10-27"
+          }
+        }
+      ],
+      "resolved": "Can I afford new headphones for $150?",
+      "expected_verdict": "no",
+      "verdict": "no",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 2.27,
+        "execute_s": 0.013,
+        "quick_s": 2.28,
+        "explain_s": 37.48,
+        "total_s": 39.76
+      },
+      "wall_s": 39.8,
+      "answer": "ANSWER: Not right now [C1].\nWHY:\n- Your lowest point would be $144 below zero [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit the missing form to release the held refund [C6].\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27. Cancelling Apple Music saves $0.00 [C7] this semester. It is billed to the credit card and paid after the semester ends.",
+      "quick": "ANSWER: Not right now [C1].\nWHY:\n- Even with every fix, you'd be $144 below zero [C4].\n- That's on Mon, Nov 2 [C5].\nDO THIS:\n1. Try a later date, after your refund arrives.\nNOTE: You didn't say when you'd buy it, so I assumed tomorrow, Tue, Oct 27.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 6,
+      "question": "Can I put a $120 concert ticket on my credit card on Nov 20?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "can_afford"
+      ],
+      "tools": [
+        "can_afford"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "can_afford",
+          "args": {
+            "cost": "120.00",
+            "item": "concert ticket",
+            "account": "card",
+            "date": "2026-11-20"
+          }
+        }
+      ],
+      "resolved": "Can I put a $120 concert ticket on my credit card on Nov 20?",
+      "expected_verdict": "yes_if",
+      "verdict": "yes_if",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 1.75,
+        "execute_s": 0.017,
+        "quick_s": 1.76,
+        "explain_s": 41.52,
+        "total_s": 43.29
+      },
+      "wall_s": 43.3,
+      "answer": "ANSWER: Yes, if you do 1 thing [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form.\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
+      "quick": "ANSWER: Yes, if you do 1 thing first [C1].\nWHY:\n- Without changes, you'd be $1,462 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 7,
+      "question": "What's the capital of France?",
+      "new": false,
+      "after": null,
+      "expected_tools": [],
+      "tools": [],
+      "plan_source": "llm",
+      "calls": [],
+      "resolved": "What's the capital of France?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": null,
+      "facts_ok": true,
+      "facts": 0,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": null,
+      "explain_errors": null,
+      "source": "none",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "off_topic",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.59,
+        "total_s": 0.59
+      },
+      "wall_s": 0.6,
+      "answer": "I can help with your money this semester: whether you can afford something, how long your money will last, where it's leaking, your refund, or what changes would help. Try asking one of those!",
+      "quick": "",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 8,
+      "question": "am I ok?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "runway"
+      ],
+      "tools": [
+        "runway"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "runway",
+          "args": {}
+        }
+      ],
+      "resolved": "am I ok?",
+      "expected_verdict": "runs_out",
+      "verdict": "runs_out",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.57,
+        "execute_s": 0.01,
+        "quick_s": 0.58,
+        "explain_s": 35.7,
+        "total_s": 36.29
+      },
+      "wall_s": 36.3,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Rent of $725 [C12] is due Sun, Nov 1.\n\nDO THIS:\n1. Add $360 [C1] to checking before Mon, Nov 9.\n\nNOTE: Spending runs $7.51 [C10] each day.",
+      "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 9,
+      "question": "Why is my refund on hold?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "refund_status"
+      ],
+      "tools": [
+        "refund_status"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "refund_status",
+          "args": {}
+        }
+      ],
+      "resolved": "Why is my refund on hold?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 2.78,
+        "execute_s": 0.004,
+        "quick_s": 2.79,
+        "explain_s": 16.11,
+        "total_s": 18.89
+      },
+      "wall_s": 18.9,
+      "answer": "ANSWER: Your $1,850 refund [C4] is on hold.\nWHY:\n- Financial aid is waiting for your 2026-27 Verification Worksheet.\n- Hold FV has blocked refunds since Thu, Sep 10 [C5].\nDO THIS:\n1. Send your 2026-27 Verification Worksheet to financial aid.\n2. Send it, and the refund arrives around Thu, Nov 5 [C7].\nNOTE: The refund releases within 7 business days after holds clear [C6].",
+      "quick": "ANSWER: Your $1,850 refund is on hold [C4].\nWHY:\n- Financial aid is waiting for your verification form.\n- The refund comes 7 business days after that [C6].\nDO THIS:\n1. Send the form. Your refund comes around Thu, Nov 5 [C7].",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 10,
+      "question": "Is there a week coming up where money gets really tight?",
+      "new": false,
+      "after": null,
+      "expected_tools": [
+        "cash_crunches"
+      ],
+      "tools": [
+        "cash_crunches"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "cash_crunches",
+          "args": {}
+        }
+      ],
+      "resolved": "Is there a week coming up where money gets really tight?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.7,
+        "execute_s": 0.006,
+        "quick_s": 0.7,
+        "explain_s": 15.86,
+        "total_s": 16.57
+      },
+      "wall_s": 16.6,
+      "answer": "ANSWER: Yes, the week of Nov 18 to Nov 20 looks tight.\nWHY:\n- A $200 tuition payment [C1] is due Fri, Nov 20.\n- Your Wed, Nov 18 paycheck is only $115 [C8].\nDO THIS:\n1. Check your checking balance before Fri, Nov 20.\n2. Hold off on nonessential spending that week.\nNOTE: You did not say if you have other money coming in that week.",
+      "quick": "ANSWER: One week in November is tight.\nWHY:\n- A $200 tuition payment is due Fri, Nov 20 [C1].\n- Your paycheck before it is only $115 [C8].\n- Your Wed, Nov 18 paycheck is only $115 [C8].\nDO THIS:\n1. Set that money aside now.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 11,
+      "question": "How much did I spend on each category in October?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "spending_summary"
+      ],
+      "tools": [
+        "spending_summary"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "spending_summary",
+          "args": {
+            "start": "2026-10-01",
+            "end": "2026-10-26",
+            "account": "both",
+            "group_by": "category"
+          }
+        }
+      ],
+      "resolved": "How much did I spend on each category in October?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 4,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 1.1,
+        "execute_s": 0.005,
+        "quick_s": 1.11,
+        "explain_s": 112.58,
+        "total_s": 113.68
+      },
+      "wall_s": 113.7,
+      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n- Groceries: $176 [C5].\n- Eating out: $81.32 [C6].\n- Bills & utilities: $55.00 [C7].\n- Fees: $35.00 [C8].\n- Subscriptions: $22.98 [C9].\nDO THIS:\n1. Review your spending from Thu, Oct 1 to Mon, Oct 26 [C1].\nNOTE: The facts cover Thu, Oct 1 to Mon, Oct 26 [C1].",
+      "quick": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n- Groceries: $176 [C5].\nDO THIS:\n1. Look at shopping first: it's your biggest flexible category.\nNOTE: Card payments are not counted: they just move money between your accounts.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 12,
+      "question": "How much did I spend at Kroger?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "find_transactions"
+      ],
+      "tools": [
+        "find_transactions"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "find_transactions",
+          "args": {
+            "start": null,
+            "end": "2026-10-26",
+            "account": "both",
+            "query": "Kroger",
+            "min_amount": null,
+            "max_amount": null
+          }
+        }
+      ],
+      "resolved": "How much did I spend at Kroger?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 34.21,
+        "execute_s": 0.004,
+        "quick_s": 34.21,
+        "explain_s": 24.86,
+        "total_s": 59.07
+      },
+      "wall_s": 59.1,
+      "answer": "ANSWER: You spent $570 [C2].\nWHY:\n- That's 17 transactions [C1].\n- Kroger records run to Mon, Oct 26 [C1].\nDO THIS:\n1. Review your 17 Kroger transactions [C1].\nNOTE: I checked Kroger spending through Mon, Oct 26 [C1].",
+      "quick": "ANSWER: You spent $570 at Kroger [C2].\nWHY:\n- That's 17 transactions from Sat, Jul 18 to Mon, Oct 26 [C1].\n- The most recent one was on Mon, Oct 26 [C3].",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 13,
+      "question": "What bills are due next week?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "upcoming_bills"
+      ],
+      "tools": [
+        "upcoming_bills"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "upcoming_bills",
+          "args": {
+            "start": "2026-10-27",
+            "end": "2026-11-01"
+          }
+        }
+      ],
+      "resolved": "What bills are due next week?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 1,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 2.03,
+        "execute_s": 0.003,
+        "quick_s": 2.04,
+        "explain_s": 33.23,
+        "total_s": 35.27
+      },
+      "wall_s": 35.3,
+      "answer": "ANSWER: Rent: $725 on Sun, Nov 1 [C2].\nWHY:\n- Rent is due on the 1st [E2].\n- The rent schedule shows $725 for November [E3].\nDO THIS:\n1. Pay $725 from checking by Sun, Nov 1 [C2].\nNOTE: Today is Mon, Oct 26, 2026 [E1].",
+      "quick": "ANSWER: You have 1 bill due from Tue, Oct 27 to Sun, Nov 1: $725 in all [C1].\nWHY:\n- Rent: $725 on Sun, Nov 1 [C2].\nDO THIS:\n1. Keep that money in checking before each due date.\nNOTE: Your balance at the end of Sun, Nov 1 would be $13.32 [C3].",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 14,
+      "question": "How many hours did I work in October?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "work_summary"
+      ],
+      "tools": [
+        "work_summary"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "work_summary",
+          "args": {
+            "start": "2026-10-01",
+            "end": "2026-10-31"
+          }
+        }
+      ],
+      "resolved": "How many hours did I work in October?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.85,
+        "execute_s": 0.005,
+        "quick_s": 0.85,
+        "explain_s": 33.31,
+        "total_s": 34.17
+      },
+      "wall_s": 34.2,
+      "answer": "ANSWER: You worked 64 hours [C1].\nWHY:\n- You're scheduled for 4 more hours [C2].\n- Paychecks in that time add up to $1,090 [C3].\nDO THIS:\n1. Check your schedule for the 4 hours [C2].",
+      "quick": "ANSWER: You worked 64 hours from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- You're scheduled for 4 more hours [C2].\n- Your Fri, Oct 2 paycheck: $516 [C4].\n- Your Fri, Oct 16 paycheck: $574 [C6].\n- Paychecks in that time add up to $1,090 [C3].\nNOTE: Pay is after withholding.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 15,
+      "question": "What will my balance be on Thanksgiving?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "balance_on"
+      ],
+      "tools": [
+        "balance_on"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "balance_on",
+          "args": {
+            "date": "2026-11-26"
+          }
+        }
+      ],
+      "resolved": "What will my balance be on Thanksgiving?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 1,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.78,
+        "execute_s": 0.007,
+        "quick_s": 0.78,
+        "explain_s": 60.61,
+        "total_s": 61.4
+      },
+      "wall_s": 61.4,
+      "answer": "ANSWER: On Thu, Nov 26, your checking balance is $285 below zero [C1].\nWHY:\n- Your checking balance was $783 on Mon, Oct 26 [C2].\n- Daily checking spending is $7.51 [C3].\n- Spending from Oct 26 to Nov 26 brings the balance below zero [C1].\nDO THIS:\n1. Check your checking balance now [C2].\n2. Watch daily checking spending before Thu, Nov 26 [C3].\nNOTE: The balance is for the end of Thu, Nov 26 [C1].",
+      "quick": "ANSWER: On Thu, Nov 26, your checking balance would be $285 below zero [C1].\nWHY:\n- Only everyday spending that day.\nNOTE: This is a projection.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 16,
+      "question": "What can I do to make money before this?",
+      "new": true,
+      "after": "How long will my money last?",
+      "expected_tools": [
+        "money_ideas"
+      ],
+      "tools": [
+        "money_ideas"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "money_ideas",
+          "args": {}
+        }
+      ],
+      "resolved": "What can I do to make money before I run out?",
+      "expected_verdict": "runs_out",
+      "verdict": "runs_out",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.7,
+        "execute_s": 0.012,
+        "quick_s": 0.71,
+        "explain_s": 37.19,
+        "total_s": 37.9
+      },
+      "wall_s": 37.9,
+      "answer": "ANSWER: You run out on Mon, Nov 9 [C1].\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\nDO THIS:\n1. Work the Sat, Oct 31 shift [C2].\n2. Send the verification form [C5].\nNOTE: The refund arrives before the money runs out [C5][C1].",
+      "quick": "ANSWER: Here are 2 ways to get money before you run out on Mon, Nov 9 [C1].\nWHY:\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C2].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C5].\nDO THIS:\n1. Work an extra shift by Sat, Oct 31.\nNOTE: Ranked by when the money arrives.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 17,
+      "question": "what about Nov 17 instead?",
+      "new": true,
+      "after": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?",
+      "expected_tools": [
+        "can_afford"
+      ],
+      "tools": [
+        "can_afford"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "can_afford",
+          "args": {
+            "cost": "400.00",
+            "item": "flight home",
+            "account": "checking",
+            "date": "2026-11-17"
+          }
+        }
+      ],
+      "resolved": "Can I afford a $400 flight home for Thanksgiving if I book it Nov 17 instead of Nov 10?",
+      "expected_verdict": "yes_if",
+      "verdict": "yes_if",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 4,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "explain_errors": [
+        "Nemotron Super: APITimeoutError"
+      ],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.98,
+        "execute_s": 0.023,
+        "quick_s": 1.01,
+        "explain_s": 377.36,
+        "total_s": 378.37
+      },
+      "wall_s": 378.4,
+      "answer": "ANSWER: Yes, if you do 2 things [C1].\nWHY:\n- Send your verification form: your $1,850 refund arrives around Thu, Nov 5 [C6].\n- Cancelling Spotify saves $23.98 this semester [C8].\n- Your lowest point would be $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Submit the verification form to release the $1,850 refund.\n2. Cancel Spotify to keep $23.98 in your checking this semester.\nNOTE: Cancelling Apple Music saves $0.00 this semester: Apple Music is billed to the credit card, and that card bill is paid after the semester ends.",
+      "quick": "ANSWER: Yes, if you do 2 things first [C1].\nWHY:\n- Without changes, you'd be $1,862 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\n2. Cancel Spotify. That saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends.",
+      "notes": [
+        "Nemotron Super wasn't available (Nemotron Super: APITimeoutError), so Nemotron Lightning wrote this answer."
+      ]
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 18,
+      "question": "Help me get through the semester",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "runway",
+        "money_ideas",
+        "find_leaks"
+      ],
+      "tools": [
+        "runway",
+        "money_ideas",
+        "find_leaks"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "runway",
+          "args": {}
+        },
+        {
+          "tool": "money_ideas",
+          "args": {}
+        },
+        {
+          "tool": "find_leaks",
+          "args": {}
+        }
+      ],
+      "resolved": "Help me get through the semester",
+      "expected_verdict": "runs_out",
+      "verdict": "runs_out",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 9,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 4.63,
+        "execute_s": 0.022,
+        "quick_s": 4.65,
+        "explain_s": 61.18,
+        "total_s": 65.83
+      },
+      "wall_s": 65.8,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- You run out on Mon, Nov 9 [C13].\n- You pay for Apple Music [C23].\n- You pay for Spotify [C23].\n- Together they cost $22.98 a month [C23].\n- Rent caused a $35 overdraft fee [C29].\nDO THIS:\n1. Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n2. Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\nNOTE: Today is Mon, Oct 26, 2026.",
+      "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Here are 2 ways to get money before you run out on Mon, Nov 9 [C13].\n- Work an extra shift by Sat, Oct 31: it adds $57.35 on Tue, Nov 3 [C14].\n- Two things are leaking money.\n- You pay for Apple Music and Spotify: $22.98 a month together [C23].\n- Send the verification form: your $1,850 refund arrives around Thu, Nov 5 [C17].\n- Rent caused a $35 overdraft fee [C29].\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.\n2. Work an extra shift by Sat, Oct 31.\n3. Cancel Spotify. That saves $23.98 this semester [C27].\nNOTE: Ranked by when the money arrives. Fee savings are estimated.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 19,
+      "question": "What is FAFSA verification?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "general_info"
+      ],
+      "tools": [
+        "general_info"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "general_info",
+          "args": {
+            "topic": "FAFSA verification"
+          }
+        }
+      ],
+      "resolved": "What is FAFSA verification?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 0,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "explain_errors": [
+        "Nemotron Super: InternalServerError"
+      ],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 2.28,
+        "execute_s": 0.001,
+        "explain_s": 69.85,
+        "total_s": 72.14
+      },
+      "wall_s": 72.1,
+      "answer": "ANSWER: FAFSA verification is when your college checks your form info for accuracy.\nWHY:\n- It confirms your financial data is correct.\n- Schools use it to finalize your aid amount.\nDO THIS:\n1. Gather tax documents your school requests.\nNOTE: Schools set their own verification deadlines; your financial aid office can help.",
+      "quick": "",
+      "notes": [
+        "Nemotron Super wasn't available (Nemotron Super: InternalServerError), so Nemotron Lightning wrote this answer."
+      ]
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 20,
+      "question": "money stuff is stressing me out",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "runway"
+      ],
+      "tools": [
+        "runway"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "runway",
+          "args": {}
+        }
+      ],
+      "resolved": "money stuff is stressing me out",
+      "expected_verdict": "runs_out",
+      "verdict": "runs_out",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.63,
+        "execute_s": 0.009,
+        "quick_s": 0.64,
+        "explain_s": 50.74,
+        "total_s": 51.39
+      },
+      "wall_s": 51.4,
+      "answer": "ANSWER: Your money runs out on Mon, Nov 9 [C4].\n\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\n- Rent of $725 is due Sun, Nov 1 [C12].\n- Paycheck of $401 arrives Tue, Nov 3 [C13].\n\nDO THIS:\n1. Check your checking balance on Sun, Nov 8 [C7].\n2. Review the card bill due Mon, Nov 9 [C4].\n\nNOTE: The plan assumes nothing changes.",
+      "quick": "ANSWER: Your money runs out on Mon, Nov 9 [C4], in 2 weeks [C5].\nWHY:\n- A $360 credit card payment [C1] is due Mon, Nov 9, when you'll have $307.\nDO THIS:\n1. Look at the ways to fix it in the Semester tab.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 21,
+      "question": "What should I do this week?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "action_plan"
+      ],
+      "tools": [
+        "action_plan"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "action_plan",
+          "args": {
+            "start": "2026-10-26",
+            "end": "2026-11-01"
+          }
+        }
+      ],
+      "resolved": "What should I do this week?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 1.09,
+        "execute_s": 0.02,
+        "quick_s": 1.11,
+        "explain_s": 61.95,
+        "total_s": 63.06
+      },
+      "wall_s": 63.1,
+      "answer": "ANSWER: Send your verification form today.\nWHY:\n- Send your verification form: your $1,850 refund [C2] then arrives around Thu, Nov 5 [C3].\n- Rent of $725 [C6] is due Sun, Nov 1 [C5] and leaves you just $13.32 [C7]. Last time, rent before payday cost a $35 fee [C8].\nDO THIS:\n1. Send your verification form by Tue, Oct 27 [C1].\n2. Pay rent on Sun, Nov 1 [C5].\nNOTE: The refund arrives only after the form is submitted [C3].",
+      "quick": "ANSWER: 2 things need you from Mon, Oct 26 to Sun, Nov 1 [C11].\nWHY:\n- Send your verification form: your $1,850 refund [C2] then arrives around Thu, Nov 5 [C3].\n- Rent of $725 [C6] is due Sun, Nov 1 [C5] and leaves you just $13.32 [C7]. Last time, rent before payday cost a $35 fee [C8].\nDO THIS:\n1. Send your verification form to financial aid.\n2. Keep $725 in checking for rent on Sun, Nov 1.\nNOTE: Most urgent first: the money at stake and how soon it's due.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 22,
+      "question": "Where did my money go in October?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "spending_summary"
+      ],
+      "tools": [
+        "spending_summary"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "spending_summary",
+          "args": {
+            "start": "2026-10-01",
+            "end": "2026-10-26",
+            "account": "both",
+            "group_by": "category"
+          }
+        }
+      ],
+      "resolved": "Where did my money go in October?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 4,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.77,
+        "execute_s": 0.005,
+        "quick_s": 0.78,
+        "explain_s": 22.4,
+        "total_s": 23.18
+      },
+      "wall_s": 23.2,
+      "answer": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\nDO THIS:\n1. Check your Rent spending [C2].\n2. Check your Shopping spending [C3].\nNOTE: The facts cover Thu, Oct 1 to Mon, Oct 26 [C1].",
+      "quick": "ANSWER: You spent $1,757 from Thu, Oct 1 to Mon, Oct 26 [C1].\nWHY:\n- Rent: $725 [C2].\n- Shopping: $461 [C3].\n- School: $200 [C4].\n- Groceries: $176 [C5].\nDO THIS:\n1. Look at shopping first: it's your biggest flexible category.\nNOTE: Card payments are not counted: they just move money between your accounts.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 23,
+      "question": "How much is left in my food budget?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "budget_status"
+      ],
+      "tools": [
+        "budget_status"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "budget_status",
+          "args": {
+            "category": "food",
+            "month": "2026-10"
+          }
+        }
+      ],
+      "resolved": "How much is left in my food budget?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.66,
+        "execute_s": 0.017,
+        "quick_s": 0.68,
+        "explain_s": 77.97,
+        "total_s": 78.65
+      },
+      "wall_s": 78.7,
+      "answer": "ANSWER: You have $23.19 left [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281 [C3].\n- Groceries cost $176 [C4] and eating out cost $81.32 [C6].\nDO THIS:\n1. Review your $23.19 left [C1] before buying food.\n2. Check your Kroger and DoorDash spending [E2][E3].\nNOTE: Today is Mon, Oct 26 [C20].",
+      "quick": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 24,
+      "question": "What happens if I stick to my budget?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "budget_status"
+      ],
+      "tools": [
+        "budget_status"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "budget_status",
+          "args": {
+            "category": "food",
+            "month": "2026-10"
+          }
+        }
+      ],
+      "resolved": "What happens if I stick to my budget?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": false,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 2,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": false,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.83,
+        "execute_s": 0.014,
+        "quick_s": 0.84,
+        "explain_s": 147.98,
+        "total_s": 148.82
+      },
+      "wall_s": 148.8,
+      "answer": "ANSWER: You have $23.19 left [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- The food budget covers groceries, eating out, and meal plan [C3].\n- Sticking to it means tracking every purchase [E2].\nDO THIS:\n1. Record each grocery and eating out purchase [E2].\n2. Check your remaining food total before buying more.\nNOTE: Checking first drops below zero on Mon, Nov 2 [C11].",
+      "quick": "ANSWER: You have $23.19 left in your food budget [C1].\nWHY:\n- You've spent $258 [C2] this month, against a budget of $281.\n- You're spending faster than the budget allows.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 25,
+      "question": "Are there any grants or scholarships I qualify for?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "find_aid"
+      ],
+      "tools": [
+        "find_aid"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "find_aid",
+          "args": {
+            "type": null
+          }
+        }
+      ],
+      "resolved": "Are there any grants or scholarships I qualify for?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 4,
+      "appended": [],
+      "rewrites": 1,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 1,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 1.0,
+        "execute_s": 0.015,
+        "quick_s": 1.01,
+        "explain_s": 107.52,
+        "total_s": 108.53
+      },
+      "wall_s": 108.5,
+      "answer": "ANSWER: You may qualify for up to $1,750 [C1], if approved.\nWHY:\n- None of this is certain until it's approved.\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\nDO THIS:\n1. Apply for the Student Emergency Grant.\n2. Apply for the Textbook & Supplies Scholarship.\nNOTE: The Textbook & Supplies Scholarship arrives Fri, Nov 27 [C7], if approved.",
+      "quick": "ANSWER: You may qualify for 3 awards worth up to $1,750 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\n- Federal Work-Study: Library Assistant: $16/hour; if you're hired, your first paycheck comes Wed, Nov 18 [C12].\n- Textbook & Supplies Scholarship: $250 [C6]; if approved, it arrives around Fri, Nov 27 [C7].\n- Spring Opportunity Scholarship: $1,000 [C9]; if approved, it's paid Fri, Jan 15, 2027 [C10], after the semester. So it adds $0.00 this semester.\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved. You'd need a 3.50 GPA (yours is 3.40) for the Dean's Merit Scholarship.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 26,
+      "question": "Will my dining dollars last?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "meal_plan"
+      ],
+      "tools": [
+        "meal_plan"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "meal_plan",
+          "args": {}
+        }
+      ],
+      "resolved": "Will my dining dollars last?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.88,
+        "execute_s": 0.005,
+        "quick_s": 0.88,
+        "explain_s": 25.33,
+        "total_s": 26.21
+      },
+      "wall_s": 26.2,
+      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Checking pays $0.00 for meals [C12].\nDO THIS:\n1. Check your dining dollars left: $117 [C3].\n2. Use your 56 swipes before dining dollars run out [C6].",
       "quick": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 27,
+      "question": "If I apply for the emergency grant, when would the money come?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "find_aid"
+      ],
+      "tools": [
+        "find_aid"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "find_aid",
+          "args": {
+            "type": "emergency_grant"
+          }
+        }
+      ],
+      "resolved": "If I apply for the emergency grant, when would the money come?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 1.09,
+        "execute_s": 0.015,
+        "quick_s": 1.1,
+        "explain_s": 48.4,
+        "total_s": 49.5
+      },
+      "wall_s": 49.5,
+      "answer": "ANSWER: It would arrive around Mon, Nov 2 [C4], if approved.\nWHY:\n- None of this is certain until it's approved.\n- You may qualify for up to $500 [C1], if approved.\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\nDO THIS:\n1. Apply for the Student Emergency Grant.\nNOTE: Approval is not guaranteed; it takes 3 business days [C4].",
+      "quick": "ANSWER: You may qualify for 1 award worth up to $500 [C1], if approved.\nWHY:\n- Student Emergency Grant: up to $500 [C3]; if approved, it arrives around Mon, Nov 2 [C4].\nDO THIS:\n1. Apply for the student emergency grant first: it's the only one that could arrive before Mon, Nov 9 [C2].\n2. Open Find money to draft the application.\nNOTE: None of this is certain until it's approved.",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 28,
+      "question": "How many meal swipes will I have left at the end of the semester?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "meal_plan"
+      ],
+      "tools": [
+        "meal_plan"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "meal_plan",
+          "args": {}
+        }
+      ],
+      "resolved": "How many meal swipes will I have left at the end of the semester?",
+      "expected_verdict": null,
+      "verdict": null,
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 3,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 0.95,
+        "execute_s": 0.003,
+        "quick_s": 0.96,
+        "explain_s": 64.24,
+        "total_s": 65.2
+      },
+      "wall_s": 65.2,
+      "answer": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Checking pays $0.00 for meals [C12].\nDO THIS:\n1. Check your swipe balance before Fri, Dec 18 [C11].\nNOTE: The semester ends Fri, Dec 18.",
+      "quick": "ANSWER: Your dining dollars run out around Sun, Nov 22 [C10].\nWHY:\n- You have 56 swipes [C6] and $117 in dining dollars [C3] left.\n- You'll have about 40 swipes left on Fri, Dec 18 [C11].\n- Swipes cover the gap, so checking pays $0.00 [C12].\nDO THIS:\n1. Use 2 swipes a week instead of dining dollars: you'd still have $16.56 in dining dollars on Fri, Dec 18 [C13].",
+      "notes": []
+    },
+    {
+      "run": 3,
+      "think": true,
+      "n": 29,
+      "question": "What if I work 4 hours this Saturday and next Saturday?",
+      "new": true,
+      "after": null,
+      "expected_tools": [
+        "what_if"
+      ],
+      "tools": [
+        "what_if"
+      ],
+      "plan_source": "llm",
+      "calls": [
+        {
+          "tool": "what_if",
+          "args": {
+            "cancel_subscriptions": [],
+            "extra_shifts": [
+              {
+                "date": "2026-10-31",
+                "hours": "4.00"
+              },
+              {
+                "date": "2026-11-07",
+                "hours": "4.00"
+              }
+            ],
+            "send_verification_form": false,
+            "form_date": "2026-10-27"
+          }
+        }
+      ],
+      "resolved": "What if I work 4 hours this Saturday and next Saturday?",
+      "expected_verdict": "runs_out",
+      "verdict": "runs_out",
+      "tool_ok": true,
+      "verdict_ok": true,
+      "check_ok": true,
+      "problems": [],
+      "facts_ok": true,
+      "facts": 4,
+      "appended": [],
+      "rewrites": 0,
+      "repaired": null,
+      "answered_by": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "explain_errors": [],
+      "source": "llm",
+      "nvidia_error": false,
+      "passed": true,
+      "mode": "live",
+      "retries": {
+        "plan_json": 0,
+        "explain_rewrite": 0,
+        "facts_appended": 0
+      },
+      "timings": {
+        "plan_s": 1.93,
+        "execute_s": 0.018,
+        "quick_s": 1.95,
+        "explain_s": 47.12,
+        "total_s": 49.07
+      },
+      "wall_s": 49.1,
+      "answer": "ANSWER: These 2 shifts add $115 [C15].\nWHY:\n- Your money runs out on Mon, Nov 9 [C7].\n- Pay for the shift on Sat, Oct 31 arrives Tue, Nov 3 [C17].\n- Pay for the shift on Sat, Nov 7 arrives Wed, Nov 18 [C18].\nDO THIS:\n1. Check your checking balance before Mon, Nov 9 [C7].\nNOTE: Extra pay does not delay the runout date [C16].",
+      "quick": "ANSWER: These 2 shifts add $115 [C15].\nWHY:\n- Your money runs out on Mon, Nov 9 [C7], in 2 weeks [C8].\n- Pay for Sat, Oct 31 arrives Tue, Nov 3, before you run out [C17].\n- Pay for Sat, Nov 7 arrives Wed, Nov 18, after you run out [C18].\nDO THIS:\n1. Try these in the shift planner in the Semester tab.",
       "notes": []
     }
   ]
