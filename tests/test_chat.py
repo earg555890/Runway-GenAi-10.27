@@ -436,7 +436,7 @@ def test_five_suggested_questions():
 
 # --- budget_status: "How much is left in my food budget?", "What happens if I stick to my budget?" ------------
 
-BUDGET = {"Shopping": 227, "Groceries": 185, "Eating out": 96, "Transportation": 14}
+BUDGET = {"Shopping": 18, "Groceries": 185, "Eating out": 96, "Transportation": 14}
 
 
 def _budget_pieces(args, ds, budget, scenario=None):
@@ -455,7 +455,7 @@ def _budget_pieces(args, ds, budget, scenario=None):
 
 @pytest.mark.parametrize("args,budget,starts,keys", [
     ({"category": "food"}, BUDGET, "ANSWER: You have $23.19 left in your food budget", {"left", "spent"}),
-    ({"category": "Shopping"}, BUDGET, "ANSWER: You're $234 over your shopping budget", {"left", "spent"}),
+    ({"category": "Shopping"}, BUDGET, "ANSWER: You're $443 over your shopping budget", {"left", "spent"}),
     ({}, BUDGET, "ANSWER: Your money still runs out on Mon, Nov 9", {"effect", "spent"}),
     ({}, {"Groceries": 60}, "ANSWER: If you stick to this budget, your money lasts until Sun, Nov 15 (6 days longer)",
      {"effect", "spent"}),
@@ -469,10 +469,10 @@ def test_budget_status_quick_answers_pass_every_check(ds, args, budget, starts, 
 def test_no_budget_offers_the_suggestion(ds):
     form_sent = engine.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY)
     quick, _ = _budget_pieces({}, ds, None, form_sent)
-    assert "You have $1,363 to spend after rent and bills in November" in quick
-    assert "Based on your usual spending: Shopping $227" in quick and "Suggest a budget" in quick
+    assert "You have $1,749 to spend after rent and bills in November" in quick
+    assert "Based on your usual spending: Shopping $18" in quick and "Suggest a budget" in quick
     quick, _ = _budget_pieces({}, ds, {"Groceries": 0}, engine.Scenario())        # all zero = no budget
-    assert "your rent and bills are $487 more than your pay" in quick
+    assert "Without your refund, November's bills are $101 more than your money" in quick
 
 
 def test_budget_status_validation_keywords_and_cache():

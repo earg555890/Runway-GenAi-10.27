@@ -1586,10 +1586,11 @@ def lookup_template(tool, result, c):
                                                                        f"{c(x.suggested)}".strip() for x in sg.lines)
                          + "."],
                         ["Open the Budget tab and press Suggest a budget."], "")
-            return ("You haven't set a budget yet.",
-                    [f"In {month}, your rent and bills are {w.dollars(m.amount.value)} more than your pay "
-                     f"{c(m.amount)}.", "So no budget fits until more money comes in."],
-                    ["Send your verification form first. Then set a budget."], "")
+            short = (f"Without your refund, {month}'s bills are {w.dollars(m.amount.value)} more than your money "
+                     f"{c(m.amount)}." if not b.refund_released else
+                     f"{month}'s bills are {w.dollars(m.amount.value)} more than your money {c(m.amount)}.")
+            return ("You haven't set a budget yet.", [short, "So no budget fits until more money comes in."],
+                    ["Send your verification form first. Then set a budget."] if not b.refund_released else [], "")
         name = (b.categories[0] if len(b.categories) == 1 else
                 next((g for g, cs in engine.BUDGET_GROUPS.items() if cs == b.categories), "whole"))
         spent = (f"You've spent {w.dollars(b.spent.value)} {c(b.spent)} this month, against a budget of "
@@ -1742,7 +1743,7 @@ def lookup_facts(tool, result, c):
             out.append(Fact("available", "what's left after rent and bills next month",
                             f"You have {w.dollars(m.amount.value)} to spend after rent and bills {c(m.amount)}."
                             if m.amount.value > 0 else
-                            f"Your rent and bills are {w.dollars(m.amount.value)} more than your pay {c(m.amount)}.",
+                            f"The bills are {w.dollars(m.amount.value)} more than your money {c(m.amount)}.",
                             money=(m.amount.value,)))
         else:
             single = len(b.categories) == 1 or any(cs == b.categories for cs in engine.BUDGET_GROUPS.values())

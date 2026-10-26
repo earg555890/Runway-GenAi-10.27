@@ -451,7 +451,7 @@ def test_checkin_under_the_status_card(at):
 
 
 def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
-    assert len([b for b in at.button if str(b.key).startswith("ci_done_")]) == 5          # top 3 + "See all"
+    assert len([b for b in at.button if str(b.key).startswith("ci_done_") and "bud" not in str(b.key)]) == 5
     at.button(key="ci_done_refund").click()
     run(at)
     assert ">You're covered all semester.<" in status(at)                                 # the form counts as sent today
@@ -556,27 +556,28 @@ def test_donut_has_top_five_plus_other(ds_local=None):
 
 def test_budget_section_base_case(at):
     head = next(t for t in texts(at) if 'class="rw-bud-head"' in t)
-    assert ">In November, your rent and bills are $487 more than your pay. Nothing is left to budget until your " \
-           "refund comes.<" in head
+    assert ">Without your refund, November's bills are $101 more than your money. Send the verification form " \
+           "first.<" in head
+    assert at.button(key="ci_done_bud_refund").label == "Form sent"              # the action, right there
     assert at.button(key="bud_suggest").disabled and at.toggle(key="wf_budget").disabled
 
 
 def test_suggest_budget_left_to_assign_and_progress(at):
     at.button(key="ci_done_refund").click()
     run(at)
-    assert any(">You have $1,363 to spend after rent and bills in November.<" in t for t in texts(at))
+    assert any(">You have $1,749 to spend after rent and bills in November.<" in t for t in texts(at))
     at.button(key="bud_suggest").click()
     run(at)
     assert [at.number_input(key=f"bud_amt_{c}").value for c in ("Shopping", "Groceries", "Eating out",
-                                                                  "Transportation", "Meal plan")] == [227, 185, 96, 14, 0]
-    assert any(">Left to assign: $841<" in t for t in texts(at))
+                                                                  "Transportation", "Meal plan")] == [18, 185, 96, 14, 0]
+    assert any(">Left to assign: $1,436<" in t for t in texts(at))
     prog = next(t for t in texts(at) if 'class="rw-prog"' in t)
-    assert "Shopping</span><span>$234 over" in prog and "over budget" in prog          # $233.99
+    assert "Shopping</span><span>$443 over" in prog and "over budget" in prog          # $442.99
     assert "Groceries</span><span>$8.51 left" in prog and "spending fast" in prog
     at.number_input(key="bud_amt_Shopping").set_value(1500)
     run(at)
     left = next(t for t in texts(at) if 'class="rw-bud-left' in t)
-    assert "rw-red" in left and ">Left to assign: $432 over<" in left       # 1,363.17 - (1,500 + 185 + 96 + 14)
+    assert "rw-red" in left and ">Left to assign: $45.53 over<" in left        # 1,749.47 - (1,500 + 185 + 96 + 14)
     assert at.session_state["action_log"][-1]["what"] == "Filled in the suggested budget"
 
 

@@ -53,23 +53,28 @@ def test_october_by_category(ds):
 
 def test_money_to_budget_november(ds):
     m = engine.money_to_budget("2026-11", engine.Scenario(), ds)
-    assert m.money_in.value == Decimal("516.15")                    # paychecks Nov 3 $401.45 + Nov 18 $114.70
-    assert m.fixed.value == Decimal("1002.98")    # rent 725 + tuition 200 + Venmo 55 + Spotify 11.99 + Apple Music 10.99
-    assert m.amount.value == Decimal("-486.83")
-    assert not any("card statement" in label for label, *_ in m.lines)        # card payments aren't fixed bills
+    assert m.start_balance.value == Decimal("745.83")                # projected checking at the end of Oct 31
+    assert m.money_in.value == Decimal("516.15")                     # paychecks Nov 3 $401.45 + Nov 18 $114.70
+    # rent 725 + tuition 200 + Venmo 55 + Spotify 11.99 + Apple Music 10.99 + the Oct 12 card statement (Nov 9) 359.53
+    assert m.fixed.value == Decimal("1362.51")
+    assert m.amount.value == Decimal("-100.53")                      # 745.83 + 516.15 - 1,362.51
+    owed = [label for label, *_ in m.lines if label.startswith("card bill")]
+    assert owed == ["card bill (statement closed 2026-10-12)"]       # the Dec 7 bill is still being built: not here
     sent = engine.money_to_budget("2026-11", FORM_SENT, ds)
-    assert sent.money_in.value == Decimal("2366.15") and sent.amount.value == Decimal("1363.17")   # + the $1,850 refund
+    assert sent.money_in.value == Decimal("2366.15") and sent.amount.value == Decimal("1749.47")   # + the $1,850 refund
     spotify = engine.money_to_budget("2026-11", engine.Scenario(cancel_subscriptions=("Spotify",)), ds)
-    assert spotify.fixed.value == Decimal("990.99")
+    assert spotify.fixed.value == Decimal("1350.52")
 
 
-def test_suggest_budget_is_her_average_when_it_fits(ds):
+def test_suggest_budget_is_her_everyday_average_when_it_fits(ds):
     sg = engine.suggest_budget("2026-11", FORM_SENT, ds)
-    assert sg.fits and sg.available.amount.value == Decimal("1363.17")
-    # Aug 1 to Oct 26 is 87 days; a 30-day month: Shopping $659.47 / 87 x 30 = $227.40 -> $227
-    assert sg.amounts() == {"Shopping": Decimal("227.00"), "Groceries": Decimal("185.00"),
+    assert sg.fits and sg.available.amount.value == Decimal("1749.47")
+    # Aug 1 to Oct 26 is 87 days; a 30-day month. Shopping: $52.10 of everyday purchases (3 one-offs of $100+ left
+    # out, like the forecast) / 87 x 30 = $17.97 -> $18
+    assert sg.amounts() == {"Shopping": Decimal("18.00"), "Groceries": Decimal("185.00"),
                             "Eating out": Decimal("96.00"), "Transportation": Decimal("14.00")}
-    assert sg.total.value == Decimal("522.00") == sg.average_total.value
+    assert "leaving out 3 one-off purchases of $100 or more" in sg.lines[0].average.how
+    assert sg.total.value == Decimal("313.00") == sg.average_total.value
     assert set(sg.amounts()) <= set(normalize.FLEXIBLE)
 
 
@@ -84,10 +89,10 @@ def test_suggest_budget_scales_down_to_fit(ds, monkeypatch):
     monkeypatch.setattr(engine, "money_to_budget", tight)
     sg = engine.suggest_budget("2026-11", engine.Scenario(), ds)
     assert sg.fits and sg.total.value <= Decimal("300.00")
-    scale = Decimal("300.00") / Decimal("522.00")
+    scale = Decimal("300.00") / Decimal("313.00")
     for x in sg.lines:
         assert x.suggested.value == (x.average.value * scale).quantize(Decimal("1"), rounding="ROUND_DOWN")
-    assert sg.amounts()["Shopping"] == Decimal("130.00")                        # 227 x 0.5747, rounded down
+    assert sg.amounts()["Groceries"] == Decimal("177.00")                     # 185 x 0.9585, rounded down
 
 
 def test_suggest_budget_when_nothing_is_left(ds):
@@ -97,7 +102,7 @@ def test_suggest_budget_when_nothing_is_left(ds):
 
 # --- the budget in the forecast ------------------------------------------------------------------------------
 
-SUGGESTED = (("Shopping", Decimal("227.00")), ("Groceries", Decimal("185.00")), ("Eating out", Decimal("96.00")),
+SUGGESTED = (("Shopping", Decimal("18.00")), ("Groceries", Decimal("185.00")), ("Eating out", Decimal("96.00")),
              ("Transportation", Decimal("14.00")))
 
 
@@ -107,7 +112,7 @@ def test_budget_replaces_the_average_and_ties_out(ds):
     ledger = engine.Ledger()
     p = engine.project(sc, ds, ledger)
     rates = engine.budget_rates(sc, ds, engine.Ledger())
-    assert rates[("checking", 2026, 11)].value == Decimal("7.50") and rates[("card", 2026, 11)].value == Decimal("9.90")
+    assert rates[("checking", 2026, 11)].value == Decimal("7.50") and rates[("card", 2026, 11)].value == Decimal("2.93")
     # end balance = today's balance + every scheduled item - each day's budgeted checking spending, to the cent
     spent = sum(rates[("checking", d.year, d.month)].value for d in engine.days(config.DEMO_TODAY + timedelta(days=1),
                                                                                  config.SEMESTER_END))
@@ -125,9 +130,9 @@ def test_budget_replaces_the_average_and_ties_out(ds):
 def test_budget_effect_direction(ds):
     sent = engine.budget_effect(engine.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY,
                                                 budget=SUGGESTED), ds)
-    # her usual spending includes one-offs the plain forecast leaves out: the card bills grow, the semester ends lower
+    # the suggestion is her everyday spending, like the forecast, rounded: a little less on the card, a bit more left
     assert sent.without.lasts_through_semester and sent.with_budget.lasts_through_semester
-    assert sent.days_longer.value is None and sent.end_change.value == Decimal("-105.74")
+    assert sent.days_longer.value is None and sent.end_change.value == Decimal("11.60")
     assert sent.end_change.value == sent.with_budget.end_balance.value - sent.without.end_balance.value
     lean = engine.budget_effect(engine.Scenario(budget=(("Groceries", Decimal("60")),)), ds)
     assert lean.without.first_below_zero.value == date(2026, 11, 9)
@@ -189,12 +194,12 @@ def test_ai_summary_is_checked(ds):
 def test_left_to_assign_and_progress(ds):
     m = engine.money_to_budget("2026-11", FORM_SENT, ds)
     left = engine.budget_left(m.amount, dict(SUGGESTED), engine.Ledger())
-    assert left.value == Decimal("841.17")                                    # 1,363.17 - 522
-    assert engine.budget_left(m.amount, {"Shopping": 2000}, engine.Ledger()).value == Decimal("-636.83")
+    assert left.value == Decimal("1436.47")                                   # 1,749.47 - 313
+    assert engine.budget_left(m.amount, {"Shopping": 2000}, engine.Ledger()).value == Decimal("-250.53")
     rows = {r.category: r for r in engine.budget_progress(dict(SUGGESTED), None, ds)}
     # October so far, day 26 of 31: the budget's share for the days gone is budget x 26/31
     assert rows["Shopping"].spent.value == Decimal("460.99") and rows["Shopping"].pace == "over"
-    assert rows["Shopping"].left.value == Decimal("-233.99")
+    assert rows["Shopping"].left.value == Decimal("-442.99")       # real spending, one-offs too
     assert rows["Groceries"].expected.value == Decimal("155.16") and rows["Groceries"].pace == "spending fast"
     assert rows["Groceries"].left.value == Decimal("8.51")
     assert rows["Transportation"].spent.value == 0 and rows["Transportation"].pace == "on pace"
@@ -207,8 +212,7 @@ def test_budget_effect_lines(ds):
     sent = engine.budget_effect(engine.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY,
                                                 budget=SUGGESTED), ds)
     assert summary.budget_effect_line(sent) == ("Your money lasts all semester either way. You'd end the semester "
-                                                "with $106 less, because your usual spending is more than the "
-                                                "forecast assumes.")
+                                                "with $11.60 more.")
     same = engine.budget_effect(engine.Scenario(budget=(("Groceries", Decimal("185")), ("Eating out", Decimal("96")))),
                                 ds)
     assert summary.budget_effect_line(same).startswith("Your money still runs out on Mon, Nov 9.")

@@ -11,7 +11,7 @@ import config
 import engine
 import normalize
 import summary
-from ui import background, fmt, state
+from ui import background, checkin, fmt, state
 
 TOP = 5
 BUDGET_MONTH = "2026-11"          # next month: the one she can still plan
@@ -147,9 +147,10 @@ def _how(m):
         st.dataframe(pd.DataFrame([{"Date": fmt.day(d), "What": _what(label), "Amount": fmt.money(v)}
                                    for label, d, v, _ in m.lines]),
                      hide_index=True, width="stretch", column_config=fmt.PROOF_COLUMNS)
-        st.markdown(fmt.md(f"- Money in: {fmt.money(m.money_in.value)}.\n"
-                           f"- Rent and bills: {fmt.money(m.fixed.value)}.\n"
-                           "- Card payments aren't counted here: they pay for spending already in its category."))
+        st.markdown(fmt.md(f"- Checking going into the month: {fmt.money(m.start_balance.value)}.\n"
+                           f"- Money in: {fmt.money(m.money_in.value)}.\n"
+                           f"- Rent, bills and the card bill already owed: {fmt.money(m.fixed.value)}.\n"
+                           "- Card spending still to come isn't counted: that's what the budget is for."))
 
 
 def progress(ds):
@@ -182,10 +183,16 @@ def allocate(ds, scenario):
     st.markdown(f"### Your budget for {month}")
     if m.amount.value > 0:
         head = f"You have {fmt.dollars(m.amount.value)} to spend after rent and bills in {month}."
+    elif not scenario.refund_released:
+        head = (f"Without your refund, {month}'s bills are {fmt.dollars(m.amount.value)} more than your money. "
+                "Send the verification form first.")
     else:
-        head = (f"In {month}, your rent and bills are {fmt.dollars(m.amount.value)} more than your pay."
-                + (" Nothing is left to budget until your refund comes." if not scenario.refund_released else ""))
+        head = f"{month}'s bills are {fmt.dollars(m.amount.value)} more than your money."
     st.markdown(f'<div class="rw-bud-head">{fmt.html(head)}</div>', unsafe_allow_html=True)
+    if m.amount.value <= 0 and not scenario.refund_released:
+        refund = next((it for it in engine.attention_items(state.done_scenario(), ds) if it.kind == "refund"), None)
+        if refund:                                   # the action itself, right here: email, reminder, "Form sent"
+            checkin.actions_row(refund, ds, "bud_refund")
     _how(m)
     usual = {x.category: x.average.value for x in sg.lines}
     cols = st.columns(3)

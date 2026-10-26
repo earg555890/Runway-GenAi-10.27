@@ -44,7 +44,7 @@ def _email(act, key):
         st.caption("Or copy it with the button above. Runway never sends anything.")
 
 
-def _actions(item, ds, key):
+def actions_row(item, ds, key):
     """1-2 actions, then "mark as done". Each one is a click; nothing happens on its own."""
     with st.container(horizontal=True, gap="xsmall", key=f"ci_acts_{key}"):
         for act in actions.for_item(item, ds):
@@ -73,7 +73,7 @@ def card(item, ds, key, compact=False):
         st.markdown(f'<div class="rw-ci-title">{fmt.html(title)}</div>'
                     + ("" if compact else f'<div class="rw-ci-text">{fmt.html(sentence)}</div>'),
                     unsafe_allow_html=True)
-        _actions(item, ds, key)
+        actions_row(item, ds, key)
 
 
 def _done_buttons():
