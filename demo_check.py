@@ -1,6 +1,7 @@
-"""One-question health check before recording the live demo: asks Runway "How long will my money last?" live, in
-fast mode, on Maya's local files, and prints whether the AI answer came back and passed the checks, and how long it
-took. Exit code 0 = ready, 1 = the NVIDIA endpoint is slow or failing right now (try again in a few minutes).
+"""One-question health check before recording the live demo: the Meterless Nightshift checks (connection,
+authorization, model discovery, text requests), then Runway asks "How long will my money last?" live, in fast mode,
+on Maya's local files, and prints which provider and model answered, whether it passed the checks, and how long it
+took. Exit code 0 = ready, 1 = Nightshift or NVIDIA is slow or failing right now (try again in a few minutes).
 
     .venv/Scripts/python demo_check.py
 """
@@ -16,9 +17,16 @@ SLOW_S = 10
 
 
 def main():
-    if not config.NVIDIA_API_KEY:
-        print("NVIDIA check: no NVIDIA_API_KEY in .env, so live answers can't work.")
+    if not config.ai_configured():
+        print("NVIDIA check: no Meterless Runtime token (METERLESS_RUNTIME_TOKEN) and no NVIDIA key, so live answers "
+              "can't work.")
         return 1
+    if config.AI_PROVIDER == "meterless":
+        import meterless
+        r = meterless.run_checks([config.NVIDIA_PLAN_MODEL])
+        st = r["status"]
+        print(f"Nightshift: {st['base_url']} {st['state']} (healthz {r['healthz']}, wrong token -> "
+              f"{r['wrong_token_state']}); {len(r['discovered_nemotron'])} Nemotron models discovered.")
     ds = normalize.load()
     answer = None
     for kind, payload in agent.run(QUESTION, engine.Scenario(), ds=ds, mode="live", typing_s=0):
@@ -26,9 +34,10 @@ def main():
             answer = payload
     t = answer.timings
     by = answer.models.get("answered_by") or "none"
+    call = answer.models.get("answered_by_call")
     ok = answer.explain_source == "llm" and answer.check.get("ok") and t.get("total_s", 99) <= SLOW_S
     print(f"NVIDIA check: \"{QUESTION}\" quick answer {t.get('quick_s')} s, full answer {t.get('total_s')} s, "
-          f"written by {agent.model_name(by) if by != 'template' else 'the quick answer (AI fallback)'}, "
+          f"written by {agent.handled_by(call) if call and by != 'template' else 'the quick answer (AI fallback)'}, "
           f"checks {'passed' if answer.check.get('ok') else 'FAILED'}.")
     print("NVIDIA check: READY to record." if ok else
           "NVIDIA check: NOT READY. The AI answer was slow or fell back. Wait a few minutes and run it again.")

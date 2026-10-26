@@ -106,7 +106,7 @@ def _args_ok(case, plan):
 
 def healthy(think, tries=10, wait_s=60):
     """Wait until the endpoint answers a tiny request (it has bad spells)."""
-    model = config.NVIDIA_EXPLAIN_MODEL if think else config.NVIDIA_PLAN_MODEL
+    model = config.think_model() if think else config.NVIDIA_PLAN_MODEL
     for _ in range(tries):
         try:
             s = llm_client.stream_chat([{"role": "user", "content": "Say OK."}], thinking=False, retries=0, timeout=60,

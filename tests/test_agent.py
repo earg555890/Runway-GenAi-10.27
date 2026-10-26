@@ -305,8 +305,8 @@ def test_no_key_typed_question_gets_friendly_message(ds, monkeypatch):
     monkeypatch.setattr(config, "NVIDIA_API_KEY", None)
     for mode in ("cached", "live", "replay"):
         events, a = run_all("Can I afford a $90 jacket?", None, mode=mode, ds=ds)   # the real client
-        assert a.mode == "no_key" and a.text.startswith("Live answers need an NVIDIA key.")
-        assert "add NVIDIA_API_KEY to .env" in a.text and not a.check
+        assert a.mode == "no_key" and a.text.startswith("Live answers need Meterless Nightshift (or an NVIDIA key).")
+        assert "add METERLESS_RUNTIME_TOKEN to .env" in a.text and not a.check
 
 
 def test_cached_mode_misses_go_live(ds):
@@ -334,6 +334,7 @@ def test_empty_answer_is_rewritten_then_falls_back(ds):
 
 def test_super_down_lightning_answers(ds, monkeypatch):
     monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
+    monkeypatch.setattr(config, "THINK_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
     monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT], explain_error=llm_client.LLMError("503"),
                   failing_models={"nvidia/nemotron-3.5-super-vl-120b-a12b"})

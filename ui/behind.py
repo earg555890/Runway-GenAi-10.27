@@ -4,7 +4,7 @@ import streamlit as st
 
 import config
 
-from ui import data, explain, live_zetaris
+from ui import data, explain, live_zetaris, provider
 
 
 def sources(ds):
@@ -30,8 +30,9 @@ def answers():
     st.caption(f"Answer mode: **{config.ANSWER_MODE}** (live = always ask the models; cached = reuse a saved answer "
                "for the same question and what-ifs; replay = saved answers only, typed out). PLAN model: "
                f"`{config.NVIDIA_PLAN_MODEL}` (thinking off). EXPLAIN model: the same, thinking off (fast, the "
-               f"default); with Think harder, `{config.NVIDIA_EXPLAIN_MODEL}` (thinking on). At most two model calls "
-               "per question, plus one rewrite if the number check fails.")
+               f"default); with Think harder, `{config.think_model()}` (thinking on). All through "
+               + ("Meterless Nightshift. " if config.AI_PROVIDER == "meterless" else "the NVIDIA API. ")
+               + "At most two model calls per question, plus one rewrite if the number check fails.")
     history = [a for a in st.session_state.get("history") or [] if a.mode != "event"]
     if not history:
         st.caption("No questions asked yet.")
@@ -48,7 +49,9 @@ def answers():
                      "EXPLAIN s": t.get("explain_s"), "total s": t.get("total_s"),
                      "retries (plan JSON / rewrite)": f"{a.retries.get('plan_json', 0)} / "
                                                       f"{a.retries.get('explain_rewrite', 0)}",
-                     "written by": a.models.get("answered_by") or "-",
+                     "written by": ((a.models.get("answered_by_call") or {}).get("routed_model")
+                                    or a.models.get("answered_by") or "-"),
+                     "provider": (a.models.get("answered_by_call") or {}).get("provider") or "-",
                      "number check": "passed" if a.check.get("ok") else ("failed" if a.check else "-")})
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
@@ -79,6 +82,8 @@ def render(ledger, ds):
         sources(ds)
         st.divider()
         action_log()
+        st.divider()
+        provider.render()
         st.divider()
         answers()
         st.divider()

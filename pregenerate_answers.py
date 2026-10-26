@@ -49,7 +49,7 @@ def main():
         for attempt in range(1, 4):
             a = agent.ask(q, SCENARIOS[name], ds=ds, mode="live", think=True)        # Super, thinking on
             saved = (a.mode == "live" and a.check.get("ok")
-                     and a.models.get("answered_by") == config.NVIDIA_EXPLAIN_MODEL       # not a fallback model
+                     and a.models.get("answered_by") == config.think_model()       # not a fallback model
                      and a.text.rstrip()[-1:] in ".!?])")                                # not cut off
             print(f"[{name}] {q}\n  try {attempt}: {a.mode}, check {'ok' if a.check.get('ok') else a.check}, "
                   f"{a.timings}, by {a.models.get('answered_by')}, {'saved' if saved else 'NOT saved'}", flush=True)

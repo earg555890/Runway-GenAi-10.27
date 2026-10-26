@@ -5,6 +5,7 @@ import httpx2
 import openai
 import pytest
 
+import config
 import llm_client
 
 MODEL = "test-model"
@@ -50,6 +51,12 @@ class FakeClient:
         if isinstance(outcome, Exception):
             raise outcome
         return outcome
+
+
+@pytest.fixture(autouse=True)
+def direct_provider(monkeypatch):
+    """Most tests here are about the call mechanics on the direct provider; the Meterless ones set it."""
+    monkeypatch.setattr(config, "AI_PROVIDER", "nvidia")
 
 
 @pytest.fixture(autouse=True)
@@ -193,8 +200,9 @@ def test_stream_retries_opening_on_500_and_text_chunks():
 
 @pytest.fixture
 def split_models(monkeypatch):
-    monkeypatch.setenv("NVIDIA_PLAN_MODEL", "plan-model")
-    monkeypatch.setenv("NVIDIA_EXPLAIN_MODEL", "explain-model")
+    monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "plan-model")
+    monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "explain-model")
+    monkeypatch.setattr(config, "THINK_MODEL", "think-model")
 
 
 def test_chat_json_defaults_to_plan_model(split_models):

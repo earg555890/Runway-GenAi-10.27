@@ -31,7 +31,8 @@ def header(ds, note=None):
     left.markdown(f'<p class="rw-brand">Runway</p><p class="rw-hello">{fmt.html(hello)}</p>', unsafe_allow_html=True)
     with right.container(horizontal=True, horizontal_alignment="right", gap="small", key="badges"):
         st.badge(data.backend_label(ds), color="gray")
-        st.badge("Reasoning by NVIDIA Nemotron", color="green")
+        st.badge("NVIDIA Nemotron via Meterless Nightshift" if config.AI_PROVIDER == "meterless" else
+                 "Reasoning by NVIDIA Nemotron", color="green")
         st.badge(f"Today: {fmt.day(config.DEMO_TODAY)}", color="gray")
     if note:
         st.info(fmt.md(note))

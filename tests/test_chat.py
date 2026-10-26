@@ -182,6 +182,7 @@ def test_quick_answer_comes_first_then_the_ai_answer_replaces_it(ds):
 
 def test_fast_mode_uses_lightning_without_thinking(ds, monkeypatch):
     monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "super")
+    monkeypatch.setattr(config, "THINK_MODEL", "super")
     monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "lightning")
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT])
     _, a = run_all(FLIGHT_Q, llm, ds)
@@ -191,6 +192,7 @@ def test_fast_mode_uses_lightning_without_thinking(ds, monkeypatch):
 
 def test_think_harder_uses_super_with_thinking(ds, monkeypatch):
     monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "super")
+    monkeypatch.setattr(config, "THINK_MODEL", "super")
     monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "lightning")
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT])
     _, a = run_all(FLIGHT_Q, llm, ds, think=True)
@@ -200,6 +202,7 @@ def test_think_harder_uses_super_with_thinking(ds, monkeypatch):
 
 def test_fast_mode_falls_back_to_super_without_thinking(ds, monkeypatch):
     monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "super")
+    monkeypatch.setattr(config, "THINK_MODEL", "super")
     monkeypatch.setattr(config, "NVIDIA_PLAN_MODEL", "lightning")
     llm = FakeLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT], explain_error=TimeoutError(),
                   failing_models={"lightning"})

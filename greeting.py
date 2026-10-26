@@ -73,7 +73,7 @@ def check(line, items):
 
 
 def enabled():
-    return config.AI_GREETING and bool(config.NVIDIA_API_KEY) and config.ANSWER_MODE != "replay"
+    return config.AI_GREETING and config.ai_configured() and config.ANSWER_MODE != "replay"
 
 
 def ai_line(items, llm=llm_client):

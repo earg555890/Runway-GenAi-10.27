@@ -21,6 +21,7 @@ saved answer and no way to call the models (replay, or no NVIDIA key), the answe
 import difflib
 import hashlib
 import json
+import logging
 import re
 import time
 from dataclasses import asdict, dataclass, field
@@ -33,6 +34,8 @@ import engine
 import llm_client
 import normalize
 import wording as w
+
+log = logging.getLogger("agent")
 
 PLAN_TIMEOUT_S = 120
 EXPLAIN_TIMEOUT_S = 240
@@ -1645,9 +1648,10 @@ FAST_TIMEOUT_S = 60
 
 
 def explain_chain(think=False):
-    """EXPLAIN (model, thinking) pairs to try in order. Fast (default): Lightning with thinking off, then Super
-    with thinking off. Think harder: Super with thinking on, then Lightning with thinking on."""
-    fast, big = config.NVIDIA_PLAN_MODEL, config.NVIDIA_EXPLAIN_MODEL
+    """EXPLAIN (model, thinking) pairs to try in order. Fast (default): Lightning with thinking off, then the Think
+    harder model with thinking off. Think harder: config.think_model() with thinking on (through Nightshift; Super on
+    the direct provider), then Lightning with thinking on."""
+    fast, big = config.NVIDIA_PLAN_MODEL, config.think_model()
     order = [(big, True), (fast, True)] if think else [(fast, False), (big, False)]
     return list(dict.fromkeys((m, t) for m, t in order if m))
 
@@ -1657,13 +1661,33 @@ def model_name(model):
         return "a template"
     if "super" in model:
         return "Nemotron Super"
+    if "ultra" in model:
+        return "Nemotron Ultra"
     if "lightning" in model:
         return "Nemotron Lightning"
     return model
 
 
+def call_record(res, role):
+    """One model call for the answer and the trace: provider, requested and routed model, receipt, timing."""
+    rec = res.call_record(role) if hasattr(res, "call_record") else {"role": role,
+                                                                    "requested_model": getattr(res, "model", None)}
+    return rec if isinstance(rec, dict) else {"role": role}
+
+
+def handled_by(call):
+    """"Nemotron Lightning (nvidia/...) through Meterless Nightshift, receipt rcpt_..." for one recorded call."""
+    model = call.get("routed_model") or call.get("requested_model")
+    how = {"meterless": "through Meterless Nightshift", "nvidia": "on the NVIDIA API directly"}.get(
+        call.get("provider"), "")
+    if call.get("fallback"):
+        how += " (fallback: Nightshift wasn't reachable)"
+    receipt = f", receipt {call['receipt_id']}" if call.get("receipt_id") else ""
+    return f"{model_name(model)} ({model}) {how}{receipt}".replace("  ", " ").strip()
+
+
 def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *, names=None, general=False,
-                  private=None, events=None, aid=False, web=False):
+                  private=None, events=None, aid=False, web=False, calls=None):
     """Stream one EXPLAIN answer from `model`, check it (numbers, dates, citations, format, record IDs, reasons,
     repetition, cut-off, required facts), and allow one rewrite. Yields ("text"/"restart", ...) events and returns
     (text, reasoning, check, missing) where missing are the required facts the model still left out. Raises if the
@@ -1671,12 +1695,14 @@ def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *,
     text, reasoning, check, missing = "", "", None, []
     for attempt in range(2):
         limit = FAST_MAX_TOKENS if not thinking else (
-            EXPLAIN_MAX_TOKENS if model == config.NVIDIA_EXPLAIN_MODEL else FALLBACK_MAX_TOKENS)
+            EXPLAIN_MAX_TOKENS if model == config.think_model() else FALLBACK_MAX_TOKENS)
         stream = llm.stream_chat(messages, thinking=thinking, model=model, retries=1, max_tokens=limit,
                                  timeout=EXPLAIN_TIMEOUT_S if thinking else FAST_TIMEOUT_S)
         for kind, chunk in stream:
             if kind == "text":
                 yield "text", chunk
+        if calls is not None:
+            calls.append(call_record(stream.result, "explain" if attempt == 0 else "rewrite"))
         text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
         text = unflatten(text)
         check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
@@ -2440,10 +2466,10 @@ def save_cached(answer, scenario, folder=None, history=(), done=(), budget=None)
 
 def no_live_answer_text(mode):
     """What a question with no saved answer gets when the models can't be called."""
-    why = ("Live answers are off in replay mode." if config.NVIDIA_API_KEY else
-           "Live answers need an NVIDIA key.")
-    fix = ("restart with ANSWER_MODE=cached." if config.NVIDIA_API_KEY else
-           "add NVIDIA_API_KEY to .env and restart with ANSWER_MODE=cached.")
+    why = ("Live answers are off in replay mode." if config.ai_configured() else
+           "Live answers need Meterless Nightshift (or an NVIDIA key).")
+    fix = ("restart with ANSWER_MODE=cached." if config.ai_configured() else
+           "start Nightshift, add METERLESS_RUNTIME_TOKEN to .env and restart with ANSWER_MODE=cached.")
     return (f"{why} Recorded answers cover the four suggested questions, with nothing changed or with both "
             f"fixes on. To ask anything else, {fix}")
 
@@ -2480,6 +2506,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     scenario, ds = scenario or engine.Scenario(), ds or normalize.load()
     mode, llm = (mode or config.ANSWER_MODE).lower(), llm or llm_client
     question, history, done = question.strip(), list(history or [])[-3:], tuple(sorted(done or ()))
+    own_data = private                     # her own data (My data mode); `private` is reused below for her amounts
     if private:
         mode = "live"
     if mode in ("cached", "replay"):
@@ -2494,8 +2521,9 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     t0 = time.perf_counter()
     timings, retries, notes = {}, {"plan_json": 0, "explain_rewrite": 0, "facts_appended": 0}, []
     chain = explain_chain(think)
-    models = {"plan": config.NVIDIA_PLAN_MODEL, "explain": chain[0][0] if chain else None, "think": think}
-    if mode == "replay" or (llm is llm_client and not config.NVIDIA_API_KEY):    # nothing saved, no models
+    models = {"plan": config.NVIDIA_PLAN_MODEL, "explain": chain[0][0] if chain else None, "think": think,
+              "provider": config.AI_PROVIDER, "calls": []}
+    if mode == "replay" or (llm is llm_client and not config.ai_configured()):    # nothing saved, no models
         text = no_live_answer_text(mode)
         yield "text", text
         timings["total_s"] = round(time.perf_counter() - t0, 2)
@@ -2512,6 +2540,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     try:
         res = llm.chat_json(plan_messages(question, scenario, sub_names, history), thinking=False,
                             validate=lambda d: parse_plan(d, sub_names), timeout=PLAN_TIMEOUT_S, retries=1)
+        models["calls"].append(call_record(res, "plan"))
         plan = parse_plan(res.data, sub_names)
         plan = ground_purchase_date(plan, f"{question} {plan.resolved_question or ''}")
         plan = ground_budget_category(plan, question, follow_up=bool(history))
@@ -2577,11 +2606,12 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
         try:
             text, reasoning, check, missing = yield from _explain_with(
                 llm, model, thinking, messages, pack, retries, required, names=names, general=general,
-                private=private, events=events, aid=aid, web=web)
+                private=private, events=events, aid=aid, web=web, calls=models["calls"])
             answered_by = model
             break
         except Exception as exc:
             errors.append(f"{model_name(model)}: {type(exc).__name__}")
+            models["calls"].append({"role": "explain", "requested_model": model, "error": type(exc).__name__})
             yield "restart", ""
     if answered_by is not None and missing and check.ok:  # passed every check but left facts out: add them ourselves
         text = append_facts(text, missing)
@@ -2615,14 +2645,50 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
         yield "restart", ""
     facts_record = [{"key": f.key, "label": f.label, "appended": f in missing} for f in required]
     models["answered_by"] = answered_by if passed else "template"
+    models["answered_by_call"] = next((c for c in reversed(models["calls"]) if c.get("role") != "plan"
+                                       and not c.get("error")), None) if passed else None
     models["explain_errors"] = errors
     timings["explain_s"] = round(time.perf_counter() - t, 2)
     answer = finish(text, lead.verdict, label, pack, check, reasoning, actions, fixes,
                     ans_mode="fallback" if source == "template" or plan.source == "keywords" else "live",
                     source=source)
-    if answer.mode == "live" and check.ok and not private:
+    if answer.mode == "live" and check.ok and not own_data:
         save_cached(answer, scenario, history=history, done=done, budget=budget)
+    if not own_data:
+        write_trace(answer)
     yield "answer", answer
+
+
+def trace_record(a):
+    """How Runway reached one answer, for logs/traces.jsonl: the plan, every tool and query (source, backend, rows,
+    time), every model call (provider, requested and routed model, Meterless receipt), timings and the checks."""
+    sources = [it for it in a.pack.get("items", []) if it.get("kind") == "source"]
+    return {
+        "trace": "runway.trace.v1", "at": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(a.created)),
+        "question": a.question, "resolved_question": a.plan.get("resolved_question"), "mode": a.mode,
+        "think": a.think, "scenario": a.scenario, "provider": a.models.get("provider"),
+        "plan": {"source": a.plan.get("source"), "calls": a.plan.get("calls"), "assumptions": a.plan.get("assumptions")},
+        "queries": [{"id": s.get("id"), "query": s.get("query"), "backend": s.get("backend"),
+                     "rows": len(s.get("row_ids") or []), "duration_s": s.get("duration_s"),
+                     "original_duration_s": s.get("original_duration_s")} for s in sources],
+        "computed": len([it for it in a.pack.get("items", []) if it.get("kind") == "calc"]),
+        "model_calls": a.models.get("calls") or [], "answered_by": a.models.get("answered_by"),
+        "answered_by_routed": (a.models.get("answered_by_call") or {}).get("routed_model"),
+        "explain_errors": a.models.get("explain_errors") or [],
+        "verdict": a.verdict, "explain_source": a.explain_source, "timings": a.timings, "retries": a.retries,
+        "check": {k: a.check.get(k) for k in ("ok", "problems", "amounts", "dates")} if a.check else {},
+        "required_facts": a.facts, "notes": a.notes, "answer": a.text,
+    }
+
+
+def write_trace(a):
+    """Append the answer's trace to logs/traces.jsonl (gitignored). Never for her own data (rule 7)."""
+    try:
+        config.LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(config.LOGS_DIR / "traces.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(trace_record(a), default=str) + "\n")
+    except OSError as exc:
+        log.warning("couldn't write the trace: %s", exc)
 
 
 def ask(question, scenario=None, **kwargs):

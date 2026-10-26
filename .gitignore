@@ -45,3 +45,6 @@ screenshots/
 
 # The student's own uploaded bank files and everything derived from them (CLAUDE.md rule 7): never committed
 user_data/
+
+# Per-question traces (agent.py): local only; docs/example_trace.json is the committed example
+logs/

@@ -1,6 +1,13 @@
-"""LLM client for NVIDIA Nemotron over the OpenAI-compatible API.
+"""LLM client for NVIDIA Nemotron, through the Meterless Runtime (served by the Nightshift desktop app) by default.
 
-Models and base URL come from config. Three entry points, matching rule 9 in CLAUDE.md:
+Two OpenAI-compatible providers (config.AI_PROVIDER):
+    meterless  the primary: Meterless Runtime 0.90.0 at config.METERLESS_BASE_URL, Authorization: Bearer <runtime
+               token>, meterless-app: runway on every request, meterless-scope: user on chat. The NVIDIA key lives
+               inside Nightshift, not here. Each answer carries a meterless.compute_receipt.v1 naming the routed model.
+    nvidia     NVIDIA's API directly. Used as the provider only if AI_PROVIDER=nvidia; otherwise only as a labelled
+               fallback when the Meterless Runtime is unreachable or refuses the token (and NVIDIA_API_KEY is set).
+
+Models come from config. Three entry points, matching rule 9 in CLAUDE.md:
 
     chat(messages, thinking=False)        -> LLMResult             normal call    (default model: NVIDIA_EXPLAIN_MODEL)
     chat_json(messages, thinking=False)   -> LLMResult (.data)     PLAN call      (default model: NVIDIA_PLAN_MODEL)
@@ -33,19 +40,64 @@ DEFAULT_TEMPERATURE = 0.2
 # Patched in tests so retries don't really wait.
 sleep = time.sleep
 
-_client = None
+_clients = {}
+PROVIDER_NAMES = {"meterless": "Meterless Nightshift", "nvidia": "NVIDIA API (direct)"}
 
 
-def get_client():
-    """Shared OpenAI client for the NVIDIA endpoint. The SDK's own retries are off; we do our own."""
-    global _client
-    if _client is None:
-        _client = OpenAI(
-            base_url=config.require("NVIDIA_BASE_URL"),
-            api_key=config.require("NVIDIA_API_KEY"),
-            max_retries=0,
-        )
-    return _client
+def get_client(provider=None):
+    """Shared OpenAI client per provider. The SDK's own retries are off; we do our own."""
+    provider = provider or config.AI_PROVIDER
+    if provider not in _clients:
+        if provider == "meterless":
+            if not config.METERLESS_RUNTIME_TOKEN:
+                raise config.MissingSetting("Setting METERLESS_RUNTIME_TOKEN is missing (the Runtime API key from "
+                                            "Nightshift's Console / Setup > Runtime). Add it to .env.")
+            _clients[provider] = OpenAI(base_url=config.METERLESS_BASE_URL, api_key=config.METERLESS_RUNTIME_TOKEN,
+                                        max_retries=0, timeout=config.METERLESS_TIMEOUT_S,
+                                        default_headers={"meterless-app": config.METERLESS_APP})
+        else:
+            _clients[provider] = OpenAI(base_url=config.require("NVIDIA_BASE_URL"),
+                                        api_key=config.require("NVIDIA_API_KEY"), max_retries=0)
+    return _clients[provider]
+
+
+def providers():
+    """Providers to try in order: the configured one, then direct NVIDIA as a fallback if Meterless is the
+    provider and an NVIDIA key is set."""
+    order = [config.AI_PROVIDER]
+    if config.AI_PROVIDER == "meterless" and config.NVIDIA_API_KEY:
+        order.append("nvidia")
+    return order
+
+
+def runtime_down(exc):
+    """The Meterless Runtime itself is unreachable or refuses our token (not a model or NVIDIA error behind it):
+    the only case where the direct NVIDIA fallback is used."""
+    if isinstance(exc, (config.MissingSetting, openai.APIConnectionError)):
+        return True
+    if isinstance(exc, openai.APIStatusError) and exc.status_code in (401, 403):
+        body = exc.body if isinstance(exc.body, dict) else {}
+        err = body.get("error", body)
+        return isinstance(err, dict) and (err.get("layer") == "meterless-runtime"
+                                          or str(err.get("code", "")).startswith("runtime_token"))
+    return False
+
+
+def fallback_model(model, provider):
+    """The model to ask on the direct NVIDIA fallback: the Think harder model maps to NVIDIA_EXPLAIN_MODEL."""
+    if provider == "nvidia" and model == config.THINK_MODEL and config.NVIDIA_EXPLAIN_MODEL:
+        return config.NVIDIA_EXPLAIN_MODEL
+    return model
+
+
+def receipt_of(obj):
+    """The meterless.compute_receipt.v1 fields on a response or a stream chunk ({} if none)."""
+    if obj is None:
+        return {}
+    value = getattr(obj, "meterless", None)
+    if value is None:
+        value = (getattr(obj, "model_extra", None) or {}).get("meterless")
+    return value if isinstance(value, dict) else {}
 
 
 class LLMError(RuntimeError):
@@ -73,6 +125,18 @@ class LLMResult:
     data: object = None  # parsed JSON, chat_json only
     json_retries: int = 0  # chat_json only: 1 if the first answer was invalid JSON
     finish_reason: str | None = None  # "stop", or "length" when the answer hit max_tokens
+    provider: str = "nvidia"  # "meterless" or "nvidia"
+    fallback: bool = False  # True when direct NVIDIA answered because the Meterless Runtime was down
+    routed_model: str | None = None  # the model that actually answered (Meterless receipt, or the response's model)
+    receipt_id: str | None = None  # meterless.compute_receipt.v1 receipt id
+
+    def call_record(self, role):
+        """One model call, for "How Runway thought about this" and the trace."""
+        return {"role": role, "provider": self.provider, "fallback": self.fallback, "requested_model": self.model,
+                "routed_model": self.routed_model or self.model, "receipt_id": self.receipt_id,
+                "thinking": self.thinking, "duration_s": round(self.duration_s, 2), "retries": self.retries,
+                "prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens,
+                "finish_reason": self.finish_reason}
 
 
 def _is_retryable(exc):
@@ -81,17 +145,38 @@ def _is_retryable(exc):
     return isinstance(exc, openai.APIStatusError) and exc.status_code >= 500
 
 
-def _request_kwargs(messages, thinking, model, timeout, max_tokens, temperature, extra):
+MIN_MAX_TOKENS = 400  # a Nemotron call with thinking possible needs room, or the answer comes back empty
+
+
+def _request_kwargs(messages, thinking, model, timeout, max_tokens, temperature, extra, provider="nvidia"):
     kwargs = dict(
-        model=model or config.require("NVIDIA_EXPLAIN_MODEL"),
+        model=fallback_model(model or config.think_model(provider), provider),
         messages=messages,
         temperature=temperature,
-        max_tokens=max_tokens,
-        timeout=timeout,
+        max_tokens=max(max_tokens, MIN_MAX_TOKENS),
+        timeout=max(timeout, config.METERLESS_TIMEOUT_S) if provider == "meterless" else timeout,
         extra_body={"chat_template_kwargs": {"enable_thinking": thinking}},
     )
+    if provider == "meterless":
+        kwargs["extra_headers"] = {"meterless-scope": "user"}
     kwargs.update(extra)
     return kwargs
+
+
+def _on_providers(make_call, client):
+    """Run make_call(provider, client) on the first provider that works, moving to direct NVIDIA only when the
+    Meterless Runtime is down. Returns (value, provider). A test client (client=...) is used as-is."""
+    if client is not None:
+        return make_call(config.AI_PROVIDER, client), config.AI_PROVIDER
+    order = providers()
+    for i, provider in enumerate(order):
+        try:
+            return make_call(provider, get_client(provider)), provider
+        except Exception as exc:
+            if provider != "meterless" or i == len(order) - 1 or not runtime_down(exc):
+                raise
+            log.warning("Meterless Runtime unavailable (%s); falling back to the NVIDIA API directly",
+                        type(exc).__name__)
 
 
 def _with_retries(do_call, retries):
@@ -120,21 +205,29 @@ def _reasoning_of(obj):
 
 def _log(result):
     log.info(
-        "llm call model=%s thinking=%s duration=%.1fs prompt_tokens=%s completion_tokens=%s retries=%d",
-        result.model, "on" if result.thinking else "off", result.duration_s,
+        "llm call provider=%s%s model=%s routed=%s receipt=%s thinking=%s duration=%.1fs prompt_tokens=%s "
+        "completion_tokens=%s retries=%d",
+        result.provider, " (fallback)" if result.fallback else "", result.model, result.routed_model,
+        result.receipt_id, "on" if result.thinking else "off", result.duration_s,
         result.prompt_tokens, result.completion_tokens, result.retries,
     )
 
 
 def chat(messages, thinking=False, *, model=None, timeout=DEFAULT_TIMEOUT_S, retries=DEFAULT_RETRIES,
          max_tokens=DEFAULT_MAX_TOKENS, temperature=DEFAULT_TEMPERATURE, client=None, **extra):
-    """One normal (non-streaming) call. Returns an LLMResult with the answer and the reasoning trace."""
-    client = client or get_client()
-    kwargs = _request_kwargs(messages, thinking, model, timeout, max_tokens, temperature, extra)
+    """One normal (non-streaming) call. Returns an LLMResult with the answer, the reasoning trace, the provider and
+    the routed model."""
     start = time.perf_counter()
-    resp, retries_used = _with_retries(lambda: client.chat.completions.create(**kwargs), retries)
+
+    def call(provider, c):
+        kwargs = _request_kwargs(messages, thinking, model, timeout, max_tokens, temperature, extra, provider)
+        resp, used = _with_retries(lambda: c.chat.completions.create(**kwargs), retries)
+        return resp, used, kwargs
+
+    (resp, retries_used, kwargs), provider = _on_providers(call, client)
     message = resp.choices[0].message
     usage = getattr(resp, "usage", None)
+    receipt = receipt_of(resp)
     result = LLMResult(
         text=(message.content or "").strip(),
         reasoning=_reasoning_of(message),
@@ -145,6 +238,10 @@ def chat(messages, thinking=False, *, model=None, timeout=DEFAULT_TIMEOUT_S, ret
         completion_tokens=getattr(usage, "completion_tokens", None),
         retries=retries_used,
         finish_reason=getattr(resp.choices[0], "finish_reason", None),
+        provider=provider,
+        fallback=provider != config.AI_PROVIDER,
+        routed_model=receipt.get("routed_model") or getattr(resp, "model", None) or kwargs["model"],
+        receipt_id=receipt.get("receipt_id"),
     )
     _log(result)
     return result
@@ -219,7 +316,7 @@ def chat_json(messages, thinking=False, *, validate=None, **kwargs):
     invalid too.
     """
     if not kwargs.get("model"):
-        kwargs["model"] = config.require("NVIDIA_PLAN_MODEL")
+        kwargs["model"] = config.NVIDIA_PLAN_MODEL
     total_start = time.perf_counter()
     result = chat(messages, thinking, **kwargs)
     total_retries = result.retries
@@ -258,8 +355,8 @@ class LLMStream:
 
     text_chunks() yields only the answer text (for st.write_stream).
     """
-    _start_call: object
-    _kwargs: dict
+    _start_call: object  # (provider, client) -> (stream, kwargs)
+    _client: object
     _thinking: bool
     _retries: int
     result: LLMResult | None = None
@@ -269,9 +366,16 @@ class LLMStream:
     def __iter__(self):
         start = time.perf_counter()
         # Retry only while opening the stream; once chunks arrive, a mid-stream failure is raised.
-        stream, retries_used = _with_retries(self._start_call, self._retries)
+        def open_stream(provider, c):
+            kwargs = self._start_call(provider)
+            stream, used = _with_retries(lambda: c.chat.completions.create(**kwargs), self._retries)
+            return stream, used, kwargs
+        (stream, retries_used, kwargs), provider = _on_providers(open_stream, self._client)
         prompt_tokens = completion_tokens = finish_reason = None
+        receipt, routed = {}, None
         for chunk in stream:
+            receipt = receipt_of(chunk) or receipt
+            routed = getattr(chunk, "model", None) or routed
             usage = getattr(chunk, "usage", None)
             if usage is not None:
                 prompt_tokens = getattr(usage, "prompt_tokens", prompt_tokens)
@@ -289,13 +393,17 @@ class LLMStream:
         self.result = LLMResult(
             text="".join(self._text).strip(),
             reasoning="".join(self._reasoning),
-            model=self._kwargs["model"],
+            model=kwargs["model"],
             thinking=self._thinking,
             duration_s=time.perf_counter() - start,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             retries=retries_used,
             finish_reason=finish_reason,
+            provider=provider,
+            fallback=provider != config.AI_PROVIDER,
+            routed_model=receipt.get("routed_model") or routed or kwargs["model"],
+            receipt_id=receipt.get("receipt_id"),
         )
         _log(self.result)
 
@@ -308,7 +416,8 @@ class LLMStream:
 def stream_chat(messages, thinking=True, *, model=None, timeout=DEFAULT_TIMEOUT_S, retries=DEFAULT_RETRIES,
                 max_tokens=DEFAULT_MAX_TOKENS, temperature=DEFAULT_TEMPERATURE, client=None, **extra):
     """A streaming call (the EXPLAIN call). Nothing is sent until the returned LLMStream is iterated."""
-    client = client or get_client()
-    kwargs = _request_kwargs(messages, thinking, model, timeout, max_tokens, temperature, extra)
-    kwargs["stream"] = True
-    return LLMStream(lambda: client.chat.completions.create(**kwargs), kwargs, thinking, retries)
+    def kwargs_for(provider):
+        kwargs = _request_kwargs(messages, thinking, model, timeout, max_tokens, temperature, extra, provider)
+        kwargs["stream"] = True
+        return kwargs
+    return LLMStream(kwargs_for, client, thinking, retries)

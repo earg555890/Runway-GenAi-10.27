@@ -206,6 +206,7 @@ def test_think_harder_toggle_routes_to_super_with_thinking(at, monkeypatch, tmp_
     from test_agent import FLIGHT_PLAN, GOOD_FLIGHT
     fake = _fake_models(monkeypatch, tmp_path, [FLIGHT_PLAN], [GOOD_FLIGHT])
     monkeypatch.setattr(config, "NVIDIA_EXPLAIN_MODEL", "super")
+    monkeypatch.setattr(config, "THINK_MODEL", "super")
     at.toggle(key="ask_think").set_value(True)
     run(at)
     at.button(key="ask_suggest_0").click()
@@ -293,8 +294,8 @@ def test_judge_setup_no_key_replay_mode(monkeypatch):
     at.chat_input(key="ask_input").set_value("Can I afford a $90 jacket?")
     run(at)
     a = at.session_state["history"][0]
-    assert a.mode == "no_key" and a.text.startswith("Live answers need an NVIDIA key.")
-    assert any("Live answers need an NVIDIA key." in t for t in texts(at))
+    assert a.mode == "no_key" and a.text.startswith("Live answers need Meterless Nightshift (or an NVIDIA key).")
+    assert any("Live answers need Meterless Nightshift (or an NVIDIA key)." in t for t in texts(at))
     assert not at.exception
 
 

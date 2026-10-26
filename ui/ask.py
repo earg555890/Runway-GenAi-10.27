@@ -95,9 +95,14 @@ def _thinking(a, key):
         if parts:
             saved = " (a saved answer; these are its original times)" if a.mode in ("cached", "replay") else ""
             st.markdown(f"**Time:** {', '.join(parts)}{saved}. {_mode_words(a)}.")
-        by = a.models.get("answered_by")
+        by, calls = a.models.get("answered_by"), a.models.get("calls") or []
+        plan_call = next((x for x in calls if x.get("role") == "plan" and x.get("routed_model")), None)
+        if plan_call:
+            st.markdown("**Planned by:** " + fmt.md(agent.handled_by(plan_call)))
         if plan.tool:
-            st.markdown("**Written by:** " + (f"{agent.model_name(by)} (`{by}`)" if by and by != "template" else
+            done_by = a.models.get("answered_by_call")
+            st.markdown("**Written by:** " + (fmt.md(agent.handled_by(done_by)) if done_by and by != "template" else
+                                               f"{agent.model_name(by)} (`{by}`)" if by and by != "template" else
                                                "the quick answer, built from your numbers"))
         c = a.check
         if c and a.mode != "no_key":
@@ -122,6 +127,9 @@ def _thinking(a, key):
             st.code(json.dumps({"resolved_question": plan.resolved_question, "calls": plan.calls,
                                 "assumptions": plan.assumptions}, indent=2, default=str),
                     language="json", wrap_lines=True)
+            if calls:
+                st.caption("Every model call (provider, the model that actually answered, the Meterless receipt):")
+                st.code(json.dumps(calls, indent=2, default=str), language="json", wrap_lines=True)
 
 
 def _todo_cards(act, key, ds):

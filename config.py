@@ -49,12 +49,79 @@ def require(name):
     return value
 
 
-# NVIDIA Nemotron. PLAN = fast model that picks tools (JSON, thinking off);
-# EXPLAIN = larger model that writes the answer (thinking on). See rule 9 in CLAUDE.md.
+# AI provider (llm_client.py). "meterless" (the default and primary): Meterless Runtime served by the Nightshift
+# desktop app, OpenAI-compatible, with the NVIDIA key configured inside Nightshift. "nvidia": NVIDIA's API directly
+# (only a fallback, used when the Meterless Runtime is unreachable or refuses the token, and only if NVIDIA_API_KEY
+# is set).
+AI_PROVIDER = (get("AI_PROVIDER") or "meterless").lower()
+
+# Meterless Runtime 0.90.0 contract (docs/agent-ready/add-meterless-provider.md in github.com/Meterless/Meterless).
+METERLESS_DEFAULT_URL = "http://127.0.0.1:8088/v1"
+METERLESS_APP = "runway"                 # the meterless-app header: a stable lowercase id for this app
+METERLESS_TIMEOUT_S = 180                # a model load can take minutes
+METERLESS_STATE_DIR = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "ai.meterless.runtime"
+
+
+def normalize_meterless_url(url):
+    """Any pasted runtime address -> <scheme>://<host>/v1: with or without a scheme, /v1, /v1/chat/completions,
+    /v1/models or /healthz. Never /v1/v1."""
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return METERLESS_DEFAULT_URL
+    if "://" not in url:
+        url = "http://" + url
+    scheme, rest = url.split("://", 1)
+    host = rest.split("/", 1)[0]
+    return f"{scheme}://{host}/v1"
+
+
+def meterless_token(env_value=None, state_dir=None):
+    """The Runtime API key: METERLESS_RUNTIME_TOKEN, else the token the runtime writes to <stateDir>/proxy-token.
+    The placeholder rt-local is rejected (None)."""
+    token = (env_value if env_value is not None else get("METERLESS_RUNTIME_TOKEN") or "").strip()
+    if not token:
+        path = Path(state_dir or METERLESS_STATE_DIR) / "proxy-token"
+        try:
+            token = path.read_text(encoding="utf-8").strip()
+        except OSError:
+            token = ""
+    return None if not token or token == "rt-local" else token
+
+
+def _detected_url():
+    """The address Auto Detect saved (meterless.auto_detect), used when METERLESS_BASE_URL isn't set."""
+    try:
+        import json
+        return json.loads((Path(__file__).resolve().parent / ".cache" / "meterless_runtime.json")
+                          .read_text(encoding="utf-8")).get("base_url")
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+METERLESS_BASE_URL = normalize_meterless_url(get("METERLESS_BASE_URL") or _detected_url())
+METERLESS_RUNTIME_TOKEN = meterless_token()
+# Routing mode for general requests (model ids are routing modes: meterless/auto, fast, deep, ...). PLAN and the
+# answers use the concrete Nemotron ids below, read from the runtime's model discovery.
+METERLESS_ROUTING_MODE = get("METERLESS_ROUTING_MODE") or "meterless/auto"
+
+# NVIDIA Nemotron models (the same ids in Nightshift's discovery and on NVIDIA's API). PLAN = Lightning, picks
+# tools (JSON, thinking off), and writes fast answers (thinking off). Think harder: THINK_MODEL through Nightshift;
+# NVIDIA_EXPLAIN_MODEL (Super) only on the direct fallback. See rule 9 in CLAUDE.md.
 NVIDIA_API_KEY = get("NVIDIA_API_KEY")
-NVIDIA_PLAN_MODEL = get("NVIDIA_PLAN_MODEL")
+NVIDIA_PLAN_MODEL = get("NVIDIA_PLAN_MODEL") or "nvidia/nemotron-3.5-lightning-30b-a3b"
 NVIDIA_EXPLAIN_MODEL = get("NVIDIA_EXPLAIN_MODEL")
 NVIDIA_BASE_URL = get("NVIDIA_BASE_URL")
+THINK_MODEL = get("THINK_MODEL") or "nvidia/nemotron-3-ultra-550b-a55b"
+
+
+def think_model(provider=None):
+    """The Think harder model for this provider."""
+    return NVIDIA_EXPLAIN_MODEL if (provider or AI_PROVIDER) == "nvidia" else THINK_MODEL
+
+
+def ai_configured():
+    """True if live answers can be asked for: the Meterless token, or (direct provider or fallback) an NVIDIA key."""
+    return bool(METERLESS_RUNTIME_TOKEN if AI_PROVIDER == "meterless" else NVIDIA_API_KEY) or bool(NVIDIA_API_KEY)
 
 # Demo timeline: the fixed "today" the demo runs on (Fall 2026 semester).
 DEMO_TODAY = date.fromisoformat(get("DEMO_TODAY") or "2026-10-26")
@@ -95,6 +162,8 @@ ZETARIS_DATA_ROOT = get("ZETARIS_DATA_ROOT") or "/home/zetaris/customer-data/sha
 # pregenerate_answers.py writes demo_answers/.
 ANSWER_MODE = (get("ANSWER_MODE") or "cached").lower()
 ANSWER_CACHE_DIR = PROJECT_ROOT / ".cache" / "answers"
+# One JSON line per question answered live (agent.write_trace): plan, tools, queries, model calls, timings, checks.
+LOGS_DIR = PROJECT_ROOT / "logs"
 DEMO_ANSWERS_DIR = PROJECT_ROOT / "demo_answers"
 # The check-in's one friendly greeting line, written by the fast model (greeting.py) when a key is set and
 # ANSWER_MODE is not replay; "off" always uses the deterministic line. It never blocks the page.
