@@ -116,8 +116,8 @@ def web_results(found):
                      f"{fmt.md(amount)} · Deadline: {fmt.md(deadline)}")
     st.markdown("\n".join(lines))
     st.caption(f"{found_at_words(found)} with {found.get('provider', 'web search')}. Runway didn't check who can "
-               "apply, and none of these are in your forecast. Amounts and deadlines are shown only when the page "
-               "itself says them.")
+               "apply. None of these are in your forecast. Amounts and deadlines show only when the page says "
+               "them.")
 
 
 def web_section(ds):

@@ -159,3 +159,19 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
 - Targeted re-run (fast, twice): headphones, "Will my dining dollars last?", "How many meal swipes...".
   Before (overnight runs 1-2): 0/6 full answers. After: 5/6. The one miss: headphones run 1 copied a calculation
   note ("-$1,612.37") - the checker caught it and the quick answer stood in. No answer needed the repair in this run.
+### Part 2: whole-app polish
+- Screenshots with headless Chrome over the DevTools protocol (no new packages; the extension wasn't connected):
+  every tab + the check-in, light/dark, laptop (1440) / phone (390), base / "Form sent" / two planned shifts.
+  56 before (screenshots/before/) and 56 after (screenshots/final/), both gitignored.
+- Found and fixed: a fake test result ("Sophomore Science Award, example.org, $2,500") showing in Find money: an
+  early web-search test (before the cache-path fix) had written the app's real cache. Deleted the cache file; a
+  conftest guard now points every test at a temp cache and blocks the web search.
+- One product: Findings cards use the same card title/text as the check-in and Find money (they were large h4s);
+  one section heading size (h4) in Semester, Budget and Find money; one action-button size in card rows; the "If
+  approved" switch centered on the button line; Budget inputs in reading order on phones (row by row).
+- Duplicates: the check-in no longer has a "Card payment on Mon, Nov 9" card - the status card right above says it.
+  Maya now has 6 items; if the run-out was the only item (My data mode) the heading says "See the ways to fix it
+  below." (not "You're all caught up").
+- Readability: split the long sentences found by a scan of every visible sentence (Find money intro, "...after the
+  semester. So it adds $0.00 this semester.", the tight-week card, the online-results caption).
+- README: check-in paragraph (6 items) and two refreshed images (status + check-in, Semester with the planner).
