@@ -1,7 +1,24 @@
-# Runway theme: the primary color (selected buttons, tabs, toggles) is blue, because red means "below $0" in
-# Runway (readability standard). Set per mode so the viewer can still pick light, dark or system.
+# Runway theme, "night runway": night navy, warm paper, one amber accent (runway lights). Red means "below $0" only,
+# green "covered / good news" only (readability standard). Set per mode so the viewer can still pick light, dark or
+# system. Fonts load from Google Fonts: Atkinson Hyperlegible (body, chosen for readability), Bricolage Grotesque
+# (headings), DM Mono (numbers and dates, tabular). style.py adds the rest (cards, the header band, motion).
+[theme]
+font = "Atkinson Hyperlegible:https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap"
+headingFont = "Bricolage Grotesque:https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap"
+codeFont = "DM Mono:https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap"
+baseRadius = "0.9rem"
+buttonRadius = "0.7rem"
+
 [theme.light]
-primaryColor = "#2563eb"
+primaryColor = "#F2A33A"
+backgroundColor = "#F6F2EA"
+secondaryBackgroundColor = "#ECE5D8"
+textColor = "#0F1B2D"
+borderColor = "#DDD3C2"
 
 [theme.dark]
-primaryColor = "#3b82f6"
+primaryColor = "#F2A33A"
+backgroundColor = "#0F1B2D"
+secondaryBackgroundColor = "#18283F"
+textColor = "#F3EEE4"
+borderColor = "#2A3D58"

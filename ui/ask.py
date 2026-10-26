@@ -168,7 +168,7 @@ def _actions(a, key, ds=None):
 
 def _action_cards(a, key):
     for act in (x for x in a.actions if x["kind"] != "attention"):
-        with st.container(border=True):
+        with st.container(border=True, key=f"card_act_{key}_{act['id']}"):
             if act["kind"] == "email":
                 st.markdown(f"**:material/mail: Draft email to {fmt.md(act['to'])}**")
                 st.markdown(f"Subject: {fmt.md(act['subject'])}")

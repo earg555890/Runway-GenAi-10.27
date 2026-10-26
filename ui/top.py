@@ -25,7 +25,8 @@ def header_empty():
 
 
 def header(ds, note=None):
-    left, right = st.columns([3, 2], vertical_alignment="bottom")
+    band = st.container(key="rw_header")                 # the night-runway band (style.py)
+    left, right = band.columns([3, 2], vertical_alignment="bottom")
     hello = ("How long your money lasts this semester." if not state.mine() else
              f"How long your money lasts until {fmt.day(config.SEMESTER_END)}.")
     left.markdown(f'<p class="rw-brand">Runway</p><p class="rw-hello">{fmt.html(hello)}</p>', unsafe_allow_html=True)
@@ -39,6 +40,13 @@ def header(ds, note=None):
         st.badge(f"Today: {fmt.day(config.DEMO_TODAY)}", color="gray")
     if note:
         st.info(fmt.md(note))
+
+
+def board(p):
+    """The departure-board label over the status card: "RUNS OUT · MON, NOV 9" or "COVERED · DEC 18"."""
+    if p.lasts_through_semester:
+        return f"COVERED · {fmt.day(config.SEMESTER_END).split(', ', 1)[1].upper()}", "rw-board-good"
+    return f"RUNS OUT · {fmt.day(p.first_below_zero.value).upper()}", "rw-board-bad"
 
 
 def _thing(e):
@@ -68,6 +76,8 @@ def status(p):
     big, why, good = headline(p)
     n = len(p.scenario.approved)
     note = (f"Counting {n} aid award{'s' if n != 1 else ''} as if approved. It isn't certain money." if n else "")
-    st.markdown(f'<div class="rw-status {"rw-good" if good else "rw-bad"}"><div class="rw-big">{fmt.html(big)}</div>'
+    label, tone = board(p)
+    st.markdown(f'<div class="rw-status {"rw-good" if good else "rw-bad"}">'
+                f'<div class="rw-board {tone}">{fmt.html(label)}</div><div class="rw-big">{fmt.html(big)}</div>'
                 + (f'<div class="rw-why">{fmt.html(why)}</div>' if why else "")
                 + (f'<div class="rw-why rw-if">{fmt.html(note)}</div>' if note else "") + "</div>", unsafe_allow_html=True)

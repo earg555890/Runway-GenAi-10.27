@@ -5,13 +5,13 @@ import streamlit as st
 
 import config
 import engine
-from ui import chart, fmt, state
+from ui import chart, fmt, state, style
 
 
 def _card(title, sentence, key, more=None, more_label="Change", done=False):
     """A fix card: a toggle with the title, one sentence, and any detail behind "Change". Done (marked in the
     check-in): the switch stays on and locked."""
-    with st.container(border=True):
+    with st.container(border=True, key=f"card_fix_{key}"):
         st.toggle(f"**{fmt.md(title)}**", key=key, disabled=done)
         st.markdown(fmt.md(sentence))
         if done:
@@ -61,7 +61,7 @@ def balance_card(ds, current, deltas):
             legend += '<span class="rw-plan-note">You&#39;re following the plan</span>'
         st.markdown(f'<div class="rw-legend">{legend}</div>', unsafe_allow_html=True)
         with st.container(key="balance_chart"):
-            st.altair_chart(chart.build(current, steps), width="stretch", theme=None)
+            st.altair_chart(chart.build(current, steps, style.mode()), width="stretch", theme=None)
         st.caption("Your balance at the end of each day. Hover for details.")
 
 

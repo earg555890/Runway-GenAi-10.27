@@ -38,7 +38,7 @@ def refund(ds, scenario):
     if not f:
         return
     c = f.computed
-    with st.container(border=True):
+    with st.container(border=True, key="card_found_refund"):
         _card(f"Your {fmt.dollars(c['refund_amount'].value)} refund is on hold",
               "Financial aid needs your verification form first.")
         _proof(ds, "refund", [r for ids in f.row_ids.values() for r in ids], [
@@ -52,9 +52,9 @@ def refund(ds, scenario):
 
 
 def leaks(ds, scenario):
-    for leak in engine.find_leaks(scenario, ds, engine.Ledger()):
+    for i, leak in enumerate(engine.find_leaks(scenario, ds, engine.Ledger())):
         by = {c.label: c for c in leak.computed}
-        with st.container(border=True):
+        with st.container(border=True, key=f"card_found_leak_{i}"):
             if leak.kind == "duplicate_subscriptions":
                 monthly = [c for c in leak.computed if c.label.endswith("monthly cost")]
                 names = [c.label.removesuffix(" monthly cost") for c in monthly]
@@ -86,11 +86,11 @@ def leaks(ds, scenario):
 
 
 def crunch(ds, scenario):
-    for f in engine.cash_crunches(scenario, ds, engine.Ledger()):
+    for i, f in enumerate(engine.cash_crunches(scenario, ds, engine.Ledger())):
         c = f.computed
         due = c["installment_due"].value
         week = fmt.day(due - timedelta(days=due.weekday())).split(", ", 1)[1]
-        with st.container(border=True):
+        with st.container(border=True, key=f"card_found_crunch_{i}"):
             _card(f"Money is tight the week of {week}",
                   f"A {fmt.dollars(c['installment'].value)} tuition payment is due right after a small paycheck.")
             notes = sorted({ds.row(i).note for i in c["scheduled_hours"].inputs

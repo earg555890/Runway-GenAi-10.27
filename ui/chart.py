@@ -82,8 +82,12 @@ def steps_scenario(scenario, ds, ledger=None):
     return scenario
 
 
-def build(current, steps=None):
-    """The chart for the current forecast, with the "If you follow the steps" forecast as a dotted line (or None)."""
+def build(current, steps=None, mode="light"):
+    """The chart for the current forecast, with the "If you follow the steps" forecast as a dotted line (or None).
+    mode ("light"/"dark") picks the text colors from style.PALETTE (4.5:1 on the page); lines keep the brand colors."""
+    from ui import style
+    pal = style.PALETTE[mode]
+    red_text, green_text, label = pal["red_text"], pal["green_text"], pal["axis"]
     now = day_points(current)
     alt_pts = day_points(steps) if steps is not None else None
     dates = [d for d, _ in now]
@@ -96,11 +100,11 @@ def build(current, steps=None):
 
     x = alt.X("x:T", title=None, scale=alt.Scale(domain=[_ts(_at(config.DEMO_TODAY)), _ts(end_pad)]),
               axis=alt.Axis(format="%b %-d", values=[_ts(_at(d)) for d in mondays], labelAngle=0, grid=False,
-                            domain=False, ticks=False, labelFont=FONT, labelFontSize=12, labelColor=LABEL,
+                            domain=False, ticks=False, labelFont=FONT, labelFontSize=12, labelColor=label,
                             labelPadding=8, labelOverlap="greedy"))
     y = alt.Y("y:Q", title=None, scale=alt.Scale(domain=[lo, hi], nice=False),
               axis=alt.Axis(values=_ticks(lo, hi), format="$,.0f", labelFont=MONO, labelFontSize=11.5,
-                            labelColor=LABEL, gridColor=GRID, gridOpacity=0.16, gridDash=[2, 4], domain=False,
+                            labelColor=label, gridColor=GRID, gridOpacity=0.16, gridDash=[2, 4], domain=False,
                             ticks=False, labelPadding=6))
 
     layers = [alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(color=ZERO, strokeWidth=1, opacity=0.55,
@@ -131,12 +135,12 @@ def build(current, steps=None):
             .encode(x="x:T"),
             alt.Chart(pd.DataFrame({"x": [_ts(mx)], "y": [hi], "t": [f"RUNS OUT · {fmt.day(run_out).upper()}"]}))
             .mark_text(align="right" if late else "left", dx=-8 if late else 8, dy=14, fontSize=12.5,
-                       fontWeight=600, font=MONO, color=RED).encode(x, y, text="t:N"),
+                       fontWeight=600, font=MONO, color=red_text).encode(x, y, text="t:N"),
         ]
     else:
         layers.append(alt.Chart(pd.DataFrame({"x": [_ts(_at(config.SEMESTER_END))], "y": [hi],
                                               "t": ["COVERED ALL SEMESTER"]}))
-                      .mark_text(align="right", dy=14, fontSize=12.5, fontWeight=600, font=MONO, color=STEPS)
+                      .mark_text(align="right", dy=14, fontSize=12.5, fontWeight=600, font=MONO, color=green_text)
                       .encode(x, y, text="t:N"))
     if alt_pts:
         low_d, low_v = min(alt_pts, key=lambda t: (t[1], t[0]))
@@ -148,7 +152,7 @@ def build(current, steps=None):
             alt.Chart(pd.DataFrame({"x": [_ts(_at(low_d))], "y": [low_v],
                                     "t": [f"With the steps: lowest {fmt.balance(low_v)}"]}))
             .mark_text(align="right" if near_end else "center", dx=-8 if near_end else 0, dy=20, fontSize=12,
-                       fontWeight=600, font=FONT, color=STEPS).encode(x, y, text="t:N"),
+                       fontWeight=600, font=FONT, color=green_text).encode(x, y, text="t:N"),
         ]
 
     # Hover: one invisible point per day carrying both balances and that day's events; a dashed guide and dots.
