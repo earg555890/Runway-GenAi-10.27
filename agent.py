@@ -930,6 +930,25 @@ def _rounded(v):
 SECTION_HEAD = re.compile(r"^\s*[*#_]*\s*(ANSWER|WHY|DO THIS|NOTE)\s*[*_]*\s*:\s*[*_]*\s*(.*)$", re.I)
 
 
+def unflatten(text):
+    """A one-line answer ("ANSWER: ... WHY: - a. - b. DO THIS: 1. x. NOTE: ...", which the fast model sometimes
+    writes) back on separate lines, words unchanged. Text that already has line breaks is returned as is."""
+    t = text.strip()
+    if "\n" in t or not SECTION_HEAD.match(t) or not re.search(r"\sWHY\s*:", t):
+        return text
+    out = []
+    for line in re.split(r"\s+(?=(?:WHY|DO THIS|NOTE)\s*:)", t):
+        head = SECTION_HEAD.match(line)
+        name = head.group(1).upper() if head else ""
+        if name in ("WHY", "DO THIS") and head.group(2).strip():
+            items = re.split(r"(?<=[.!?\]])\s+(?=-\s)" if name == "WHY" else r"(?<=[.!?\]])\s+(?=\d+[.)]\s)",
+                             head.group(2).strip())       # a new item only after a finished sentence
+            out += [f"{name}:"] + [x.strip() for x in items if x.strip()]
+        else:
+            out.append(line.strip())
+    return "\n".join(out)
+
+
 def parse_sections(text):
     """ANSWER / WHY / DO THIS / NOTE sections of an answer, or None if ANSWER or WHY is missing."""
     out, cur = {"answer": "", "why": [], "do": [], "note": ""}, None
@@ -1557,6 +1576,7 @@ def _explain_with(llm, model, thinking, messages, pack, retries, required=(), *,
             if kind == "text":
                 yield "text", chunk
         text, reasoning = _strip_think(stream.result.text, (reasoning + "\n" + stream.result.reasoning).strip())
+        text = unflatten(text)
         check = check_answer(text, pack, require_format=True, names=names, general=general, private=private,
                              finish_reason=getattr(stream.result, "finish_reason", None), required=required,
                              events=events, aid=aid, web=web)

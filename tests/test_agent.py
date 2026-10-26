@@ -521,3 +521,16 @@ def test_late_shift_answer_must_say_which_shift_is_paid_in_time(ds):
     assert f["latest_shift"].date == (date(2026, 10, 31), date(2026, 11, 3))
     assert f["latest_shift"].line.startswith("A shift worked by Sat, Oct 31 is paid Tue, Nov 3, before you run out")
     assert "latest_shift" not in _facts("what_if", {"extra_shifts": [{"date": "2026-10-30", "hours": 4}]}, ds)
+
+
+def test_one_line_answers_are_put_back_on_lines():
+    flat = ("ANSWER: Your dining dollars run out around Sun, Nov 22 [C10]. WHY: - You have $117.00 left [C3]. "
+            "- Checking pays $0.00 for meals [C12]. DO THIS: 1. Plan meals around Nov 22. 2. Use swipes after. "
+            "NOTE: Assumes the same pace.")
+    s = agent.parse_sections(agent.unflatten(flat))
+    assert s["answer"] == "Your dining dollars run out around Sun, Nov 22 [C10]."
+    assert s["why"] == ["You have $117.00 left [C3].", "Checking pays $0.00 for meals [C12]."]
+    assert s["do"] == ["Plan meals around Nov 22.", "Use swipes after."] and s["note"] == "Assumes the same pace."
+    lined = "ANSWER: Yes [C1].\nWHY:\n- Aug - Dec is fine [C2]."
+    assert agent.unflatten(lined) == lined                                   # already on lines: untouched
+    assert agent.unflatten("Just a sentence. WHY: not a format") == "Just a sentence. WHY: not a format"
