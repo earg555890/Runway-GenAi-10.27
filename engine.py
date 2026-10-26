@@ -165,6 +165,9 @@ class Scenario:
     extra_shifts: tuple = ()                   # ExtraShift
     purchases: tuple = ()                      # Purchase
     budget: tuple = ()                         # ((flexible category, Decimal monthly amount), ...)
+    approved: tuple = ()                       # opportunity ids "if approved" (what-if only; never certain money)
+    meal_moves: int = 0                        # dining-dollar meals a week moved to swipes (negative: the other way)
+    dining_dollars_added: Decimal = Decimal("0")   # dining dollars bought from checking tomorrow
 
     def __post_init__(self):
         today = config.DEMO_TODAY
@@ -207,6 +210,11 @@ class Scenario:
         parts += [f"{p.label} {fmt_money(p.cost)} on {p.date} ({p.account})" for p in self.purchases]
         if self.budget:
             parts.append("budget " + ", ".join(f"{c} {fmt_money(a)}/month" for c, a in self.budget))
+        parts += [f"if approved: {o}" for o in self.approved]
+        if self.meal_moves:
+            parts.append(f"{self.meal_moves} dining-dollar meal(s) a week moved to swipes")
+        if self.dining_dollars_added:
+            parts.append(f"{fmt_money(self.dining_dollars_added)} dining dollars added")
         return "; ".join(parts) or "nothing changes"
 
 
@@ -497,6 +505,16 @@ def project(scenario=None, ds=None, ledger=None):
                        f"Refund {refund.row_id} ({fmt_money(refund.amount)}) is released {refund.release_business_days} "
                        f"business days after the hold clears; assuming the missing form is submitted "
                        f"{fmt_date(scenario.submit_date)}, it arrives {fmt_date(rel)}.", [refund.row_id]))
+    for d, amount, label, computed in approved_events(scenario, ds, ledger):
+        add(d, amount, "aid_if_approved", label, computed)
+    if scenario.dining_dollars_added:
+        add(today + timedelta(days=1), -scenario.dining_dollars_added, "meal_plan", "dining dollars added",
+            ledger.add("dining dollars bought from checking", D(scenario.dining_dollars_added), "USD",
+                       "What-if: dining dollars added to the meal plan, paid from checking tomorrow.", []))
+    if scenario.meal_moves or scenario.dining_dollars_added:
+        meal = meal_plan_status(scenario, ds, Ledger())
+        if meal and meal.c["cost"].value and meal.runs_out:
+            add(meal.runs_out, -meal.c["cost"].value, "meal_plan", "meals paid from checking", meal.c["cost"])
     for p in scenario.purchases:
         if p.account == "checking":
             add(p.date, -p.cost, "purchase", p.label,
@@ -1398,6 +1416,32 @@ def attention_items(scenario=None, ds=None, ledger=None):
             out.append(_attention("tight_week", c["installment_due"], c["shortfall"], dict(c), ledger,
                                   row_ids=[r for ids in fi.row_ids.values() for r in ids]))
 
+    # an emergency grant she qualifies for, while there's a gap it could close in time (never counted as money)
+    run_out = p.first_below_zero.value
+    grant = next((x for x in eligible_opportunities(None, scenario, ds, ledger)
+                  if x.opp.type == "emergency_grant" and x.status == "eligible" and x.opp.row_id not in scenario.approved),
+                 None)
+    if grant and run_out and grant.before_run_out:
+        apply_by = grant.apply_on
+        while opportunity_arrival(grant.opp, apply_by + timedelta(days=1))[1] < run_out:
+            apply_by += timedelta(days=1)
+        due = ledger.add("apply for the emergency grant by", apply_by, "date",
+                         f"The last day to apply so that, if approved, it arrives before {fmt_date(run_out)}.",
+                         [grant.arrives, p.first_below_zero])
+        days_c = ledger.add("emergency grant decision time", grant.opp.decision_business_days, "days",
+                            f"{grant.opp.name}: decided in about {grant.opp.decision_business_days} business days.",
+                            [grant.opp.row_id])
+        out.append(_attention("grant", due, grant.amount, {"amount": grant.amount, "arrives": grant.arrives,
+                                                           "decision_days": days_c, "runs_out": p.first_below_zero},
+                              ledger, row_ids=[grant.opp.row_id, ds.profile.row_id]))
+
+    # the meal plan: dining dollars that run out before the semester ends
+    meal = meal_plan_status(scenario, ds, ledger)
+    if meal and meal.runs_out:
+        out.append(_attention("meal_plan", meal.c["dd_runs_out"], meal.c["cost"],
+                              {**meal.c, "tip_dd_end": meal.tip["dd_end"], "tip_sw_end": meal.tip["sw_end"]}, ledger,
+                              row_ids=[ds.meal_plan.row_id]))
+
     out.sort(key=lambda a: (-a.urgency.value, a.due.value))
     return out
 
@@ -1748,3 +1792,222 @@ def budget_status(amounts, month=None, category=None, scenario=None, ds=None, le
     pace = "over" if spent.value > b.value else "spending fast" if spent.value > expected else "on pace"
     effect = budget_effect(replace(scenario, budget=tuple((c, D(v)) for c, v in amounts.items())), ds, ledger)
     return BudgetStatus(span, cats, rows, b, spent, left, pace, effect, None, scenario.refund_released)
+
+
+# ---------------------------------------------------------------------------------------
+# Source 7: aid opportunities. Rule-based eligibility from her profile, and when the money would actually arrive.
+# Opportunities are never certain money: they are only ever "if approved" what-ifs (Scenario.approved), never in
+# the base forecast or can_afford's fix search.
+# ---------------------------------------------------------------------------------------
+ENROLLMENT_RANK = {"less than half-time": 0, "half-time": 1, "half-time or more": 1, "full-time": 2}
+
+
+@dataclass
+class OpportunityCheck:
+    opp: object                  # normalize.Opportunity
+    status: str                  # "eligible", "almost" (one requirement missing), "not_eligible"
+    missing: list                # plain words: "a 3.50 GPA (yours is 3.40)"
+    amount: Computed | None      # dollars (the award, or "up to"); None for work-study
+    apply_on: date
+    decided: date | None
+    arrives: Computed | None     # when the money (or the first paycheck) would arrive, if approved
+    this_semester: Computed | None   # what it adds to checking by SEMESTER_END (0 when it pays after)
+    before_run_out: bool         # arrives before the run-out date (or the money doesn't run out)
+    deadline_passed: bool
+
+
+def _unmet(o, prof):
+    """What she is missing for opportunity o, in plain words ([] = eligible)."""
+    out = []
+    if o.class_years and prof.class_year not in o.class_years:
+        out.append(f"to be a {' or '.join(o.class_years)} (you're a {prof.class_year})")
+    if ENROLLMENT_RANK.get(prof.enrollment, 0) < ENROLLMENT_RANK.get(o.enrollment, 0):
+        out.append(f"{o.enrollment} enrollment (you're {prof.enrollment})")
+    if o.min_gpa is not None and prof.gpa < o.min_gpa:
+        out.append(f"a {o.min_gpa} GPA (yours is {prof.gpa})")
+    if (o.pell_required or o.need_based) and not prof.pell_eligible:
+        out.append("Pell eligibility" if o.pell_required else "financial need (Pell eligibility)")
+    if o.fafsa_required and not prof.fafsa_on_file:
+        out.append("a FAFSA on file")
+    if o.majors and prof.major not in o.majors:
+        out.append(f"a major in {' or '.join(o.majors)} (yours is {prof.major})")
+    if o.residency not in ("any", "") and o.residency != prof.residency:
+        out.append(f"{o.residency} residency")
+    return out
+
+
+def opportunity_arrival(o, apply_on):
+    """(decided, arrives) if she applies on apply_on and it's approved: after the decision (+ payout days), after
+    the deadline (+ payout days), on a fixed date, or (work-study) the first paycheck for a job starting the Monday
+    after she's hired, by the campus pay-date rule."""
+    if o.payout_rule == "after_decision":
+        decided = add_business_days(apply_on, o.decision_business_days)
+        return decided, add_business_days(decided, o.payout_business_days)
+    if o.payout_rule == "after_deadline":
+        return o.deadline, add_business_days(o.deadline, o.payout_business_days)
+    if o.payout_rule == "fixed_date":
+        return None, o.payout_date
+    if o.payout_rule == "payroll":
+        decided = add_business_days(apply_on, o.decision_business_days)
+        start = decided + timedelta(days=(7 - decided.weekday()) % 7 or 7)
+        return decided, pay_period_for(start)[2]
+    raise ValueError(f"unknown payout rule {o.payout_rule!r}")
+
+
+def eligible_opportunities(apply_on=None, scenario=None, ds=None, ledger=None):
+    """Every opportunity with her eligibility (and what's missing), the amount, and when the money would arrive if
+    she applies on apply_on (default tomorrow) and is approved: before the run-out date? before Dec 18?"""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    apply_on = _date(apply_on) if apply_on else config.DEMO_TODAY + timedelta(days=1)
+    prof = ds.profile
+    if not prof:
+        return []
+    run_out = project(replace(scenario, approved=()), ds, Ledger()).first_below_zero.value
+    out = []
+    for o in ds.opportunities:
+        missing = _unmet(o, prof)
+        status = "eligible" if not missing else "almost" if len(missing) == 1 else "not_eligible"
+        passed = bool(o.deadline and apply_on > o.deadline)
+        decided, arrives = opportunity_arrival(o, apply_on)
+        money_ = o.amount or o.max_amount
+        amount = ledger.add(f"{o.name}: amount", D(money_), "USD",
+                            ("Up to " if o.max_amount and not o.amount else "") + f"{fmt_money(money_)} ({o.row_id}).",
+                            [o.row_id]) if money_ else None
+        how = {"after_decision": f"Applied {fmt_date(apply_on)}, decided in {o.decision_business_days} business days "
+                                 f"({fmt_date(decided) if decided else ''}), paid by {o.payout_method} "
+                                 f"{o.payout_business_days} business day(s) later",
+               "after_deadline": f"Reviewed after the deadline {fmt_date(o.deadline) if o.deadline else ''}, paid "
+                                 f"{o.payout_business_days} business days later",
+               "fixed_date": f"Paid on {fmt_date(o.payout_date) if o.payout_date else ''} ({o.payout_method})",
+               "payroll": f"Applied {fmt_date(apply_on)}, hired in {o.decision_business_days} business days "
+                          f"({fmt_date(decided) if decided else ''}), starts the next Monday; first paycheck by the "
+                          "campus pay-date rule"}[o.payout_rule]
+        arr = ledger.add(f"{o.name}: money arrives if approved", arrives, "date", how + f": {fmt_date(arrives)}.",
+                         [o.row_id, prof.row_id])
+        in_time = arrives <= config.SEMESTER_END
+        semester = ledger.add(f"{o.name}: adds to checking by {config.SEMESTER_END}",
+                              D(money_) if (money_ and in_time) else ZERO, "USD",
+                              (f"Arrives {fmt_date(arrives)}, " + ("before" if in_time else "after") +
+                               f" the semester ends ({fmt_date(config.SEMESTER_END)})."), [arr]) if money_ else None
+        out.append(OpportunityCheck(o, status, missing, amount, apply_on, decided, arr, semester,
+                                    run_out is None or arrives < run_out, passed))
+    return out
+
+
+def approved_events(scenario, ds, ledger):
+    """The "if approved" what-ifs: each approved opportunity's money on the day it would arrive (applying tomorrow)."""
+    out = []
+    for opp_id in scenario.approved:
+        o = next((x for x in ds.opportunities if x.row_id == opp_id), None)
+        money_ = (o.amount or o.max_amount) if o else None
+        if not money_:
+            continue
+        _, arrives = opportunity_arrival(o, config.DEMO_TODAY + timedelta(days=1))
+        out.append((arrives, D(money_), f"{o.name} (if approved)",
+                    ledger.add(f"{o.name} if approved ({arrives})", D(money_), "USD",
+                               f"What-if: {o.name} is approved; {fmt_money(money_)} arrives {fmt_date(arrives)}. Not "
+                               "guaranteed money.", [o.row_id])))
+    return out
+
+
+# ---------------------------------------------------------------------------------------
+# Source 8: the meal plan. Swipes and dining dollars, their pace, and what (if anything) checking has to pay.
+# ---------------------------------------------------------------------------------------
+@dataclass
+class MealStatus:
+    c: dict                      # name -> Computed (see meal_plan_status)
+    runs_out: date | None        # dining dollars run out (None: they last)
+    swipes_last: bool
+    tip: dict                    # the "move 2 dining-dollar meals a week to swipes" effect: name -> Computed
+    tip_works: bool
+
+
+def _meal_projection(dd_left, dd_pace, sw_left, sw_pace, avg, days_left):
+    """(runs_out day number or None, dining dollars left at the end, swipes left at the end, cost to checking)."""
+    k = 1
+    while k <= days_left and dd_left - dd_pace * k >= 0:
+        k += 1
+    runs_out = k if k <= days_left else None
+    dd_end = dd_left - dd_pace * days_left
+    sw_end = Decimal(sw_left) - sw_pace * days_left
+    short_meals = (-dd_end) / avg if dd_end < 0 and avg else Decimal(0)
+    cost = max(Decimal(0), short_meals - max(sw_end, Decimal(0))) * avg
+    return runs_out, dd_end, sw_end, cost
+
+
+def meal_plan_status(scenario=None, ds=None, ledger=None):
+    """Dining dollars and swipes: used so far, left, pace per day and per week (Aug 24 to today), when the dining
+    dollars run out, swipes left on Dec 18, and what checking pays: dining-dollar meals still to come after they run
+    out, beyond the spare swipes, at the average meal price ($0 when the swipes cover it). What-ifs: move N
+    dining-dollar meals a week to swipes (Scenario.meal_moves), add dining dollars (Scenario.dining_dollars_added).
+    The tip: move 2 dining-dollar meals a week to swipes."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    plan = ds.meal_plan
+    if not plan:
+        return None
+    start, today, end = plan.start, config.DEMO_TODAY, min(plan.end, config.SEMESTER_END)
+    n, days_left = (today - start).days + 1, (end - today).days
+    meals = [m for m in ds.meals if start <= m.date <= today]
+    dd_meals = [m for m in meals if m.tender == "DINING_DOLLARS"]
+    ids = [m.row_id for m in meals]
+    c = {}
+    c["dd_total"] = ledger.add("dining dollars on the plan", D(plan.dining_dollars + scenario.dining_dollars_added),
+                               "USD", f"{plan.name}: {fmt_money(plan.dining_dollars)}"
+                               + (f" + {fmt_money(scenario.dining_dollars_added)} added (what-if)"
+                                  if scenario.dining_dollars_added else "") + ".", [plan.row_id])
+    used = sum((m.dining_dollars for m in dd_meals), ZERO)
+    c["dd_used"] = ledger.add("dining dollars used so far", D(used), "USD",
+                              f"{len(dd_meals)} dining-dollar purchases from {fmt_date(start)} to {fmt_date(today)}.",
+                              [m.row_id for m in dd_meals])
+    c["dd_left"] = ledger.add("dining dollars left", c["dd_total"].value - c["dd_used"].value, "USD",
+                              "On the plan minus used so far.", [c["dd_total"], c["dd_used"]])
+    sw_used = sum(m.swipes for m in meals)
+    c["swipes_total"] = ledger.add("swipes on the plan", plan.swipes, "count", f"{plan.name}.", [plan.row_id])
+    c["swipes_used"] = ledger.add("swipes used so far", sw_used, "count",
+                                  f"Swipes from {fmt_date(start)} to {fmt_date(today)}.",
+                                  [m.row_id for m in meals if m.swipes])
+    c["swipes_left"] = ledger.add("swipes left", plan.swipes - sw_used, "count", "On the plan minus used so far.",
+                                  [c["swipes_total"], c["swipes_used"]])
+    avg = used / len(dd_meals) if dd_meals else ZERO
+    c["avg_meal"] = ledger.add("average dining-dollar meal", D(avg), "USD",
+                               f"{fmt_money(used)} / {len(dd_meals)} purchases.", [c["dd_used"]])
+    moves = Decimal(scenario.meal_moves)
+    dd_pace = max(used / n - moves * avg / 7, Decimal(0))              # moving meals can't make either pace negative
+    sw_pace = max(Decimal(sw_used) / n + moves / 7, Decimal(0))
+    c["dd_week"] = ledger.add("dining dollars per week", D(dd_pace * 7), "USD",
+                              f"{fmt_money(used)} over {n} days x 7"
+                              + (f", with {scenario.meal_moves} meal(s) a week moved to swipes" if moves else "") + ".",
+                              [c["dd_used"]])
+    c["swipes_week"] = ledger.add("swipes per week", (sw_pace * 7).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP),
+                                  "count", f"{sw_used} swipes over {n} days x 7"
+                                  + (f", plus {scenario.meal_moves} moved from dining dollars" if moves else "") + ".",
+                                  [c["swipes_used"]])
+    k, dd_end, sw_end, cost = _meal_projection(c["dd_left"].value, dd_pace, c["swipes_left"].value, sw_pace, avg,
+                                               days_left)
+    runs_out = today + timedelta(days=k) if k else None
+    c["dd_runs_out"] = ledger.add("dining dollars run out", runs_out, "date",
+                                  (f"{fmt_money(c['dd_left'].value)} left at {fmt_money(D(dd_pace))}/day: the first day "
+                                   f"the balance would go below $0 is {fmt_date(runs_out)}.") if runs_out else
+                                  f"They last through {fmt_date(end)}.", [c["dd_left"], c["dd_week"]])
+    c["swipes_end"] = ledger.add(f"swipes left on {end}", (sw_end).quantize(CENT, rounding=ROUND_HALF_UP), "count",
+                                 f"{c['swipes_left'].value} left - {D(sw_pace)}/day x {days_left} days.",
+                                 [c["swipes_left"], c["swipes_week"]])
+    c["cost"] = ledger.add("meals paid from checking this semester", D(cost), "USD",
+                           "Dining-dollar meals still to come after they run out, beyond the spare swipes, at the "
+                           f"average meal price {fmt_money(D(avg))}" + (" - the swipes cover them." if not cost else "."),
+                           [c["dd_runs_out"], c["swipes_end"], c["avg_meal"]])
+    tip_dd = max(used / n - (moves + 2) * avg / 7, Decimal(0))
+    tip_sw = max(Decimal(sw_used) / n + (moves + 2) / 7, Decimal(0))
+    tk, tip_dd_end, tip_sw_end, tip_cost = _meal_projection(c["dd_left"].value, tip_dd, c["swipes_left"].value, tip_sw,
+                                                            avg, days_left)
+    tip = {"dd_end": ledger.add("dining dollars left on Dec 18 with 2 meals a week on swipes", D(tip_dd_end), "USD",
+                                f"{fmt_money(c['dd_left'].value)} - {fmt_money(D(tip_dd))}/day x {days_left} days.",
+                                [c["dd_left"], c["avg_meal"]]),
+           "sw_end": ledger.add("swipes left on Dec 18 with 2 meals a week on swipes",
+                                tip_sw_end.quantize(CENT, rounding=ROUND_HALF_UP), "count",
+                                f"{c['swipes_left'].value} - {D(tip_sw)}/day x {days_left} days.", [c["swipes_left"]]),
+           "cost": ledger.add("meals paid from checking with 2 meals a week on swipes", D(tip_cost), "USD",
+                              "Same rule with the new paces.", [c["avg_meal"]])}
+    return MealStatus(c, runs_out, sw_end >= 0, tip, tip_dd_end >= 0 and tip_sw_end >= 0 and not tip_cost)

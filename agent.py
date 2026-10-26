@@ -1763,7 +1763,8 @@ def lookup_facts(tool, result, c):
                             f"{w.dollars(b.budget.value)}.", money=(b.spent.value, b.budget.value)))
     elif tool == "action_plan":
         main = {"refund": ("refund", "arrives"), "rent": ("rent", None), "run_out": ("payment", None),
-                "subscriptions": ("saves", None), "tight_week": ("installment", None)}
+                "subscriptions": ("saves", None), "tight_week": ("installment", None), "grant": ("amount", None),
+                "meal_plan": (None, None)}
         for it in f["items"][:3]:
             money_key, date_key = main.get(it.kind, (None, None))
             out.append(Fact(f"todo_{it.kind}", todo.LABELS.get(it.kind, it.kind), todo.line(it, c),

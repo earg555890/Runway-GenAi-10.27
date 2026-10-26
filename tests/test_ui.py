@@ -438,26 +438,28 @@ def checkin_texts(at):
 
 def test_checkin_under_the_status_card(at):
     ts = checkin_texts(at)
-    assert any(">Hi Maya. 5 things need your attention.<" in t for t in ts)
+    assert any(">Hi Maya. 7 things need your attention.<" in t for t in ts)
     assert any(">Start with the first one. It's the most urgent.<" in t for t in ts)        # the fixed line
     cards = [t for t in ts if 'class="rw-ci-title"' in t]
     assert [c.split('rw-ci-title">')[1].split("<")[0] for c in cards] == [
         "Send your verification form", "Rent is due Sun, Nov 1", "Card payment on Mon, Nov 9",
-        "A tight week is coming", "You pay for 2 music apps"]
+        "You may qualify for a $500 emergency grant", "A tight week is coming", "You pay for 2 music apps",
+        "Your dining dollars run out around Sun, Nov 22"]
     see_all = next(e for e in at.expander if e.label.startswith("See all"))
-    assert see_all.label == "See all (2 more)"
+    assert see_all.label == "See all (4 more)"
     order = [t for t in texts(at) if 'class="rw-status' in t or 'class="rw-ci-head' in t]
     assert "rw-status" in order[0] and "rw-ci-head" in order[1]                               # right under it
 
 
 def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
-    assert len([b for b in at.button if str(b.key).startswith("ci_done_") and "bud" not in str(b.key)]) == 5
+    assert len([b for b in at.button if str(b.key).startswith("ci_done_") and "bud" not in str(b.key)]) == 7
     at.button(key="ci_done_refund").click()
     run(at)
     assert ">You're covered all semester.<" in status(at)                                 # the form counts as sent today
-    assert any(">Hi Maya. 3 things need your attention.<" in t for t in checkin_texts(at))
+    assert any(">Hi Maya. 4 things need your attention.<" in t for t in checkin_texts(at))
     titles = [t.split('rw-ci-title">')[1].split("<")[0] for t in checkin_texts(at) if 'class="rw-ci-title"' in t]
-    assert titles == ["Rent is due Sun, Nov 1", "A tight week is coming", "You pay for 2 music apps"]
+    assert titles == ["Rent is due Sun, Nov 1", "A tight week is coming", "You pay for 2 music apps",
+                      "Your dining dollars run out around Sun, Nov 22"]           # no gap now: no grant
     said = [plain(m.value) for m in at.chat_message[0].markdown]
     assert said == ["Nice. With the form sent, your refund should arrive around Wed, Nov 4. Your money now lasts "
                     "all semester. Your lowest point is $5.81 on Mon, Nov 2."]
@@ -468,18 +470,21 @@ def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
     at.button(key="ci_undo_refund").click()
     run(at)
     assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)
-    assert any(">Hi Maya. 5 things need your attention.<" in t for t in checkin_texts(at))
+    assert any(">Hi Maya. 7 things need your attention.<" in t for t in checkin_texts(at))
     assert at.toggle(key="wf_refund").value is False and not at.toggle(key="wf_refund").disabled
     assert at.session_state["action_log"][-1]["kind"] == "undone"
 
 
 def test_cancel_spotify_done_and_all_caught_up(at):
-    for key in ("ci_done_refund", "ci_done_rent", "ci_done_tight_week", "ci_done_subscriptions"):
+    for key in ("ci_done_refund", "ci_done_rent", "ci_done_tight_week", "ci_done_subscriptions",
+                "ci_done_meal_plan"):
         at.button(key=key).click()
         run(at)
     assert any(">Hi Maya. You're all caught up.<" in t for t in checkin_texts(at))
     assert at.session_state[f"wf_cancel_Spotify"] is True
-    assert "Nice. With Spotify cancelled, you keep $23.98 this semester." in plain(at.chat_message[-1].markdown[0].value)
+    said = [plain(m.markdown[0].value) for m in at.chat_message]
+    assert any("Nice. With Spotify cancelled, you keep $23.98 this semester." in x for x in said)
+    assert said[-1].endswith("You're all caught up.")
     assert not [b for b in at.button if str(b.key) == "ci_cal_all"]                        # nothing left to remind
 
 

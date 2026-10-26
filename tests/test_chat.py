@@ -394,7 +394,7 @@ def test_action_plan_this_week_and_first(ds):
     plan, results, pack, required = _pieces([{"tool": "action_plan", "args": {}}], ds)
     quick = agent.quick_answer(plan, results, pack, ds, engine.Scenario(), required)
     assert quick.startswith("ANSWER: Start here: send your verification form to financial aid.")
-    assert "2 more in your check-in." in quick
+    assert "4 more in your check-in." in quick
 
 
 def test_action_plan_validation_and_keywords():

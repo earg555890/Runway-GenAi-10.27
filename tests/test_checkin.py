@@ -26,9 +26,13 @@ def test_item_wording_for_maya(items):
         ("Rent is due Sun, Nov 1", "After the $725 rent, you'll have just $13.32 left. Last time, rent before "
                                    "payday cost a $35 fee."),
         ("Card payment on Mon, Nov 9", "The $360 payment takes you to $59.84 below zero."),
+        ("You may qualify for a $500 emergency grant", "It's decided in about 3 days. Apply by Mon, Nov 2 and, if "
+                                                       "approved, it arrives before Mon, Nov 9."),
         ("A tight week is coming", "A $200 tuition payment is due Fri, Nov 20, $85.30 more than your Wed, Nov 18 "
                                    "paycheck."),
         ("You pay for 2 music apps", "Cancel Spotify before Sat, Nov 14 to keep $23.98 this semester."),
+        ("Your dining dollars run out around Sun, Nov 22", "You'll have about 40 swipes left on Fri, Dec 18. Use 2 "
+                                                           "swipes a week instead, and both last."),
     ]
 
 
@@ -114,7 +118,8 @@ def test_calendar_files_parse_back(items):
     events = parse_ics(actions.all_deadlines(items, now))
     got = {e["SUMMARY"]: e for e in events}
     assert list(got) == ["Send verification form to financial aid", "Rent due ($725)", "Card payment ($360)",
-                         "Tuition payment due ($200)", "Cancel Spotify before Sat, Nov 14"]
+                         "Apply for the emergency grant", "Tuition payment due ($200)",
+                         "Cancel Spotify before Sat, Nov 14", "Dining dollars run out"]
     form = got["Send verification form to financial aid"]
     assert (form["DTSTART"], form["DTEND"]) == ("20261027T090000", "20261027T093000")      # Tue, Oct 27, 9:00 AM
     assert got["Cancel Spotify before Sat, Nov 14"]["DTSTART"] == "20261113T090000"        # the day before

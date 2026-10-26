@@ -26,7 +26,8 @@ CANCEL_PAGES = {
     "Apple Music": ("https://support.apple.com/en-us/118399", "How to cancel Apple Music (Apple help)"),
 }
 
-DONE_LABELS = {"refund": "Form sent", "rent": "Got it", "run_out": "Got it", "tight_week": "Got it"}
+DONE_LABELS = {"refund": "Form sent", "rent": "Got it", "run_out": "Got it", "tight_week": "Got it",
+               "grant": "Applied", "meal_plan": "Got it"}
 REMINDER_TIME = time(9, 0)
 
 
@@ -62,6 +63,15 @@ def text(item, cite=_none):
         return (f"You pay for {f['count'].value} music apps",
                 f"Cancel {f['pick'].value} before {w.day(item.due.value)}{_c(cite, item.due)} to keep "
                 f"{w.dollars(f['saves'].value)}{_c(cite, f['saves'])} this semester.")
+    if k == "grant":
+        return (f"You may qualify for a {w.dollars(f['amount'].value)} emergency grant",
+                f"It's decided in about {f['decision_days'].value} days{_c(cite, f['decision_days'])}. Apply by "
+                f"{w.day(item.due.value)}{_c(cite, item.due)} and, if approved, it arrives before "
+                f"{w.day(f['runs_out'].value)}{_c(cite, f['runs_out'])}.")
+    if k == "meal_plan":
+        return (f"Your dining dollars run out around {w.day(item.due.value)}",
+                f"You'll have about {f['swipes_end'].value:.0f} swipes{_c(cite, f['swipes_end'])} left on "
+                f"{w.day(config.SEMESTER_END)}. Use 2 swipes a week instead, and both last.")
     if k == "tight_week":
         return ("A tight week is coming",
                 f"A {w.dollars(f['installment'].value)} tuition payment{_c(cite, f['installment'])} is due "
@@ -72,7 +82,8 @@ def text(item, cite=_none):
 
 LABELS = {"refund": "the verification form and when the refund arrives", "rent": "the rent and what it leaves",
           "run_out": "the card payment and where it takes you", "subscriptions": "the subscription to cancel",
-          "tight_week": "the tuition payment in the tight week"}
+          "tight_week": "the tuition payment in the tight week",
+          "grant": "the emergency grant (if approved) and when to apply", "meal_plan": "when the dining dollars run out"}
 
 
 def line(item, cite=_none):
@@ -100,7 +111,9 @@ def step(item):
             if "rent" in f else "Keep rent money in checking.",
             "run_out": f"Plan for the card payment on {w.day(item.due.value)}.",
             "subscriptions": f"Cancel {f['pick'].value} before {w.day(item.due.value)}." if "pick" in f else "",
-            "tight_week": f"Set money aside for tuition on {w.day(item.due.value)}."}.get(item.kind, "")
+            "tight_week": f"Set money aside for tuition on {w.day(item.due.value)}.",
+            "grant": f"Apply for the emergency grant by {w.day(item.due.value)}.",
+            "meal_plan": "Use 2 swipes a week instead of dining dollars."}.get(item.kind, "")
 
 
 def done_label(item):
@@ -167,6 +180,13 @@ def reminder(item):
         what = f"Card payment ({w.dollars(f['payment'].value)})" if "payment" in f else "Money runs out"
         return Reminder("card-payment" if "payment" in f else "run-out", what, d,
                         note=f"Checking goes to {w.balance(f['after'].value)} that day." if "after" in f else "")
+    if item.kind == "grant":
+        return Reminder("emergency-grant", "Apply for the emergency grant", d, REMINDER_TIME,
+                        f"Up to {w.dollars(f['amount'].value)} if approved. Decided in about "
+                        f"{f['decision_days'].value} business days.")
+    if item.kind == "meal_plan":
+        return Reminder("dining-dollars", "Dining dollars run out", d,
+                        note="Use swipes for 2 meals a week so both last the semester.")
     if item.kind == "tight_week":
         return Reminder("tuition", f"Tuition payment due ({w.dollars(f['installment'].value)})", d,
                         note=f"Your paycheck before it is only {w.dollars(f['paycheck_net'].value)}.")

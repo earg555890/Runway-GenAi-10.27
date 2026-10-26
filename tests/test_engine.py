@@ -311,7 +311,8 @@ def test_money_ideas_ranked_by_when_the_money_arrives():
 
 def test_attention_items_base_case_ranked_sooner_and_bigger_first(ds):
     items = e.attention_items(e.Scenario(), ds)
-    assert [a.kind for a in items] == ["refund", "rent", "run_out", "tight_week", "subscriptions"]
+    assert [a.kind for a in items] == ["refund", "rent", "run_out", "grant", "tight_week", "subscriptions",
+                                       "meal_plan"]                    # grant and meal plan: sources 7 and 8
     by = {a.kind: a for a in items}
     assert by["refund"].due.value == date(2026, 10, 27) and by["refund"].facts["refund"].value == Decimal("1850.00")
     assert by["refund"].facts["arrives"].value == date(2026, 11, 5) and by["refund"].fix == ("refund",)
@@ -324,12 +325,13 @@ def test_attention_items_base_case_ranked_sooner_and_bigger_first(ds):
     assert by["tight_week"].facts["shortfall"].value == Decimal("85.30")
     # urgency = dollars at stake / days until due: $1,850 / 1 day, $725 / 6 days, $1,462.37 / 14 days, ...
     assert [a.urgency.value for a in items] == [Decimal("1850.00"), Decimal("120.83"), Decimal("104.46"),
-                                                Decimal("3.41"), Decimal("1.26")]
+                                                Decimal("71.43"), Decimal("3.41"), Decimal("1.26"), Decimal("0.00")]
 
 
 def test_attention_items_drop_what_is_fixed(ds):
     done = e.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY, cancel_subscriptions=("Spotify",))
-    assert [a.kind for a in e.attention_items(done, ds)] == ["rent", "tight_week"]     # money now lasts
+    # money now lasts: no gap for the emergency grant; the meal plan stays (swipes cover it, $0 to checking)
+    assert [a.kind for a in e.attention_items(done, ds)] == ["rent", "tight_week", "meal_plan"]
     only_form = e.attention_items(e.Scenario(refund_released=True, refund_submit_date=config.DEMO_TODAY), ds)
     assert "refund" not in [a.kind for a in only_form] and "run_out" not in [a.kind for a in only_form]
 

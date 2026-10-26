@@ -27,7 +27,8 @@ SYSTEM = ("You are Runway, a warm money coach for a stressed college student nam
 TOPICS = {"refund": ("form", "refund", "financial aid", "verification", "aid"), "rent": ("rent", "lease"),
           "run_out": ("card", "payment", "run out", "runs out"),
           "subscriptions": ("spotify", "apple", "music", "subscription", "app"),
-          "tight_week": ("tuition", "paycheck", "tight week")}
+          "tight_week": ("tuition", "paycheck", "tight week"), "grant": ("grant", "emergency"),
+          "meal_plan": ("dining", "swipe", "meal")}
 CLAIMS = re.compile(r"\b(?:so|before|after|because|until|covers?|pays? for|lands?|hits?|in time|then)\b", re.I)
 
 
