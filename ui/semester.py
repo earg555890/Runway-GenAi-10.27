@@ -44,15 +44,30 @@ def money_strip(current, deltas):
                          d.get("end_balance")), unsafe_allow_html=True)
 
 
+def balance_card(ds, current, deltas):
+    """The dashboard card: title, the big figures, a small legend, the two-line chart."""
+    scenario = current.scenario
+    steps_sc = chart.steps_scenario(scenario, ds)
+    steps = engine.project(steps_sc, ds, engine.Ledger()) if steps_sc else None
+    took_steps = scenario.refund_released or bool(scenario.cancel_subscriptions)
+    with st.container(border=True, key="balance_card"):
+        st.markdown(f'<div class="rw-card-head">Your money through {fmt.html(fmt.day(config.SEMESTER_END)[5:])}</div>',
+                    unsafe_allow_html=True)
+        money_strip(current, deltas)
+        legend = '<span class="rw-sw rw-sw-now"></span>What&#39;s happening'
+        if steps:
+            legend += '<span class="rw-sw rw-sw-steps"></span>If you follow the steps'
+        elif took_steps:
+            legend += '<span class="rw-plan-note">You&#39;re following the plan</span>'
+        st.markdown(f'<div class="rw-legend">{legend}</div>', unsafe_allow_html=True)
+        with st.container(key="balance_chart"):
+            st.altair_chart(chart.build(current, steps), width="stretch", theme=None)
+        st.caption("Your balance at the end of each day. Hover for details.")
+
+
 def render(ds, subs, base, current, changed, deltas=None):
     s = st.session_state
-    money_strip(current, deltas)
-    if changed:
-        with_cls = "rw-sw-with rw-sw-good" if current.lasts_through_semester else "rw-sw-with"   # matches the line
-        st.markdown('<div class="rw-legend"><span class="rw-sw rw-sw-before"></span>Before your changes'
-                    f'<span class="rw-sw {with_cls}"></span>With your changes</div>', unsafe_allow_html=True)
-    st.altair_chart(chart.build(base, current, changed), width="stretch")
-    st.caption("Your balance at the end of each day. Hover for details.")
+    balance_card(ds, current, deltas)
 
     st.markdown("#### Ways to fix it")
     fixes = {f.name: f for f in engine.available_fixes(engine.Scenario(refund_submit_date=s.wf_submit), ds,
