@@ -2011,3 +2011,11 @@ def meal_plan_status(scenario=None, ds=None, ledger=None):
            "cost": ledger.add("meals paid from checking with 2 meals a week on swipes", D(tip_cost), "USD",
                               "Same rule with the new paces.", [c["avg_meal"]])}
     return MealStatus(c, runs_out, sw_end >= 0, tip, tip_dd_end >= 0 and tip_sw_end >= 0 and not tip_cost)
+
+
+def opportunities_total(checks, ledger):
+    """The "worth up to" total over the opportunities she qualifies for that have a dollar amount."""
+    paid = [x for x in checks if x.status == "eligible" and x.amount]
+    return ledger.add("aid she may qualify for (up to)", D(sum((x.amount.value for x in paid), ZERO)), "USD",
+                      " + ".join(f"{x.opp.name} {fmt_money(x.amount.value)}" for x in paid) + ". Not guaranteed.",
+                      [x.amount for x in paid])

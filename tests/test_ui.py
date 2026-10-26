@@ -610,3 +610,53 @@ def test_chat_budget_question_uses_the_budget_tab_amounts(at, monkeypatch, tmp_p
     at.chat_input(key="ask_input").set_value("How much is left in my food budget?")
     run(at)
     assert at.session_state["history"][0].text.startswith("ANSWER: You have $23.19 left in your food budget")
+
+
+# --- Find money and the meal plan card (sources 7 and 8) -------------------------------------------------------
+
+def test_find_money_tab(at):
+    assert [t.label for t in at.tabs] == ["My semester", "Budget", "Can I afford it?", "Find money", "What we found"]
+    assert any(">You may qualify for 3 opportunities worth up to $1,750, plus a work-study job.<" in t for t in texts(at))
+    heads = [plain(m.value) for m in at.markdown if m.value.startswith("#### ")]
+    assert heads[:3] == ["#### Could help before you run out", "#### Helps later", "#### Almost (what you'd need)"]
+    cards = {t.split('rw-ci-title">')[1].split("<")[0]: t for t in texts(at)
+             if 'class="rw-fm-meta"' in t and 'rw-ci-title">' in t}
+    grant = cards["Student Emergency Grant"]
+    assert "Grant · Up to $500 · Apply anytime" in grant and "If approved, it arrives around Mon, Nov 2." in grant
+    spring = cards["Spring Opportunity Scholarship"]
+    assert "paid Fri, Jan 15, 2027, after the semester, so it adds $0.00 this semester." in spring
+    assert "You'd need a 3.50 GPA (yours is 3.40)." in cards["Dean's Merit Scholarship"]
+    assert at.toggle(key="wf_approved_OPP-04").disabled and not at.toggle(key="wf_approved_OPP-01").disabled
+    assert any("1 more you don't qualify for: Engineering Senior Design Grant." in plain(c.value) for c in at.caption)
+
+
+def test_if_approved_is_a_labelled_what_if(at):
+    at.toggle(key="wf_approved_OPP-01").set_value(True)
+    run(at)
+    s = status(at)
+    assert ">Your money runs out in 5.1 weeks, on Tue, Dec 1.<" in s            # from Mon, Nov 9
+    assert ">Counting 1 aid award as if approved. It isn't certain money.<" in s
+    at.toggle(key="wf_approved_OPP-01").set_value(False)
+    run(at)
+    assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)
+
+
+def test_application_draft_is_plain_and_true(at):
+    code = next(c.value for c in at.code if "I'd like to apply for the Student Emergency Grant." in c.value)
+    assert "a full-time sophomore majoring in Biology" in code
+    assert "My $360 card payment is due Mon, Nov 9, and my checking account will be $59.84 below zero that day." in code
+    assert "- Short statement of what happened (2-3 sentences)" in code
+    link = next(b for b in at.get("link_button") if b.proto.label == "Open in my email app" and "Emergency" in b.proto.url)
+    assert link.proto.url.startswith("mailto:finaid@stateu.example?subject=Application%3A%20Student%20Emergency")
+
+
+def test_meal_plan_card_and_slider(at):
+    meal = next(plain(m.value) for m in at.markdown if "swipes and" in m.value)
+    assert meal == ("56 swipes and $117 in dining dollars left. At this pace, your dining dollars run out around "
+                    "Sun, Nov 22. You'll have about 40 swipes left on Fri, Dec 18.")
+    assert any("Tip: use 2 swipes a week instead of dining dollars, and both last." in plain(c.value) for c in at.caption)
+    at.slider(key="wf_meal_moves").set_value(2)
+    run(at)
+    meal = next(plain(m.value) for m in at.markdown if "swipes and" in m.value)
+    assert "your dining dollars last the semester. You'll have about 25 swipes left" in meal
+    assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)            # swipes: $0 to checking

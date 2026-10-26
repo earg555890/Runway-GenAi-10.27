@@ -116,6 +116,24 @@ def step(item):
             "meal_plan": "Use 2 swipes a week instead of dining dollars."}.get(item.kind, "")
 
 
+def application(check, ds, situation=""):
+    """(to, subject, body) for an aid application, in plain words, with what the application needs. Runway never
+    sends it. situation: one true sentence about why she's applying, built from the engine (or empty)."""
+    o = check.opp
+    reqs = [r for r in ds.opp_requirements if r.opp_id == o.row_id]
+    prof = ds.profile
+    subject = f"Application: {o.name}, {w.STUDENT_NAME}"
+    lines = [f"Hello,", "",
+             f"I'm {w.STUDENT_NAME} (student ID: [your student ID]), a {prof.enrollment} {prof.class_year} majoring "
+             f"in {prof.major}. I'd like to apply for the {o.name}."]
+    if situation:
+        lines += ["", situation]
+    if reqs:
+        lines += ["", "I've attached:"] + [f"- {r.item} ({r.details.lower()})" for r in reqs]
+    lines += ["", "Please let me know if you need anything else.", "", "Thank you,", w.STUDENT_NAME]
+    return AID_EMAIL, subject, "\n".join(lines)
+
+
 def done_label(item):
     return f"Cancelled {item.fix[1]}" if item.kind == "subscriptions" else DONE_LABELS.get(item.kind, "Done")
 

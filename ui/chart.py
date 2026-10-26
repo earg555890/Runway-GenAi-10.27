@@ -26,7 +26,7 @@ LABEL = "#7c8aa5"
 SHORT = {"rent": "Rent", "card_autopay": "Card payment", "installment": "Tuition payment", "paycheck": "Paycheck",
          "refund": "Refund"}
 STEP_KINDS = {"rent", "paycheck", "card_autopay", "installment", "refund", "purchase", "subscription",
-              "recurring_bill"}
+              "recurring_bill", "aid_if_approved", "meal_plan"}
 
 
 def _ts(x):

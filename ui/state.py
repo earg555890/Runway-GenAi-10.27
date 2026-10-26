@@ -34,10 +34,24 @@ def _defaults(subs):
         "buy_card": False,
         "buy_active": False,        # True once the student presses "Check": the purchase joins the plan
         "wf_budget": False,         # "Use my budget in my forecast"
+        "wf_meal_moves": 0,         # dining-dollar meals a week moved to swipes (meal plan card)
     }
     d.update({cancel_key(s.merchant): False for s in subs})
     d.update({budget_key(c): 0 for c in normalize.FLEXIBLE})
+    d.update({approved_key(o): False for o in OPP_IDS})
     return d
+
+
+OPP_IDS = ("OPP-01", "OPP-02", "OPP-03", "OPP-04", "OPP-05", "OPP-06")
+
+
+def approved_key(opp_id):
+    return f"wf_approved_{opp_id}"
+
+
+def approved():
+    """Opportunities the student switched on as "if approved" what-ifs (never certain money)."""
+    return tuple(o for o in OPP_IDS if st.session_state.get(approved_key(o)))
 
 
 def budget_key(category):
@@ -189,7 +203,8 @@ def scenario(subs):
     return engine.Scenario(
         refund_released=s.wf_refund or "refund" in s.done, refund_submit_date=submit_date(),
         cancel_subscriptions=tuple(dict.fromkeys(cancels + done_cancels())),
-        extra_shifts=base.extra_shifts, purchases=(p,) if p else (), budget=budget_scenario_part())
+        extra_shifts=base.extra_shifts, purchases=(p,) if p else (), budget=budget_scenario_part(),
+        approved=approved(), meal_moves=int(s.get("wf_meal_moves") or 0))
 
 
 def done_scenario():
@@ -200,7 +215,8 @@ def done_scenario():
 
 
 def changed(sc):
-    return bool(sc.refund_released or sc.cancel_subscriptions or sc.extra_shifts or sc.purchases or sc.budget)
+    return bool(sc.refund_released or sc.cancel_subscriptions or sc.extra_shifts or sc.purchases or sc.budget
+                or sc.approved or sc.meal_moves)
 
 
 def summary(sc):
@@ -213,4 +229,8 @@ def summary(sc):
     parts += [f"{p.label} ({fmt.money(p.cost)}, {fmt.day(p.date)})" for p in sc.purchases]
     if sc.budget:
         parts.append("your budget")
+    if sc.approved:
+        parts.append(f"{len(sc.approved)} aid award{'s' if len(sc.approved) != 1 else ''} if approved")
+    if sc.meal_moves:
+        parts.append(f"{sc.meal_moves} meal{'s' if sc.meal_moves != 1 else ''} a week on swipes")
     return ", ".join(parts)

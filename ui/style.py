@@ -54,6 +54,7 @@ div[data-testid="stTabs"] button p {font-size: 1.1rem;}
 .rw-sw-dot {display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .5rem;
             vertical-align: baseline;}
 .rw-muted {opacity: .7;}
+.rw-fm-meta {font-size: .95rem; opacity: .85; margin: .15rem 0 .25rem;}
 .rw-bud-head {font-size: 1.15rem; font-weight: 600; margin: .1rem 0 .4rem; max-width: 64ch;}
 .rw-bud-left {font-size: 1.05rem; font-weight: 600;}
 .rw-bud-effect {font-size: 1.1rem; margin: .3rem 0 .6rem; max-width: 64ch;}

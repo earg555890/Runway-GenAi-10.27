@@ -46,5 +46,8 @@ def headline(p):
 
 def status(p):
     big, why, good = headline(p)
+    n = len(p.scenario.approved)
+    note = (f"Counting {n} aid award{'s' if n != 1 else ''} as if approved. It isn't certain money." if n else "")
     st.markdown(f'<div class="rw-status {"rw-good" if good else "rw-bad"}"><div class="rw-big">{fmt.html(big)}</div>'
-                + (f'<div class="rw-why">{fmt.html(why)}</div>' if why else "") + "</div>", unsafe_allow_html=True)
+                + (f'<div class="rw-why">{fmt.html(why)}</div>' if why else "")
+                + (f'<div class="rw-why rw-if">{fmt.html(note)}</div>' if note else "") + "</div>", unsafe_allow_html=True)

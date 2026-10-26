@@ -91,7 +91,8 @@ def event_name(e):
     """A projected event in plain words, e.g. 'credit card payment'."""
     return {"rent": "rent", "card_autopay": "credit card payment", "installment": "tuition payment",
             "paycheck": "paycheck", "refund": "refund", "purchase": e.label,
-            "subscription": e.label.rsplit(" ", 1)[0], "recurring_bill": e.label.rsplit(" ", 1)[0] + " payment"}[e.kind]
+            "subscription": e.label.rsplit(" ", 1)[0], "recurring_bill": e.label.rsplit(" ", 1)[0] + " payment",
+            "aid_if_approved": e.label, "meal_plan": e.label}[e.kind]
 
 
 def describe(rec):
