@@ -99,6 +99,8 @@ DEMO_ANSWERS_DIR = PROJECT_ROOT / "demo_answers"
 # The check-in's one friendly greeting line, written by the fast model (greeting.py) when a key is set and
 # ANSWER_MODE is not replay; "off" always uses the deterministic line. It never blocks the page.
 AI_GREETING = (get("AI_GREETING") or "on").lower() != "off"
+# Web search for scholarships (websearch.py): Firecrawl keyless search works without a key; a key raises its limits.
+FIRECRAWL_API_KEY = get("FIRECRAWL_API_KEY")
 
 # Zetaris
 ZETARIS_JDBC_URL = get("ZETARIS_JDBC_URL")

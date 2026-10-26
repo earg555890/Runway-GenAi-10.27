@@ -27,6 +27,12 @@ def start(key, work):
     threading.Thread(target=run, daemon=True).start()
 
 
+def forget(key):
+    """Drop a finished result so start() runs the work again (a search she asked to repeat)."""
+    if _store().get(key) != "pending":
+        _store().pop(key, None)
+
+
 def line(key, fallback):
     got = _store().get(key)
     return got if got and got != "pending" else fallback

@@ -62,3 +62,34 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
   (her pay Oct 30 / Nov 13 / Nov 27 / Dec 11 at $612.40; runs out Sun Nov 1), typed balance, the agent's
   "needs your school data" answer, no caching of her answers, every tab in My data mode, the import screen, Maya
   mode unchanged after using My data, nothing in user_data/ tracked or unignored. Full suite: 336 passed.
+
+## Part B: live scholarship web search (00:40-01:30)
+- Provider: **Firecrawl keyless search** (`POST https://api.firecrawl.dev/v2/search`, no Authorization header).
+  Checked against Firecrawl's docs, then tested live: it worked without a key, so Exa (EXA_API_KEY) was not
+  needed and isn't used. An optional `FIRECRAWL_API_KEY` in .env is sent as a bearer token for higher limits.
+  One request per query also returns each result page's text (`scrapeOptions` markdown), used for checking.
+- `websearch.py`: 3 queries from the school profile only (Maya: "scholarships for college sophomores",
+  "emergency grants for college students", "scholarships for biology majors"; generic phrases in My data mode, no
+  private data). Each result: title, site, link, and an amount/deadline **only if that exact text is on the
+  fetched page** (string match), else "see website". Amounts under $100 or followed by million/billion/k are
+  ignored; directory pages (more than 4 amounts or 2 deadlines) get "see website". An optional fast-model
+  suggestion is kept only if it is on the page (not used by the app by default: no extra AI calls).
+- Saved set recorded live tonight: `demo_answers/web_scholarships.json` (found 2026-10-25 23:24, 9 results; most
+  say "see website"; Scholarship America shows deadline "December 15, 2026"; HELPS Program Microgrant "$1000").
+  Cache: `.cache/websearch/results.json` (fresh for 24 h).
+- Find money tab: new section "Found online - check before applying" under the school's list. Shows the last
+  results at once (cache, else saved set) with "Found Sun, Oct 25 at 11:24 PM with Firecrawl..." and "Runway
+  didn't check who can apply, and none of these are in your forecast." A "Search online now" button runs a live
+  search in a background thread (the page never waits; failures keep the old results). Replay mode: saved set
+  only, no button; no saved set -> a note instead of the section. Also shown in My data mode.
+- Chat tool `search_scholarships` ("Find me scholarships online"; planner example + keyword fallback "online" +
+  scholarship/grant/aid). Stated amounts/deadlines and the search date become engine records so the number check
+  passes; required fact "check before applying"; new checker `web_claim_problems` rejects "you qualify / you are
+  eligible / you will get" in these answers.
+- Decision: not added to the suggested-question buttons (keeps the demo's suggested set and its saved answers
+  unchanged); it is reachable by typing.
+- Tests: tests/test_websearch.py (11, all mocked, no network): page-text-only amounts/deadlines, a model claiming
+  "$5,000" that isn't on the page -> dropped, directory pages, dedupe + cache, timeouts fall back (None if nothing),
+  replay never searches, the committed saved set, the chat answer ("Check before applying", stated amount and
+  deadline, "see website"), the "you qualify" check, planner routing, and the Find money tab rendering the saved
+  set without any live search. Full suite: 347 passed.

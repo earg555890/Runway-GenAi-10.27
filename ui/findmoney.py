@@ -2,11 +2,15 @@
 money would arrive. Every amount is "if approved": an "If approved" switch adds one to the forecast as a what-if,
 and nothing here is ever counted as certain money. The UI does no math: eligibility, dates and totals come from
 the engine."""
+from datetime import datetime
+
 import streamlit as st
 
 import actions
+import config
 import engine
-from ui import checkin, fmt, state
+import websearch
+from ui import background, checkin, fmt, state
 
 MIME_ICS = checkin.MIME_ICS
 TYPE_WORDS = {"emergency_grant": "Grant", "scholarship": "Scholarship", "work_study": "Work-study job"}
@@ -92,10 +96,53 @@ def card(x, ds, scenario):
                       else "Work-study pay depends on the hours you work.")
 
 
+def found_at_words(found):
+    try:
+        t = datetime.fromisoformat(found["found_at"])
+    except (KeyError, ValueError):
+        return ""
+    return f"Found {fmt.day(t.date())} at {t:%I:%M %p}".replace(" 0", " ")
+
+
+def web_results(found):
+    if not found or not found.get("results"):
+        st.caption("Nothing found online right now. Try again later.")
+        return
+    lines = []
+    for r in found["results"]:
+        amount = r["amount"] if r["amount"] != websearch.SEE else "see website"
+        deadline = r["deadline"] if r["deadline"] != websearch.SEE else "see website"
+        lines.append(f"- [{fmt.md(r['title'])}]({r['url']})  \n  {fmt.md(r['organization'])} · Amount: "
+                     f"{fmt.md(amount)} · Deadline: {fmt.md(deadline)}")
+    st.markdown("\n".join(lines))
+    st.caption(f"{found_at_words(found)} with {found.get('provider', 'web search')}. Runway didn't check who can "
+               "apply, and none of these are in your forecast. Amounts and deadlines are shown only when the page "
+               "itself says them.")
+
+
+def web_section(ds):
+    """Found online - check before applying: never "you qualify", never in the forecast. Shows the last results
+    (cache, else the saved set) at once; a live search runs only when she presses the button, in the background, so
+    the page never waits on the web."""
+    st.markdown("#### Found online - check before applying")
+    replay = config.ANSWER_MODE.lower() == "replay"
+    shown = websearch.load(websearch.SAVED) if replay else (websearch.load(websearch.CACHE)
+                                                            or websearch.load(websearch.SAVED))
+    if not shown and replay:
+        st.caption("Online results aren't available in this offline demo.")
+        return
+    key = "websearch|" + (ds.profile.class_year if ds.profile else "any")
+    if not replay and st.button("Search online now", key="web_search_now"):
+        background.forget(key)
+        background.start(key, lambda: websearch.get(ds.profile, "live", fresh=True))
+    background.slot(key, shown, web_results)
+
+
 def render(ds, scenario):
     checks = engine.eligible_opportunities(None, scenario, ds)
     if not checks:
         st.info("Connect your school data to see grants and scholarships from your school.")
+        web_section(ds)
         return
     total = engine.opportunities_total(checks, engine.Ledger())
     eligible = [x for x in checks if x.status == "eligible"]
@@ -123,3 +170,5 @@ def render(ds, scenario):
     if scenario.approved:
         st.caption(f"Your forecast now includes {len(scenario.approved)} \"if approved\" what-if"
                    f"{'s' if len(scenario.approved) != 1 else ''}. Turn them off to see it without.")
+    st.divider()
+    web_section(ds)
