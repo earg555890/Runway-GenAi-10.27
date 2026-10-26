@@ -10,7 +10,8 @@ from engine import fmt_money
 STUDENT_NAME = "Maya Rivera"
 SOURCE_PLAIN = {"checking": "Your checking account", "card": "Your credit card", "aid": "Financial aid office",
                 "bursar": "Student account (bursar)", "lease": "Your lease", "shifts": "Your work schedule",
-                "opportunities": "Your school's aid opportunities", "meal_plan": "Your meal plan"}
+                "opportunities": "Your school's aid opportunities", "meal_plan": "Your meal plan",
+                "mydata": "Your bank file"}
 TERMS = {"FA": "Fall", "SP": "Spring", "SU": "Summer"}
 
 

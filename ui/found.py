@@ -105,6 +105,8 @@ def crunch(ds, scenario):
 
 def render(ds, scenario):
     """One column: short lines, and the proof tables get the full width."""
+    if not ds.refunds and not ds.installments:
+        st.caption("Connect your school data to see your financial aid, student account and work schedule here.")
     refund(ds, scenario)
     leaks(ds, scenario)
     crunch(ds, scenario)

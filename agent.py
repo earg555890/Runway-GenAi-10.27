@@ -48,6 +48,13 @@ STAGES = {"plan": "Understanding your question...", "execute": "Checking your ac
 SUGGESTED = ["Can I afford a $400 flight home for Thanksgiving if I book it Nov 10?", "How long will my money last?",
              "Where is my money leaking?", "Can I afford a $400 flight home for Thanksgiving?",
              "What should I do this week?"]
+MYDATA_SUGGESTED = ["How long will my money last?", "Where is my money leaking?", "What should I do this week?",
+                    "Where did my money go last month?"]
+# Tools that need school data the student's own bank file doesn't have (My data mode): what each one needs.
+NEEDS = {"refund_status": lambda ds: ds.refunds, "cash_crunches": lambda ds: ds.installments and ds.job,
+         "work_summary": lambda ds: ds.job, "find_aid": lambda ds: ds.opportunities, "meal_plan": lambda ds: ds.meal_plan}
+NOT_AVAILABLE = ("That needs your school data (financial aid, student account, work schedule or meal plan), which "
+                 "isn't connected. Connect your school data to see this.")
 OFF_TOPIC = ("I can help with your money this semester: whether you can afford something, how long your money "
              "will last, where it's leaking, your refund, or what changes would help. Try asking one of those!")
 
@@ -617,6 +624,8 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
     """One tool call. done: check-in item kinds the student marked done (action_plan leaves them out). budget:
     {category: monthly dollars} she set in the Budget tab (budget_status)."""
     ledger = engine.Ledger()
+    if tool in NEEDS and not NEEDS[tool](ds):         # My data mode: no school data for this tool
+        return ToolResult(None, [], ledger, facts={"unavailable": True})
     if tool == "can_afford":
         v = engine.can_afford(Decimal(a["cost"]), a["date"], a["account"], _without_fixes(scenario), ds, a["item"])
         best = v.with_fixes or v.without_fixes
@@ -1359,6 +1368,9 @@ def template_answer(plan, result, pack, ds, scenario):
     """A short answer in the ANSWER / WHY / DO THIS format, built only from the pack, with citations. Used
     when no model is available."""
     c, f = pack.cite, result.facts
+    if f.get("unavailable"):
+        return _format("That needs your school data.", [NOT_AVAILABLE.split(". ")[0] + "."],
+                       ["Connect your school data to see this."])
     note = " ".join(plan.assumptions)
     if plan.tool == "can_afford":
         r = f["result"]
@@ -1962,6 +1974,8 @@ def required_facts(plan, results, pack, ds, scenario):
     out = []
     for r in results if isinstance(results, list) else [results]:
         tool = r.tool or plan.tool
+        if r.facts.get("unavailable"):
+            continue
         facts = lookup_facts(tool, r, pack.cite) if tool in LOOKUP_TOOLS else _core_facts(tool, r, pack, ds, scenario)
         out += [f for f in facts if f.key not in {x.key for x in out}]
     for a in plan.assumptions:
@@ -2249,16 +2263,19 @@ def _verdict_result(results):
 
 
 def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, history=(), think=False, done=(),
-        budget=None):
+        budget=None, private=False):
     """Answer one question. Yields ("stage" | "quick" | "text" | "restart" | "answer", payload); "answer" comes
     last. "quick" is the instant answer built from the engine (shown while the AI writes); "text" chunks are the
     AI answer streaming in. history: earlier Answers in this conversation (oldest first), for follow-ups.
     think: Nemotron Super with thinking on (slower, shows its reasoning); default: Lightning, thinking off.
     done: check-in item kinds the student marked done (left out of "what should I do" answers). budget: the
-    amounts she set in the Budget tab (budget questions)."""
+    amounts she set in the Budget tab (budget questions). private: her own data (My data mode): never read or
+    write saved answers, always answer live (rule 7)."""
     scenario, ds = scenario or engine.Scenario(), ds or normalize.load()
     mode, llm = (mode or config.ANSWER_MODE).lower(), llm or llm_client
     question, history, done = question.strip(), list(history or [])[-3:], tuple(sorted(done or ()))
+    if private:
+        mode = "live"
     if mode in ("cached", "replay"):
         cached = load_cached(question, scenario, mode, history, done, budget)
         if cached and mode == "replay":
@@ -2321,6 +2338,11 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     t = time.perf_counter()
     yield "stage", STAGES["math"]
     results = execute_all(plan, scenario, ds, done, budget)
+    if results and all(r.facts.get("unavailable") for r in results):     # My data mode: needs school data
+        yield "text", NOT_AVAILABLE
+        timings["execute_s"] = round(time.perf_counter() - t, 3)
+        yield "answer", finish(NOT_AVAILABLE, ans_mode="unavailable")
+        return
     pack = build_pack(results, ds, plan, scenario)
     lead = _verdict_result(results)
     label = verdict_label(lead)
@@ -2390,7 +2412,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     answer = finish(text, lead.verdict, label, pack, check, reasoning, actions, fixes,
                     ans_mode="fallback" if source == "template" or plan.source == "keywords" else "live",
                     source=source)
-    if answer.mode == "live" and check.ok:
+    if answer.mode == "live" and check.ok and not private:
         save_cached(answer, scenario, history=history, done=done, budget=budget)
     yield "answer", answer
 

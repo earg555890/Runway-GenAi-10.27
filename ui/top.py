@@ -3,16 +3,32 @@ import streamlit as st
 
 import config
 import engine
-from ui import data, fmt
+from ui import data, fmt, state
 
 CLOSE_CALL = 50     # dollars: "That's cutting it close." below this lowest point
 SHORT_NAMES = {"rent": "rent", "card_autopay": "card payment", "installment": "tuition payment",
                "recurring_bill": "bill", "subscription": "subscription"}
 
 
+MODES = {"maya": "Demo student (Maya)", "mine": "My data"}
+
+
+def mode_switch():
+    with st.container(horizontal=True, horizontal_alignment="right", key="mode_row"):
+        st.segmented_control("Whose money", list(MODES), format_func=MODES.get, key="data_mode", required=True,
+                             on_change=state.switch_mode, label_visibility="collapsed")
+
+
+def header_empty():
+    st.markdown('<p class="rw-brand">Runway</p><p class="rw-hello">Your money, from your own bank file.</p>',
+                unsafe_allow_html=True)
+
+
 def header(ds, note=None):
     left, right = st.columns([3, 2], vertical_alignment="bottom")
-    left.markdown('<p class="rw-brand">Runway</p><p class="rw-hello">How long your money lasts this semester.</p>', unsafe_allow_html=True)
+    hello = ("How long your money lasts this semester." if not state.mine() else
+             f"How long your money lasts until {fmt.day(config.SEMESTER_END)}.")
+    left.markdown(f'<p class="rw-brand">Runway</p><p class="rw-hello">{fmt.html(hello)}</p>', unsafe_allow_html=True)
     with right.container(horizontal=True, horizontal_alignment="right", gap="small", key="badges"):
         st.badge(data.backend_label(ds), color="gray")
         st.badge("Reasoning by NVIDIA Nemotron", color="green")

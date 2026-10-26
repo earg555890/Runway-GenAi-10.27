@@ -40,3 +40,25 @@ Written as the work happens. Times are this laptop's clock (EDT). Each part is c
 - Decision: City Transit Fare ($2.75 in 3 months) is classified as a monthly bill by the existing 3-month rule (rule
   12); left as is.
 - Tests: 320 passed (Maya unchanged).
+
+### A5-A6: My data mode in the app, tests (23:55-00:40)
+- Header switch "Demo student (Maya)" / "My data". With no file yet: the import screen (upload, detected mapping with
+  dropdowns to fix it, a 6-row preview, a balance box when the file has none, "Plan until" date defaulting to the
+  semester end, Import). After import: the whole page runs on her dates (`config.as_of`); "Your data" expander to
+  replace or remove the file.
+- Works on her data: status card, big numbers, chart, check-in ("Hi. 1 thing needs your attention."), Budget tab
+  (months from her first day), leaks, Afford it?, chat. School-only features show "Connect your school data to see
+  this." (Find money, Findings, the extra-shift card). Agent tools that need school data (refund_status,
+  cash_crunches, work_summary, find_aid, meal_plan) return `agent.NOT_AVAILABLE` without an AI call.
+- Privacy: in My data mode answers are never read from or written to the answer cache (always live), and the AI
+  greeting and AI budget summary are off (no AI call she didn't ask for). Switching modes clears what-ifs, budget,
+  done items and the chat.
+- Zetaris check (live, once): the fake file B registered as RUNWAY_MYDATA.transactions (55 rows, 14.4 s), read back
+  identical to the local file (4.9 s); the fake database was dropped afterwards.
+- Decisions: "today" in My data mode = the last day in her file; the AI greeting/summary are off for her data;
+  switching modes resets the session's what-ifs and chat.
+- Tests: tests/test_mydata.py (16): detection for all 3 layouts, same rows from all 3, money/sign handling incl. a
+  file where purchases are positive (sign found from the balance), plain rejections, recurring + projection
+  (her pay Oct 30 / Nov 13 / Nov 27 / Dec 11 at $612.40; runs out Sun Nov 1), typed balance, the agent's
+  "needs your school data" answer, no caching of her answers, every tab in My data mode, the import screen, Maya
+  mode unchanged after using My data, nothing in user_data/ tracked or unignored. Full suite: 336 passed.

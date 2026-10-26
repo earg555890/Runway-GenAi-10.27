@@ -76,6 +76,9 @@ def render(ds, subs, base, current, changed, deltas=None):
             _card(f"Cancel {sub.merchant}", f"Saves {fmt.dollars(fixes[sub.merchant].savings.value)} this semester.",
                   state.cancel_key(sub.merchant), done=state.is_done(("cancel", sub.merchant)))
     with cols[2]:
+        if not ds.job:
+            st.caption("Connect your work schedule to see what an extra shift would add.")
+            return _rest(ds, subs, fixes, helpful, useless)
         sh = engine.ExtraShift(s.wf_shift_date, engine.Decimal(f"{s.wf_shift_hours:.1f}"))
         pay, added = engine.extra_shift_pay(sh, ds, state.choices())
 
@@ -94,7 +97,10 @@ def render(ds, subs, base, current, changed, deltas=None):
                 sentence += (f" That's after you run out. A shift worked by {fmt.day(in_time[0].value)} is paid "
                              f"{fmt.day(in_time[1].value)}, in time.")
         _card("Pick up an extra shift", sentence, "wf_shift_on", pickers)
+    _rest(ds, subs, fixes, helpful, useless)
 
+
+def _rest(ds, subs, fixes, helpful, useless):
     for sub in useless + helpful[1:]:
         f = fixes[sub.merchant]
         if f.savings.value > 0:

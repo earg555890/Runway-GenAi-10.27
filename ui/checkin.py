@@ -17,7 +17,7 @@ def _key(items):
 
 
 def _start_greeting(items):
-    if greeting.enabled() and items:
+    if greeting.enabled() and items and not state.mine():      # her own data: no AI call she didn't ask for
         background.start(_key(items), lambda: greeting.ai_line(items))
 
 
@@ -26,11 +26,12 @@ def line(items):
     return background.line(_key(items), greeting.fallback(items))
 
 
-def heading(items):
+def heading(items, name="Maya"):
+    hi = f"Hi {name}." if name else "Hi."
     n = len(items)
     if not n:
-        return "Hi Maya. You're all caught up."
-    return f"Hi Maya. {fmt.things(n)} need{'s' if n == 1 else ''} your attention."
+        return f"{hi} You're all caught up."
+    return f"{hi} {fmt.things(n)} need{'s' if n == 1 else ''} your attention."
 
 
 def _email(act, key):
@@ -98,7 +99,8 @@ def render(ds, done_scenario):
     items = pending(ds, done_scenario)
     _start_greeting(items)
     with st.container(key="checkin"):
-        st.markdown(f'<div class="rw-ci-head">{fmt.html(heading(items))}</div>', unsafe_allow_html=True)
+        name = None if state.mine() else "Maya"
+        st.markdown(f'<div class="rw-ci-head">{fmt.html(heading(items, name))}</div>', unsafe_allow_html=True)
         if items:
             _greeting_slot(items)
         with st.container(key="ci_top"):              # on a phone: one row you swipe through (style.py)

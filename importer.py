@@ -16,7 +16,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 DATE_FORMATS = ["%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y", "%d-%m-%Y", "%m-%d-%Y", "%Y/%m/%d", "%d %b %Y",
-                "%b %d, %Y", "%d-%b-%Y", "%m/%d"]
+                "%b %d, %Y", "%d-%b-%Y"]
 DATE_WORDS = ("date", "posted", "posting", "transaction date", "trans date")
 DESC_WORDS = ("description", "desc", "payee", "memo", "details", "merchant", "name", "narrative", "transaction")
 AMOUNT_WORDS = ("amount", "amt", "value")

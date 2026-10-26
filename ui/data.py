@@ -60,6 +60,8 @@ def load_dataset():
 
 
 def backend_label(ds):
+    if ds.backend.startswith("mydata"):
+        return "Your bank file" + (" via Zetaris" if ds.backend.endswith("zetaris") else "")
     if ds.backend == "local":
         return "Local files"
     if all(ev.backend == "zetaris-cached" for ev in ds.evidence):

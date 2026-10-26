@@ -264,7 +264,7 @@ def _ask(question, ds, scenario):
         earlier = list(reversed([a for a in s.history if a.mode != "event"][:3]))
         for kind, payload in agent.run(question, scenario, ds=ds, history=earlier, think=s.get("ask_think", False),
                                        done=tuple(s.get("done") or {}),
-                                       budget=state.budget() if state.has_budget() else None):
+                                       budget=state.budget() if state.has_budget() else None, private=state.mine()):
             if kind == "stage":
                 status.update(label=payload)
             elif kind == "quick":
@@ -306,7 +306,7 @@ def render(ds, scenario):
             st.rerun()
         if not s.history:
             with st.container(horizontal=True, gap="small"):
-                for i, q in enumerate(agent.SUGGESTED):
+                for i, q in enumerate(agent.MYDATA_SUGGESTED if state.mine() else agent.SUGGESTED):
                     st.button(q, key=f"ask_suggest_{i}", on_click=_queue, args=(q,), type="tertiary",
                               icon=":material/chat_bubble:")
         typed = st.chat_input("Ask about your money", key="ask_input")

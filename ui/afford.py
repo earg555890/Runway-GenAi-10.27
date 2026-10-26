@@ -33,7 +33,8 @@ def render(ds, current):
     b.number_input("How much? ($)", key="buy_cost", min_value=0.0, step=10.0, format="%.2f")
     c.date_input("When?", key="buy_date", min_value=config.DEMO_TODAY + timedelta(days=1),
                  max_value=config.SEMESTER_END, format="MM/DD/YYYY")
-    st.checkbox("Paying by card?", key="buy_card", help="Card purchases leave checking later, when you pay the bill.")
+    if ds.statements:                         # only with a credit card on file
+        st.checkbox("Paying by card?", key="buy_card", help="Card purchases leave checking later, when you pay the bill.")
     p = state.purchase()
     st.button("Check", type="primary", key="buy_check", on_click=state.check_purchase, disabled=p is None)
     if not s.buy_active or p is None:

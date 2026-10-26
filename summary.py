@@ -7,7 +7,7 @@ actually spent on; short, finished, no repeats). The UI shows the sentence at on
 """
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 import agent
 import config
@@ -39,17 +39,22 @@ class Period:
         return self.start > config.DEMO_TODAY
 
 
-PERIODS = [Period("2026-08", "Aug", date(2026, 8, 1), date(2026, 8, 31)),
-           Period("2026-09", "Sep", date(2026, 9, 1), date(2026, 9, 30)),
-           Period("2026-10", "Oct", date(2026, 10, 1), date(2026, 10, 31)),
-           Period("2026-11", "Nov", date(2026, 11, 1), date(2026, 11, 30)),
-           Period("2026-12", "Dec", date(2026, 12, 1), date(2026, 12, 31)),
-           Period("semester", "This semester", config.SEMESTER_START, config.SEMESTER_END)]
+def periods():
+    """Each month from the semester start (her first day in My data mode) to its end, then the whole semester."""
+    out, d = [], config.SEMESTER_START.replace(day=1)
+    while d <= config.SEMESTER_END:
+        last = (d.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        out.append(Period(f"{d:%Y-%m}", f"{d:%b}" + ("" if d.year == 2026 else f" {d:%y}"), d, last))
+        d = last + timedelta(days=1)
+    return out + [Period("semester", "This semester", config.SEMESTER_START, config.SEMESTER_END)]
+
+
+PERIODS = periods()                     # Maya's: Aug - Dec 2026 and the semester
 ACCOUNT_WORDS = {"both": "", "checking": " from checking", "card": " on the card"}
 
 
 def period(key):
-    return next(p for p in PERIODS if p.key == key)
+    return next((p for p in periods() if p.key == key), None) or next(p for p in periods() if p.key == "semester")
 
 
 def _cap(s):

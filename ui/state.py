@@ -79,6 +79,34 @@ def budget_scenario_part():
     return ()
 
 
+def init_mode():
+    st.session_state.setdefault("data_mode", "maya")
+
+
+def mine():
+    """My data mode: the student's own bank file (private: no saved answers, no AI calls she didn't ask for)."""
+    return st.session_state.get("data_mode") == "mine"
+
+
+def switch_mode():
+    """Changing between Maya and My data starts fresh: what-ifs, budget, done items and the chat."""
+    s = st.session_state
+    keep = s.get("data_mode")
+    for k in [k for k in s.keys() if k.startswith(("wf_", "buy_", "bud_amt_", "ci_", "imp_"))
+              or k in ("done", "action_log", "prepared", "history", "bud_month", "bud_account", "bud_pick")]:
+        del s[k]
+    s.data_mode = keep
+
+
+def fit_dates():
+    """Keep the date pickers inside her dates (My data mode)."""
+    s = st.session_state
+    lo, hi = config.DEMO_TODAY + timedelta(days=1), config.SEMESTER_END
+    for k in ("wf_submit", "wf_shift_date", "buy_date"):
+        if k in s and not lo <= s[k] <= hi:
+            s[k] = min(max(s[k], lo), hi)
+
+
 def init(subs):
     for k, v in _defaults(subs).items():
         st.session_state.setdefault(k, v)

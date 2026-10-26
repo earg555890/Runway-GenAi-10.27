@@ -95,7 +95,7 @@ def card(x, ds, scenario):
 def render(ds, scenario):
     checks = engine.eligible_opportunities(None, scenario, ds)
     if not checks:
-        st.caption("No aid opportunities loaded.")
+        st.info("Connect your school data to see grants and scholarships from your school.")
         return
     total = engine.opportunities_total(checks, engine.Ledger())
     eligible = [x for x in checks if x.status == "eligible"]

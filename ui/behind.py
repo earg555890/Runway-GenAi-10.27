@@ -8,6 +8,11 @@ from ui import data, explain, live_zetaris
 
 
 def sources(ds):
+    if ds.backend.startswith("mydata"):
+        st.markdown("#### Your data")
+        ev = ds.evidence[0] if ds.evidence else None
+        st.markdown(fmt_rows(ds, ev))
+        return
     st.markdown(f"#### Maya's {len(data.SOURCES)} data sources")
     st.caption("Each source stays separate. Runway reads them through named queries, "
                + ("from local copies of the files." if ds.backend == "local" else "federated by Zetaris."))
@@ -62,6 +67,12 @@ def action_log():
                  column_config={"what": st.column_config.TextColumn(width="large")})
 
 
+def fmt_rows(ds, ev):
+    where = "Zetaris (RUNWAY_MYDATA)" if ds.backend.endswith("zetaris") else "the local file in user_data/"
+    return (f":green[●] **Your bank file**  \n:gray[{len(ds.checking_txns)} transactions, read from {where}"
+            + (f" in {ev.duration_s:.2f} s" if ev else "") + ". It stays on this computer.]")
+
+
 def render(ledger, ds):
     with st.expander("Behind the scenes", icon=":material/engineering:"):
         sources(ds)
@@ -72,4 +83,5 @@ def render(ledger, ds):
         st.divider()
         explain.render(ledger, ds)
         st.divider()
-        live_zetaris.render()
+        if not ds.backend.startswith("mydata"):
+            live_zetaris.render()

@@ -2,6 +2,7 @@
 one click away), then the budget for next month (task 4). The UI does no money math: every total, share base and
 budget comes from the engine; this module only formats and lays it out."""
 from dataclasses import replace
+from datetime import timedelta
 
 import altair as alt
 import pandas as pd
@@ -14,7 +15,10 @@ import summary
 from ui import background, checkin, fmt, state
 
 TOP = 5
-BUDGET_MONTH = "2026-11"          # next month: the one she can still plan
+def budget_month():
+    """Next month: the one she can still plan (Maya: November)."""
+    first = config.DEMO_TODAY.replace(day=28) + timedelta(days=4)
+    return f"{first:%Y-%m}"
 ACCOUNTS = {"both": "Both", "checking": "Checking", "card": "Card"}
 SURFACE = ("#ffffff", "#0e1117")       # Streamlit's light / dark page background (the 2px gap between slices)
 INK = ("#0b0b0b", "#f0efec")
@@ -33,14 +37,18 @@ def _pct(part, whole):
     return "<1%" if 0 < v < 1 else f"{v:.0f}%"
 
 
-def filters():
+def filters(ds):
     s = st.session_state
-    s.setdefault("bud_month", "2026-10")
+    keys = [p.key for p in summary.periods()]
+    if s.get("bud_month") not in keys:
+        s.bud_month = f"{config.DEMO_TODAY:%Y-%m}"
     s.setdefault("bud_account", "both")
     with st.container(horizontal=True, gap="medium", key="bud_filters"):
-        st.segmented_control("Month", [p.key for p in summary.PERIODS], key="bud_month",
+        accounts = list(ACCOUNTS) if ds.card_txns else ["both"]
+        st.segmented_control("Month", keys, key="bud_month",
                              format_func=lambda k: summary.period(k).label, required=True)
-        st.segmented_control("Account", list(ACCOUNTS), key="bud_account", format_func=ACCOUNTS.get, required=True)
+        if len(accounts) > 1:
+            st.segmented_control("Account", accounts, key="bud_account", format_func=ACCOUNTS.get, required=True)
     return summary.period(s.bud_month), s.bud_account
 
 
@@ -52,7 +60,7 @@ def spending(ds, per, account):
 def top_line(sp, per):
     text = summary.sentence(sp, per)
     key = f"summary|{per.key}|{sp.account}|{sp.total.value}"
-    if summary.enabled() and not per.future and sp.categories:
+    if summary.enabled() and not per.future and sp.categories and not state.mine():
         background.start(key, lambda: summary.ai_summary(sp, per))
     background.slot(key, text, lambda t: st.markdown(f'<div class="rw-bud-line">{fmt.html(t)}</div>',
                                                        unsafe_allow_html=True))
@@ -182,7 +190,7 @@ def progress(ds):
 def allocate(ds, scenario):
     """Your budget for November: what's left after rent and bills, amounts per flexible category, a suggestion,
     "Left to assign", this month's progress, and the switch that puts the budget in the forecast."""
-    sg = engine.suggest_budget(BUDGET_MONTH, replace(scenario, budget=()), ds)
+    sg = engine.suggest_budget(budget_month(), replace(scenario, budget=()), ds)
     m = sg.available
     month = f"{m.start:%B}"
     st.markdown(f"### Your budget for {month}")
@@ -226,7 +234,7 @@ def allocate(ds, scenario):
 
 
 def render(ds, scenario):
-    per, account = filters()
+    per, account = filters(ds)
     sp = spending(ds, per, account)
     top_line(sp, per)
     if not (per.future or not sp.categories):
