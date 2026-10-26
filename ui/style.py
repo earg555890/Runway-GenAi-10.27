@@ -135,7 +135,8 @@ button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-pri
   opacity: .9; margin-top: .4rem;}}
 .rw-note {{font-size: .95rem; opacity: .85; margin: .3rem 0 .4rem; max-width: 64ch;}}
 .rw-fn {{font-size: .65em; font-weight: 700; margin-left: .12em; color: var(--rw-link);}}
-[class*="st-key-ask_suggest_"] button p {{font-size: .95rem;}}
+[class*="st-key-ask_suggest_"] button p {{font-size: .95rem; white-space: normal; text-align: left;}}
+[class*="st-key-ask_suggest_"] button {{height: auto; min-height: 2.4rem;}}
 
 /* the check-in */
 .rw-ci-head {{font-size: 1.3rem; font-weight: 750; margin: .2rem 0 0;}}
@@ -208,8 +209,9 @@ div[data-testid="stTabs"] {{animation: rw-rise .4s ease-out .14s both;}}
   .st-key-ci_more > [data-testid="stLayoutWrapper"]:has([data-testid="stExpander"]) {{min-width: 100%;}}
   .st-key-bud_month [data-testid="stButtonGroup"] > div:last-child {{flex-wrap: wrap; row-gap: .3rem;}}
   .st-key-chat_fab {{left: 16px; bottom: 16px;}}
-  [data-testid="stDialog"] [role="dialog"] {{width: 100vw !important; max-width: 100vw !important; min-height: 92vh;
-      margin: 0 !important; border-radius: 16px 16px 0 0;}}
+  [data-testid="stDialog"] [role="dialog"] {{width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important;
+      min-height: 92vh; margin: 0 auto !important; border-radius: 16px; box-sizing: border-box;}}
+  [data-testid="stDialog"] [role="dialog"] * {{max-width: 100%; box-sizing: border-box;}}
 }}
 </style>
 """
