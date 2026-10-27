@@ -194,5 +194,8 @@ def test_generator_reproduces_every_committed_file_byte_for_byte(tmp_path, monke
     committed = sorted(p.relative_to(config.DATA_DIR) for p in config.DATA_DIR.rglob("*") if p.is_file())
     fresh = sorted(p.relative_to(tmp_path / "maya") for p in (tmp_path / "maya").rglob("*") if p.is_file())
     assert committed == fresh and len(committed) == 25
-    for rel in committed:
-        assert (config.DATA_DIR / rel).read_bytes() == (tmp_path / "maya" / rel).read_bytes(), rel
+    for rel in committed:      # text files with line endings normalized: the csv module writes \r\n, and git checks
+        a, b = (config.DATA_DIR / rel).read_bytes(), (tmp_path / "maya" / rel).read_bytes()   # out \n on Mac/Linux
+        if rel.suffix != ".pdf":
+            a, b = a.replace(b"\r\n", b"\n"), b.replace(b"\r\n", b"\n")
+        assert a == b, rel

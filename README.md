@@ -2,6 +2,10 @@
 
 **An AI money agent for college students that tells you how long your money lasts, and explains why, with proof.**
 
+> **Run it in 2 minutes. No keys needed** (sample mode; tested on Python 3.13 and 3.14):
+> `git clone https://github.com/earg555890/Runway-GenAi-10.27 runway && cd runway` · `pip install -r requirements.txt` · `streamlit run ui/app.py`
+> Step by step for macOS, Linux and Windows: [Try it in 2 minutes (sample mode)](#try-it-in-2-minutes-sample-mode).
+
 Built for the GenAI Works Open Agent Hackathon (HackOS), track: **The Agent That Can Explain Why**.
 
 Built on **Zetaris** (the data layer), **Meterless** (Nightshift as the AI provider, and the H-MEM memory engine)
