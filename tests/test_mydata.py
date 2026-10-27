@@ -234,3 +234,44 @@ def test_meal_plan_in_my_data_mode(userdir, monkeypatch):
     assert ">this week<" in row and ">13<" in row and ">$150<" in row
     assert mealplan.load("mine")["settings"]["meals"] == 14 and len(mealplan.load("mine")["log"]) == 1
     assert mealplan.load("maya") == mealplan.empty()                                       # Maya's stays apart
+
+
+def test_college_jobs_and_costs_in_my_data_mode(userdir, monkeypatch):
+    """My data mode: no college until she types one; a job what-if with no tax default; published costs she confirms
+    go into her forecast as estimates (she has no school bill); kept apart from Maya's."""
+    import time as _time
+    import college
+    import websearch
+    from ui import background
+    background._store().clear()
+    page = ("## Cost of attendance 2026-2027\n\n| Tuition & Fees | $1,000 |\n")
+    monkeypatch.setattr(websearch, "_post", lambda q, limit=None: {"data": {"web": [
+        {"title": "Costs", "url": "https://www.example.edu/costs", "markdown": page}]}})
+    imported("c")
+    at = _app(monkeypatch)
+    ts = _texts(at)
+    assert any("Add your college to find jobs near campus" in t for t in ts)
+    assert any("Add your college in My college to look up its published costs." in t for t in ts)
+    at.text_input(key="college_name").set_value("Example University")
+    at.text_input(key="college_city").set_value("Springfield, IL")
+    at.button(key="FormSubmitter:college_form-Save").click()
+    at.run()
+    assert college.load("mine")["college"]["name"] == "Example University"
+    assert college.load("maya") == college.empty()                                 # Maya's stays apart
+    end_before = next(t for t in _texts(at) if "End of semester" in t)
+    at.button(key="college_costs_search").click()
+    at.run()
+    for _ in range(20):
+        if any("Use these as my estimates" in str(b.label) for b in at.button):
+            break
+        _time.sleep(0.2)
+        at.run()
+    assert at.number_input(key="cost_amt_0").value == 500.0
+    at.button(key="FormSubmitter:cost_form-Use these as my estimates").click()
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    ts = _texts(at)
+    assert any("These are in your forecast as estimates until your real bill arrives." in t for t in ts)
+    assert college.estimates(college.load("mine"))[0].amount == 500
+    end = lambda ts: next(t for t in ts if "End of semester" in t)          # noqa: E731
+    assert end(ts) != end_before                                               # in her forecast now

@@ -143,6 +143,7 @@ def near_campus(ds, scenario):
     from ui import college as college_ui
     college_ui.setting()
     college_ui.jobs_section(ds, scenario)
+    college_ui.costs_section(ds)
 
 
 def render(ds, scenario):

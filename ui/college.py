@@ -190,7 +190,7 @@ def _remove_job(i):
 
 
 def job_words(job):
-    return (f"{job.name}: {fmt.money(job.hourly_rate)}/hour, {job.hours_per_week:g} hours a week from "
+    return (f"{job.name}: {fmt.money(job.hourly_rate)}/hour, {float(job.hours_per_week):g} hours a week from "
             f"{fmt.day(job.start)}, paid {SCHEDULES[job.schedule].lower()}")
 
 
@@ -223,8 +223,8 @@ def _search(fn, c, mode=None):
     kept on this computer for the chat (mode: "maya" or "mine")."""
     try:
         found = fn(c)
-    except Exception:
-        return {"error": True}
+    except Exception as exc:
+        return {"error": "limit" if getattr(exc, "code", None) == 429 else True}
     if mode and found.get("results"):
         try:
             college.save_found(mode, found)
@@ -243,13 +243,18 @@ def red(text):
     return re.sub(r"((?:&#36;|\$)[\d,.]+ below zero)", r'<span class="rw-red">\1</span>', fmt.html(text))
 
 
+def error_words(found):
+    if found.get("error") == "limit":
+        return "The free online search has reached its limit for now. Try again later."
+    return "Searching online isn't available right now (offline or busy). Try again later."
+
+
 def _results(found, ds):
     if found is SEARCHING or (found or {}).get("searching"):
         st.caption(":material/hourglass_top: Searching online. This can take up to a minute.")
         return
     if (found or {}).get("error"):
-        st.caption("Search isn't available right now (offline or busy). Try again later, or try your own numbers "
-                   "below.")
+        st.caption(error_words(found) + " You can still try your own numbers below.")
         return
     if not found or not found.get("results"):
         st.caption("No jobs found online right now. Try again later, or try your own numbers below.")
@@ -336,3 +341,153 @@ def jobs_section(ds, scenario):
                              help="Remove from my plan", on_click=_remove_job, args=(i,))
         if s.get("job_msg"):
             st.caption(f":material/info: {s.job_msg}")
+
+
+# --- Your school's published costs (Find money tab) -----------------------------------------------------------------
+from datetime import date  # noqa: E402
+from decimal import Decimal  # noqa: E402
+
+
+def published_words(name):
+    return (f"Published costs from {name}'s website. Your actual bill can differ because of aid, housing and course "
+            "load.")
+
+
+def _costs_key(c):
+    return "college_costs|" + "|".join((c["name"], c.get("city", "")))
+
+
+def default_due():
+    """When an estimate is due unless she changes it: the 1st of next month (inside the semester)."""
+    t = config.DEMO_TODAY
+    nxt = date(t.year + (t.month == 12), t.month % 12 + 1, 1)
+    return min(nxt, config.SEMESTER_END)
+
+
+def semester_share(value):
+    """The page states a yearly amount: half of it for one semester (deterministic; she can change it)."""
+    return (Decimal(value) / 2).quantize(Decimal("1"))
+
+
+def _use_default(item, c):
+    if item["kind"] in ("Tuition", "Fees"):
+        return True
+    if item["kind"] in ("Housing", "Meal plan"):
+        return c.get("housing") == "on"
+    return False
+
+
+def _cost_rows(page, c):
+    """Seed the form once per page: use / amount / due for each line."""
+    s, seen = st.session_state, set()
+    for i, item in enumerate(page["items"]):           # only the first line of each kind (in-state comes first)
+        s.setdefault(f"cost_use_{i}", _use_default(item, c) and item["kind"] not in seen)
+        seen.add(item["kind"])
+        s.setdefault(f"cost_amt_{i}", float(semester_share(item["value"])))
+        s.setdefault(f"cost_due_{i}", default_due())
+
+
+def _use_estimates(page, c):
+    s = st.session_state
+    out, problems = [], []
+    for i, item in enumerate(page["items"]):
+        if not s.get(f"cost_use_{i}"):
+            continue
+        amount = Decimal(str(s.get(f"cost_amt_{i}") or 0))
+        due = s.get(f"cost_due_{i}")
+        if amount <= 0 or not due:
+            problems.append(item["label"])
+            continue
+        out.append(engine.CostEstimate(item["label"], engine.D(amount), due, c["name"], page.get("year", ""),
+                                       page["url"]))
+    if problems:
+        s.cost_msg = f"Type an amount and a due date for: {', '.join(problems)}."
+        return
+    if not out:
+        s.cost_msg = "Tick at least one cost to use."
+        return
+    college.set_estimates(state.college_data(), out)
+    state.save_college()
+    s.cost_msg = "Saved as your estimates."
+    state.log(f"Used {len(out)} published cost(s) from {c['name']} as estimates", "estimate")
+
+
+def _clear_estimates():
+    college.set_estimates(state.college_data(), [])
+    state.save_college()
+    st.session_state.cost_msg = "Cleared."
+
+
+def _costs_found(found, c):
+    if found is SEARCHING or (found or {}).get("searching"):
+        st.caption(":material/hourglass_top: Looking up published costs. This can take up to a minute.")
+        return
+    if (found or {}).get("error"):
+        st.caption(error_words(found))
+        return
+    page = (found or {}).get("page")
+    if not page:
+        st.caption(f"No published costs found for {c['name']}. Check your school's cost of attendance page.")
+        return
+    year = f" ({page['year']})" if page.get("year") else ""
+    st.markdown(f"From [{fmt.md(page['title'] or page['site'])}]({page['url']}){fmt.md(year)}")
+    st.caption("Each line is copied from the page. Check the amount and the due date before you use it. "
+               "Yearly amounts start at half, for one semester.")
+    _cost_rows(page, c)
+    with st.form("cost_form", border=False):
+        for i, item in enumerate(page["items"]):
+            st.markdown(f"**{fmt.md(item['label'])}**" + (f" · :gray[{fmt.md(item['section'])}]" if item["section"]
+                                                          else "")
+                        + f"  \n:gray[On the page: {fmt.md(item['line'])}]")
+            a, b, cc = st.columns([1, 2, 2], vertical_alignment="bottom")
+            a.checkbox("Use", key=f"cost_use_{i}")
+            b.number_input("This semester ($)", key=f"cost_amt_{i}", min_value=0.0, max_value=100000.0, step=50.0,
+                           format="%.2f")
+            cc.date_input("Due", key=f"cost_due_{i}", min_value=config.DEMO_TODAY + timedelta(days=1),
+                          max_value=config.SEMESTER_END, format="MM/DD/YYYY")
+        st.form_submit_button("Use these as my estimates", type="primary", on_click=_use_estimates, args=(page, c))
+    others = (found or {}).get("others") or []
+    if others:
+        st.caption("Other pages found: " + " · ".join(f"[{fmt.md(o['title'] or o['url'])}]({o['url']})"
+                                                       for o in others[:3]))
+    st.caption(f"{found_words(found)} with {found.get('provider', 'web search')}.")
+
+
+def costs_section(ds):
+    """Her school's published costs: found online, shown only as written, used only as estimates she confirms. Her
+    real school bill always wins."""
+    s, c = st.session_state, current()
+    st.markdown("#### Your school's published costs")
+    name = c["name"] if c else "your school"
+    st.caption(published_words(name))
+    with st.container(border=True, key="costs_card"):
+        if offline():
+            st.caption("Looking up costs online is off in this offline demo.")
+        elif not c:
+            st.caption("Add your college in My college to look up its published costs.")
+        elif c.get("demo"):
+            st.caption("Maya's school is made up. Type a real college in My college to look up its costs.")
+        else:
+            key = _costs_key(c)
+            if st.button("Look up my school's published costs", key="college_costs_search", icon=":material/search:"):
+                background.forget(key)
+                for k in [k for k in s.keys() if str(k).startswith(("cost_use_", "cost_amt_", "cost_due_"))]:
+                    del s[k]
+                background.start(key, lambda: _search(college.search_costs, c))
+            if key in background._store():
+                background.slot(key, SEARCHING, lambda found: _costs_found(found, c))
+        mine = college.estimates(state.college_data())
+        if mine:
+            st.markdown("**Your estimates**")
+            for x in mine:
+                st.markdown(fmt.md(f"{x.label}: {fmt.dollars(x.amount)} due {fmt.day(x.due)} (estimated from "
+                                   f"{x.school}'s published costs, check your bill)."))
+            if engine.has_school_bill(ds):
+                st.caption("Your school bill is on file, so Runway uses it. These estimates are for comparison and "
+                           "aren't in your forecast.")
+            else:
+                st.caption("These are in your forecast as estimates until your real bill arrives.")
+            st.button("Clear my estimates", key="cost_clear", type="tertiary", icon=":material/delete:",
+                      on_click=_clear_estimates)
+        if s.get("cost_msg"):
+            st.caption(f":material/info: {s.cost_msg}")

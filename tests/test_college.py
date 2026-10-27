@@ -160,6 +160,13 @@ def test_no_search_fallback_never_raises():
     def down(*a, **k):
         raise OSError("offline")
     assert college_ui._search(lambda c: college.search_jobs(c, post=down), COLLEGE) == {"error": True}
+
+    class Limit(Exception):
+        code = 429
+    def limited(*a, **k):
+        raise Limit()
+    found = college_ui._search(lambda c: college.search_jobs(c, post=limited), COLLEGE)
+    assert found == {"error": "limit"} and "reached its limit" in college_ui.error_words(found)
     assert college.job_queries({**COLLEGE, "travel": "campus"}) == [
         "student jobs on campus University of Illinois Urbana-Champaign Champaign, IL"]
 
@@ -265,3 +272,78 @@ def test_jobs_card_offline_and_what_if_form(at, monkeypatch):
     monkeypatch.setattr(config, "ANSWER_MODE", "replay")
     run(at)
     assert any("Searching online is off in this offline demo." in plain(c.value) for c in at.caption)
+
+
+# --- Part 3: the school's published costs ---------------------------------------------------------------------------
+COST_PAGE = ("# Tuition & Costs\n\nCosts for the 2025-2026 and 2026-2027 academic years.\n\n## In-State Cost\n\n"
+             "| Cost | Amount |\n| --- | --- |\n| Tuition & Fees | $18,530–$24,018 |\n| Food & Housing | $15,858 |\n"
+             "| Books | $1,200 |\n\n## Out-Of-State Costs\n\n| Tuition & Fees | $41,206–$49,618 |\n")
+COST_PAGES = {"data": {"web": [
+    {"title": "Tuition guide", "url": "https://www.example.com/uiuc-tuition", "markdown": "Tuition is $17,000 a year."},
+    {"title": "Tuition & Costs - Undergraduate Admissions", "url": "https://www.admissions.illinois.edu/tuition/",
+     "markdown": COST_PAGE},
+    {"title": "Reddit", "url": "https://www.reddit.com/r/UIUC/p", "markdown": ""}]}}
+
+
+def test_cost_lines_only_as_written_and_edu_first():
+    post = fake_post(COST_PAGES)
+    found = college.search_costs(COLLEGE, post=post)
+    assert post.calls == ["University of Illinois Urbana-Champaign Champaign, IL cost of attendance tuition fees housing"]
+    page = found["page"]
+    assert page["url"] == "https://www.admissions.illinois.edu/tuition/" and page["year"] == "2026-2027"
+    assert [(x["kind"], x["label"], x["section"], x["amount"], x["line"]) for x in page["items"]] == [
+        ("Tuition", "Tuition & Fees", "In-State Cost", "$18,530", "Tuition & Fees · $18,530–$24,018"),
+        ("Housing", "Food & Housing", "In-State Cost", "$15,858", "Food & Housing · $15,858"),
+        ("Tuition", "Tuition & Fees", "Out-Of-State Costs", "$41,206", "Tuition & Fees · $41,206–$49,618")]
+    assert [o["url"] for o in found["others"]] == ["https://www.example.com/uiuc-tuition", "https://www.reddit.com/r/UIUC/p"]
+    assert college.academic_year("for 2024-25 and 2025-26") == "2025-26" and college.academic_year("2021-2026") == ""
+    none = college.search_costs(COLLEGE, post=fake_post({"data": {"web": []}}))
+    assert none["page"] is None
+
+
+def test_estimates_feed_the_forecast_only_without_a_real_bill(ds, bare):
+    est = e.CostEstimate("Tuition & Fees", D("500"), date(2026, 11, 20), UIUC[0], "2026-2027",
+                         "https://www.admissions.illinois.edu/tuition/")
+    sc = e.Scenario(cost_estimates=(est,))
+    assert e.has_school_bill(ds) and not e.has_school_bill(bare)
+    assert e.project(sc, ds).daily == e.project(e.Scenario(), ds).daily                # Maya: her bill wins
+    before, after = e.project(e.Scenario(), bare), e.project(sc, bare)
+    ev = next(x for x in after.events if x.kind == "estimate")
+    assert (ev.date, ev.amount, ev.label) == (date(2026, 11, 20), D("-500.00"), "Tuition & Fees (estimated)")
+    assert "Estimated from University of Illinois Urbana-Champaign's published costs (2026-2027)" in ev.computed.how
+    assert "Check your bill." in ev.computed.how
+    assert after.end_balance.value == before.end_balance.value - D("500")
+    data = college.load("mine")
+    college.set_estimates(data, [est])
+    assert college.scenario_part(data) == {"cost_estimates": (est,)}
+
+
+def test_costs_card_lookup_confirm_and_clear(at, monkeypatch):
+    import time as _time
+    import websearch
+    from ui import background
+    background._store().clear()
+    monkeypatch.setattr(websearch, "_post", fake_post(COST_PAGES))
+    assert any("Published costs from State University's website. Your actual bill can differ because of aid, housing "
+               "and course load." in plain(c.value) for c in at.caption)
+    before = status(at)
+    assert any("Maya's school is made up." in plain(c.value) for c in at.caption)
+    save_college(at, *UIUC)
+    at.button(key="college_costs_search").click()
+    run(at)
+    for _ in range(20):
+        if any("Use these as my estimates" in str(b.label) for b in at.button):
+            break
+        _time.sleep(0.2)
+        run(at)
+    assert at.checkbox(key="cost_use_0").value and not at.checkbox(key="cost_use_1").value      # in-state tuition
+    assert not at.checkbox(key="cost_use_2").value                                 # only the first line of a kind
+    assert at.number_input(key="cost_amt_0").value == 9265.0                         # half of $18,530 (a year)
+    at.button(key="FormSubmitter:cost_form-Use these as my estimates").click()
+    run(at)
+    assert college.estimates(college.load("maya"))[0].amount == D("9265.00")
+    assert any("Your school bill is on file, so Runway uses it." in plain(c.value) for c in at.caption)
+    assert status(at) == before                                                    # her real bill wins
+    at.button(key="cost_clear").click()
+    run(at)
+    assert college.load("maya")["estimates"] == []

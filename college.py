@@ -258,7 +258,8 @@ def parse_costs(item):
         text, value = _money(line)
         if value is None or value <= 0:
             continue
-        rows.append({"kind": kind, "label": label, "section": section, "line": re.sub(r"\s+", " ", line)[:160],
+        written = " · ".join(x for x in cells if x) if cells else line          # a table row: its cells, as written
+        rows.append({"kind": kind, "label": label, "section": section, "line": re.sub(r"\s+", " ", written)[:160],
                      "amount": text, "value": str(value)})
         if len(rows) == 8:
             break
