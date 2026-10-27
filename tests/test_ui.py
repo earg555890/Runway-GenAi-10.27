@@ -10,6 +10,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import config
+import engine
 
 
 @pytest.fixture
@@ -347,6 +348,17 @@ def test_checkin_under_the_status_card(at):
     assert "rw-status" in order[0] and "rw-ci-head" in order[1]                               # right under it
 
 
+def test_form_sent_message_uses_the_same_refund_date_as_the_card(at):
+    card = next(t for t in checkin_texts(at) if "Send it, and your $1,850 refund arrives around" in t)
+    promised = card.split("refund arrives around ")[1].split(".")[0]
+    assert promised == "Thu, Nov 5"
+    at.button(key="ci_done_refund").click()
+    run(at)
+    said = plain(at.chat_message[0].markdown[0].value)
+    assert f"your refund should arrive around {promised}." in said and "Nov 4" not in said
+    assert at.session_state["wf_submit"] == engine.Scenario().submit_date        # the engine's "sent now" date
+
+
 def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
     assert len([b for b in at.button if str(b.key).startswith("ci_done_") and "bud" not in str(b.key)]) == 6
     at.button(key="ci_done_refund").click()
@@ -357,7 +369,7 @@ def test_mark_done_updates_forecast_checkin_and_chat_then_undo(at):
     assert titles == ["Rent is due Sun, Nov 1", "A tight week is coming", "You pay for 2 music apps",
                       "Your dining dollars run out around Sun, Nov 22"]           # no gap now: no grant
     said = [plain(m.value) for m in at.chat_message[0].markdown]
-    assert said == ["Nice. With the form sent, your refund should arrive around Wed, Nov 4. Your money now lasts "
+    assert said == ["Nice. With the form sent, your refund should arrive around Thu, Nov 5. Your money now lasts "
                     "all semester. Your lowest point is $5.81 on Mon, Nov 2."]
     assert at.toggle(key="wf_refund").value is True and at.toggle(key="wf_refund").disabled
     log = at.session_state["action_log"]

@@ -172,9 +172,9 @@ def test_cancel_links_are_the_official_pages(ds, items):
 
 def test_done_messages_come_from_the_engine(ds, items):
     form, spotify = items[0], next(it for it in items if it.kind == "subscriptions")
-    sent = engine.Scenario(refund_released=True, refund_submit_date=actions.config.DEMO_TODAY)
+    sent = engine.Scenario(refund_released=True)                  # sent now: the engine's own send date
     assert actions.done_message(form, ds, sent) == (
-        "Nice. With the form sent, your refund should arrive around Wed, Nov 4. Your money now lasts all semester. "
+        "Nice. With the form sent, your refund should arrive around Thu, Nov 5. Your money now lasts all semester. "
         "Your lowest point is $5.81 on Mon, Nov 2.")
     only_spotify = engine.Scenario(cancel_subscriptions=("Spotify",))
     assert actions.done_message(spotify, ds, only_spotify) == (

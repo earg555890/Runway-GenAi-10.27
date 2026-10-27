@@ -126,7 +126,7 @@ def _apply_done():
     s = st.session_state
     for d in s.done.values():
         if d["fix"] == ["refund"]:
-            s.wf_refund, s.wf_submit = True, config.DEMO_TODAY
+            s.wf_refund, s.wf_submit = True, sent_now_date()
         elif d["fix"][:1] == ["cancel"]:
             s[cancel_key(d["fix"][1])] = True
 
@@ -187,7 +187,7 @@ def undo(kind):
     if not d:
         return
     if d["fix"] == ["refund"]:
-        s.wf_refund, s.wf_submit = False, config.DEMO_TODAY + timedelta(days=1)
+        s.wf_refund, s.wf_submit = False, sent_now_date()
     elif d["fix"][:1] == ["cancel"]:
         s[cancel_key(d["fix"][1])] = False
     log(f"Undone: {d['label']} ({d['title']})", "undone")
@@ -284,10 +284,15 @@ def purchase():
                            s.buy_label.strip() or "this purchase")
 
 
+def sent_now_date():
+    """The send date the engine uses for a form sent now (the answers, cards and refund date all count from it)."""
+    return engine.Scenario().submit_date
+
+
 def submit_date():
-    """When the form is (or would be) sent: today once it's marked sent, else the date picked."""
+    """When the form is (or would be) sent: the engine's "sent now" date once it's marked sent, else the date picked."""
     s = st.session_state
-    return config.DEMO_TODAY if "refund" in s.get("done", {}) else s.wf_submit
+    return sent_now_date() if "refund" in s.get("done", {}) else s.wf_submit
 
 
 def choices():
