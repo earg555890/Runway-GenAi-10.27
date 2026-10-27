@@ -128,7 +128,7 @@ How PocketMoney reached answer 1, step by step (plan, queries, model calls with 
 
 ## Watch the demo
 
-Video: *coming soon* (link to be added)
+Video: [https://youtu.be/l3YWt1nytks]
 
 ## Screenshots
 
