@@ -6,6 +6,10 @@
 
 **Live demo:** [https://runway-genai-1027-wcfik2tzidzu48b5pfmt83.streamlit.app](https://runway-genai-1027-wcfik2tzidzu48b5pfmt83.streamlit.app/) (sample mode: recorded answers, made-up student data; see [docs/DEPLOY.md](docs/DEPLOY.md))
 
+**Demo video:** [https://youtu.be/l3YWt1nytks](https://youtu.be/l3YWt1nytks)
+
+**Pitch deck:** <PASTE DECK LINK>
+
 > **Run it in 2 minutes. No keys needed** (sample mode; tested on Python 3.13 and 3.14):
 > `git clone https://github.com/earg555890/Runway-GenAi-10.27 runway && cd runway` · `pip install -r requirements.txt` · `streamlit run ui/app.py`
 > Step by step for macOS, Linux and Windows: [Try it in 2 minutes (sample mode)](#try-it-in-2-minutes-sample-mode).
@@ -17,7 +21,7 @@ and **NVIDIA Nemotron** (through Nightshift).
 
 ## The problem
 
-A student's money is split across six places that never talk to each other: a bank account, a credit card, a financial aid award, the school's student account (bursar), a lease and a part-time job. Each one looks fine on its own. Together they hide surprises: a refund held for a missing form, rent landing the day before payday, an overdraft fee, a card bill that falls due right after a big purchase. Students find out when the money is already gone.
+A student's money is split across eight places that never talk to each other: a bank account, a credit card, a financial aid award, the school's student account (bursar), a lease, a part-time job, the school's aid opportunities and the meal plan. Each one looks fine on its own. Together they hide surprises: a refund held for a missing form, rent landing the day before payday, an overdraft fee, a card bill that falls due right after a big purchase. Students find out when the money is already gone.
 
 ## What PocketMoney does
 
@@ -128,7 +132,7 @@ How PocketMoney reached answer 1, step by step (plan, queries, model calls with 
 
 ## Watch the demo
 
-Video: [https://youtu.be/l3YWt1nytks]
+Video: [https://youtu.be/l3YWt1nytks](https://youtu.be/l3YWt1nytks)
 
 ## Screenshots
 

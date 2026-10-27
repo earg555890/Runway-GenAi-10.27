@@ -9,9 +9,9 @@ Status: **done**, **to do (user)**, or **to do (Claude Code)**. Evidence is in b
 
 | # | Requirement | Status | Evidence |
 |---|---|---|---|
-| 1 | Demo video, 1-4 minutes, uploaded (YouTube unlisted, Vimeo, Drive "anyone with the link", or MP4 < 300 MB) | to do (user) | Script ready: `docs/DEMO_SCRIPT.md` (3:42, live, typed questions, under-the-hood beat) |
-| 2 | Slide deck covers the 8 required points | to do (user / project lead) | Facts for the deck: `docs/DECK_NOTES.md`, screenshots in `docs/images/` |
-| 3 | Repository public, with README (setup, usage, dependencies) | to do (user): make https://github.com/earg555890/Runway-GenAi-10.27 public | README: Dependencies, Setup (sample and full mode), sample inputs and outputs |
+| 1 | Demo video, 1-4 minutes, uploaded (YouTube unlisted, Vimeo, Drive "anyone with the link", or MP4 < 300 MB) | done | https://youtu.be/l3YWt1nytks (recorded live on the app, ElevenLabs narration) |
+| 2 | Slide deck covers the 8 required points | done; link to add (user) | `PocketMoney SubmissionDeck.pdf` (13 slides); deck link: <PASTE DECK LINK> |
+| 3 | Repository public, with README (setup, usage, dependencies) | done | https://github.com/earg555890/Runway-GenAi-10.27 is public (checked with `gh repo view`, Oct 27); README: Dependencies, Setup (sample and full mode), sample inputs and outputs |
 | 4 | Sponsor explanation covers Zetaris, Meterless and NVIDIA | done | `docs/SPONSOR_TECH.md` (pasted below), including how Cursor was used |
 | 5 | Zetaris as the data layer | done | 8 Lightning databases, 21 named queries, a federated query, a parity test (`tests/test_data_access.py`) |
 | 6 | A Meterless Engine working, with a passing test | done | H-MEM (`hmem.py`), official conformance vectors 13/13 (`tests/test_hmem_conformance.py`), feature tests 8/8 (`tests/test_runway_memory.py`) |
@@ -19,7 +19,7 @@ Status: **done**, **to do (user)**, or **to do (Claude Code)**. Evidence is in b
 | 8 | One track | done | "The Agent That Can Explain Why" in README, metadata.json, DEMO_SCRIPT.md, this file |
 | 9 | Pre-existing components declared | done | Below |
 | 10 | Runs from a clean clone with no manual steps | done | Fresh clone of 6a50c21 from GitHub, no `.env`, no keys: sample mode on; tests 433 passed, 21 skipped (Zetaris); app first page 4.1 s; the flight question replayed "Yes, if you do 2 things", written by Nemotron Ultra through Meterless Nightshift (receipt rcpt_req_hovpd7lc) |
-| 11 | No keys committed or on screen | done for the repo; to do (user) for the video | `.env` gitignored (`git check-ignore -v .env`); the NVIDIA key is in Nightshift, not the project; the user removes `NVIDIA_API_KEY` from `.env` |
+| 11 | No keys committed or on screen | done for the repo and the video; to do (user): remove `NVIDIA_API_KEY` from `.env` | `.env` gitignored (`git check-ignore -v .env`); the NVIDIA key is in Nightshift, not the project; video frames checked: no `.env`, keys or terminal on screen |
 | 12 | Sample inputs and outputs included | done | README "Sample inputs and outputs" (real recorded answers) |
 | 13 | Logs show how the agent reached its output | done | `logs/traces.jsonl` per question; committed example `docs/example_trace.json` |
 | 14 | Submitted before Oct 27, 23:45 UTC | to do (user) | |
@@ -52,13 +52,13 @@ change: when its first paycheck lands and whether that's before the money runs o
 - GitHub: earg555890
 - Role: product, agent orchestration, Zetaris and Meterless integration, UI
 
-**GitHub URL:** https://github.com/earg555890/Runway-GenAi-10.27 (**make it public before submitting**)
+**GitHub URL:** https://github.com/earg555890/Runway-GenAi-10.27 (public)
 
 **Live demo:** https://runway-genai-1027-wcfik2tzidzu48b5pfmt83.streamlit.app/ (sample mode: recorded answers, made-up student data; docs/DEPLOY.md)
 
-**Demo video:** [LINK TO ADD]
+**Demo video:** https://youtu.be/l3YWt1nytks
 
-**Slide deck:** [LINK OR FILE TO ADD]
+**Slide deck:** <PASTE DECK LINK>
 
 **Sponsor technology explanation:** paste the text of `docs/SPONSOR_TECH.md`. The short version, if the form has a
 character limit:
