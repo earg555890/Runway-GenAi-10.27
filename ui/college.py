@@ -1,5 +1,7 @@
 """My college (Find money tab): her college and city, on or off campus, and how far she can travel for work. Saved on
 this computer (college.py) and remembered in "What Runway remembers" (Maya mode; never in My data mode, rule 7)."""
+import re
+
 import streamlit as st
 
 import college
@@ -159,6 +161,14 @@ def _job_from_form():
                          engine.Decimal(str(s.job_tax or 0)), name), None
 
 
+def _open_form():
+    st.session_state.job_open = True
+
+
+def _close_form():
+    st.session_state.job_open, st.session_state.job_what_if = False, None
+
+
 def _see():
     job, problem = _job_from_form()
     st.session_state.job_what_if, st.session_state.job_msg = (job, None) if job else (None, problem)
@@ -205,7 +215,42 @@ def what_if_lines(w):
     return out
 
 
+SEARCHING = {"searching": True}
+
+
+def _search(fn, c, mode=None):
+    """The search, never raising: a failure becomes a plain message instead of an error. Job results are also
+    kept on this computer for the chat (mode: "maya" or "mine")."""
+    try:
+        found = fn(c)
+    except Exception:
+        return {"error": True}
+    if mode and found.get("results"):
+        try:
+            college.save_found(mode, found)
+        except OSError:
+            pass
+    return found
+
+
+def short_title(title):
+    """A job page's title without the site name ("Campus Jobs | The Career Center - ..." -> "Campus Jobs")."""
+    return re.split(r"\s[|\-–:]\s", title or "")[0].strip()[:40] or "New job"
+
+
+def red(text):
+    """Escaped HTML with every "... below zero" amount in red (the readability standard)."""
+    return re.sub(r"((?:&#36;|\$)[\d,.]+ below zero)", r'<span class="rw-red">\1</span>', fmt.html(text))
+
+
 def _results(found, ds):
+    if found is SEARCHING or (found or {}).get("searching"):
+        st.caption(":material/hourglass_top: Searching online. This can take up to a minute.")
+        return
+    if (found or {}).get("error"):
+        st.caption("Search isn't available right now (offline or busy). Try again later, or try your own numbers "
+                   "below.")
+        return
     if not found or not found.get("results"):
         st.caption("No jobs found online right now. Try again later, or try your own numbers below.")
         return
@@ -216,7 +261,7 @@ def _results(found, ds):
         left, right = st.columns([5, 2], vertical_alignment="center")
         left.markdown(f"[{fmt.md(r['title'])}]({r['url']})  \n:gray[{fmt.md(' · '.join(meta))}]")
         right.button("What if I got this job?", key=f"job_try_{i}", type="tertiary", icon=":material/calculate:",
-                     on_click=_try, args=(ds, college.pay_number(r["pay"]), r["employer"][:40]))
+                     on_click=_try, args=(ds, college.pay_number(r["pay"]), short_title(r["title"])))
     st.caption(f"{found_words(found)} with {found.get('provider', 'web search')}. Runway didn't check who can apply "
                "or whether a job is still open. Pay and hours show only when the page says them.")
 
@@ -224,8 +269,12 @@ def _results(found, ds):
 def _what_if_form(ds, scenario):
     s = st.session_state
     _job_form_defaults(ds)
-    with st.expander("What if I got a job? Try the numbers", expanded=bool(s.get("job_open")),
-                     icon=":material/calculate:"):
+    if not s.get("job_open"):
+        st.button("What if I got a job? Try the numbers", key="job_open_btn", icon=":material/calculate:",
+                  on_click=_open_form)
+        return
+    with st.container(border=True, key="job_whatif"):
+        st.markdown("**:material/calculate: What if I got this job?**")
         with st.form("job_form", border=False):
             st.text_input("Job name", key="job_name", max_chars=40)
             a, b = st.columns(2)
@@ -246,13 +295,14 @@ def _what_if_form(ds, scenario):
         if job:
             w = engine.job_what_if(job, scenario, ds, engine.Ledger())
             lines = what_if_lines(w)
-            st.markdown(f'<div class="rw-bud-head">{fmt.html(lines[0])}</div>'
-                        + "".join(f'<div class="rw-card-text">{fmt.html(x)}</div>' for x in lines[1:]),
+            st.markdown(f'<div class="rw-bud-head">{red(lines[0])}</div>'
+                        + "".join(f'<div class="rw-card-text">{red(x)}</div>' for x in lines[1:]),
                         unsafe_allow_html=True)
             if w.first_pay:
                 st.button("Add to my plan", key="job_add", type="primary", icon=":material/add_task:", on_click=_add,
                           args=(job,))
             st.caption("Nothing changes your forecast unless you click \"Add to my plan\".")
+        st.button("Close", key="job_close", type="tertiary", icon=":material/close:", on_click=_close_form)
 
 
 def jobs_section(ds, scenario):
@@ -269,9 +319,10 @@ def jobs_section(ds, scenario):
             key = _jobs_key(c)
             if st.button(f"Search for jobs near {c['name']}", key="college_jobs_search", icon=":material/search:"):
                 background.forget(key)
-                background.start(key, lambda: college.search_jobs(c))
+                mode = state.data_mode()
+                background.start(key, lambda: _search(college.search_jobs, c, mode))
             if key in background._store():
-                background.slot(key, None, lambda found: _results(found, ds))
+                background.slot(key, SEARCHING, lambda found: _results(found, ds))
             else:
                 st.caption("Press the button to search. It can take up to a minute.")
         _what_if_form(ds, scenario)

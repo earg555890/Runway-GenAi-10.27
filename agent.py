@@ -116,6 +116,14 @@ TOOLS = {
     "search_scholarships": dict(
         does="Scholarships and emergency aid found ONLINE (not her school's list): titles, sites and links, with an "
              "amount or deadline only if the page says it. She must check each one before applying.", args={}),
+    "find_jobs": dict(
+        does="Jobs near her college found ONLINE (not her records; she must check before applying), and what a job "
+             "would change: when its first paycheck arrives, whether that's before she runs out, and her new lowest "
+             "point. Pass hourly_rate and hours_per_week only when she says them.",
+        args={"hourly_rate": "pay per hour in dollars (optional; only if she says it)",
+              "hours_per_week": "hours a week (optional; only if she says it)",
+              "start": "YYYY-MM-DD (optional; default next Monday)",
+              "schedule": "\"weekly\" or \"biweekly\" (optional; default biweekly)"}),
     "meal_plan": dict(
         does="Her meal plan, from her own settings and meal log: meals (swipes) and points (dining dollars) left "
              "today, this week or this semester, when they reset or run out, and what checking pays. When she says "
@@ -263,6 +271,11 @@ def _amount_or_none(x, what):
     return None if x in (None, "") else str(_money(x, what))
 
 
+def next_monday():
+    """A new job's default start: the Monday after the demo's today."""
+    return config.DEMO_TODAY + timedelta(days=7 - config.DEMO_TODAY.weekday())
+
+
 def validate_call(tool, args, sub_names):
     """(clean args, assumptions) for one tool call. Raises ValueError with a message the model can fix."""
     if tool not in TOOLS:
@@ -365,6 +378,23 @@ def validate_call(tool, args, sub_names):
         clean = {"start": start.isoformat(), "end": end.isoformat()}
     elif tool == "general_info":
         clean = {"topic": str(args.get("topic") or "").strip()[:80]}
+    elif tool == "find_jobs":
+        rate, hours = args.get("hourly_rate"), args.get("hours_per_week")
+        if rate not in (None, "") and hours not in (None, ""):
+            start = _semester_date(args["start"], "start") if args.get("start") else next_monday()
+            schedule = _choice(args.get("schedule"), "schedule", ("weekly", "biweekly"), "biweekly")
+            problem = engine.new_job_problem(_money(rate, "hourly_rate"), _money(hours, "hours_per_week"), start,
+                                             schedule)
+            if problem:
+                raise ValueError(problem)
+            clean = {"hourly_rate": str(_money(rate, "hourly_rate")), "hours_per_week": str(_money(hours, "hours_per_week")),
+                     "start": start.isoformat(), "schedule": schedule}
+            if not args.get("start"):
+                assumptions.append(f"You didn't say when you'd start, so I assumed {w.day(start)}.")
+            if not args.get("schedule"):
+                assumptions.append("I assumed you'd be paid every two weeks, the Friday after each pay period.")
+        elif rate not in (None, ""):
+            clean = {"hourly_rate": str(_money(rate, "hourly_rate"))}
     elif tool == "meal_plan":                        # no args: {} (the recorded demo answers' plan)
         about = str(args.get("about") or "").strip().lower()
         if about:
@@ -487,6 +517,9 @@ def plan_messages(question, scenario, sub_names, history=(), memory_context=""):
         '- Will my points last? -> [{"tool": "meal_plan", "args": {"about": "points"}}]\n'
         '- I just used 2 meals -> [{"tool": "meal_plan", "args": {"log_meals": 2}}]\n'
         '- Find me scholarships online -> [{"tool": "search_scholarships"}]\n'
+        '- Find me a job near campus -> [{"tool": "find_jobs"}]\n'
+        '- Would a $15/hour job at 10 hours a week help? -> [{"tool": "find_jobs", "args": {"hourly_rate": 15, '
+        '"hours_per_week": 10}}]\n'
         '- What happens if I stick to my budget? / Am I on budget? -> [{"tool": "budget_status"}]\n'
         '- Help me get through the semester -> [{"tool": "runway"}, {"tool": "money_ideas"}, {"tool": '
         '"find_leaks"}]\n'
@@ -598,6 +631,16 @@ def keyword_plan(question, sub_names):
     elif any(k in q for k in ("grant", "scholarship", "emergency money", "work-study", "work study", "financial help")):
         args = {"type": "emergency_grant"} if "emergency" in q else {}
         p = Plan("find_aid", "find_aid", validate_call("find_aid", args, sub_names)[0])
+    elif re.search(r"\bjobs?\b", q) and not any(k in q for k in ("work-study", "work study")):
+        rate = re.search(r"\$\s?(\d+(?:\.\d\d)?)\s*(?:/|an?|per)\s*(?:hour|hr)", q)
+        hours = re.search(r"(\d+(?:\.\d)?)\s*(?:hours?|hrs?)\s*(?:a|per|/)\s*week", q)
+        args = {"hourly_rate": rate.group(1)} if rate else {}
+        if rate and hours:
+            args["hours_per_week"] = hours.group(1)
+        try:
+            p = Plan("find_jobs", "find_jobs", validate_call("find_jobs", args, sub_names)[0])
+        except ValueError:
+            return None
     elif any(k in q for k in ("dining", "swipe", "meal plan", "meals", "my points", "points left", "a meal")):
         p = Plan("meal_plan", "meal_plan", validate_call("meal_plan", meal_words(q), sub_names)[0])
     elif "budget" in q:
@@ -650,6 +693,88 @@ class ToolResult:
     facts: dict = field(default_factory=dict)            # for templates and actions
     tool: str | None = None
     args: dict = field(default_factory=dict)
+
+
+def _jobs_result(a, scenario, ds, ledger):
+    """Jobs near her college that the student found online in Find money (cited as web links, never as her
+    records), and, when she gives the pay and hours, the job what-if from the engine."""
+    import college
+    data = college.load(college.ACTIVE_MODE)
+    found = college.load_found(college.ACTIVE_MODE) or {}
+    rows, key = [], []
+    for r in (found.get("results") or [])[:4]:
+        pay = college.pay_number(r.get("pay"))
+        stated = ledger.add(f"pay stated on {r['url']}", engine.D(pay), "USD",
+                            f"Written on the page: \"{r['pay']}\". Not checked by Runway.", []) if pay else None
+        rows.append((r, stated))
+        key += [stated] if stated else []
+    facts = {"jobs": rows, "college": college.current(data, college.ACTIVE_MODE), "what_if": None,
+             "rate_only": bool(a.get("hourly_rate")) and not a.get("hours_per_week")}
+    if a.get("hours_per_week"):
+        job = engine.NewJob(engine.D(a["hourly_rate"]), Decimal(a["hours_per_week"]), date.fromisoformat(a["start"]),
+                            a["schedule"], ds.job.withholding_pct if ds.job else Decimal("0"), "new job")
+        wi = engine.job_what_if(job, scenario, ds, ledger)
+        facts["what_if"] = wi
+        key = [c for c in (wi.first_pay, wi.after.lowest, wi.before.lowest, wi.before.first_below_zero,
+                           wi.after.first_below_zero, wi.total, wi.rate, wi.hours) if c is not None] + key
+    elif a.get("hourly_rate"):
+        key.append(ledger.add("pay per hour you said", engine.D(a["hourly_rate"]), "USD", "From your question.", []))
+    return ToolResult(None, key, ledger, facts=facts)
+
+
+def jobs_parts(f, c):
+    """(answer, why, do, note, [Fact]) for find_jobs: the job what-if when she gave pay and hours; else the jobs
+    found online near her college (web links, check before applying)."""
+    wi = f.get("what_if")
+    if wi:
+        if not wi.first_pay:
+            head = f"No paycheck from this job would arrive by {w.day(config.SEMESTER_END)} {c(wi.total)}."
+            return head, ["So it doesn't change this semester."], [], "", [
+                Fact("first_pay", "that no paycheck arrives this semester", head, words=("no paycheck",),
+                     where="answer")]
+        before, after = wi.before.first_below_zero, wi.after.first_below_zero
+        head = f"Your first paycheck would come {w.day(wi.first_pay.value)} {c(wi.first_pay)}."
+        facts = [Fact("first_pay", "when the first paycheck would come", head, date=wi.first_pay.value,
+                      where="answer")]
+        why = []
+        if before.value:
+            when = "before" if wi.before_run_out else "after"
+            line = f"That's {when} you run out on {w.day(before.value)} {c(before)}."
+            why.append(line)
+            facts.append(Fact("timing", "whether it comes before the run-out date", line, date=before.value,
+                              words=(when,)))
+        low = (f"Your lowest point would be {w.balance(wi.after.lowest.value)} {c(wi.after.lowest)}, instead of "
+               f"{w.balance(wi.before.lowest.value)} {c(wi.before.lowest)}.")
+        why.append(low)
+        facts.append(Fact("lowest", "the new lowest point", low, money=(wi.after.lowest.value,)))
+        if before.value and after.value and after.value != before.value:
+            why.append(f"You'd run out {w.day(after.value)} {c(after)} instead.")
+        elif before.value and not after.value:
+            why.append(f"Your money would last the semester {c(after)}.")
+        why.append(f"It adds {w.dollars(wi.total.value)} by {w.day(config.SEMESTER_END)} {c(wi.total)}.")
+        return (head, why, ["If you get the job, add it in Find money, Jobs near campus."],
+                "The pay and hours are the numbers you gave.", facts)
+    col = f.get("college")
+    where = col["name"] if col else "your college"
+    rows = f.get("jobs") or []
+    check = Fact("check", "that she must check before applying", "Check before applying.",
+                 words=("check before applying", "check each", "check them", "check the"))
+    ask = "Tell me the pay per hour and hours a week, and I'll show what the job changes."
+    if f.get("rate_only"):
+        ask = "Tell me the hours a week too, and I'll show what the job changes."
+    if not rows:
+        head = f"I haven't found jobs near {where} yet."
+        return (head, ["Open Find money, then Jobs near campus, and press Search."], [ask],
+                "Jobs found online are never in your forecast.", [Fact("none", "that nothing was found yet", head,
+                                                                       words=("haven't", "no jobs", "not found"))])
+    why = []
+    for r, stated in rows:
+        pay = f"{w.dollars(stated.value)} an hour {c(stated)}" if stated else "see website"
+        why.append(f"[{r['title']}]({r['url']}) ({r['employer']}): pay {pay}.")
+    return (f"Here {'is 1 job page' if len(rows) == 1 else f'are {len(rows)} job pages'} near {where} I found "
+            "online. Check before applying.", why, [ask],
+            "Runway didn't check who can apply or whether a job is still open. None of this is in your forecast.",
+            [check])
 
 
 def meal_words(q):
@@ -854,6 +979,8 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
         return ToolResult(None, key, ledger, facts={"web": rows, "found_at": when})
     if tool == "meal_plan":
         return _meal_result(a, scenario, ds, ledger)
+    if tool == "find_jobs":
+        return _jobs_result(a, scenario, ds, ledger)
     if tool == "budget_status":
         b = engine.budget_status(budget, a["month"], a.get("category"), scenario, ds, ledger)
         if b.suggestion:
@@ -1345,7 +1472,7 @@ def event_dates(ds, scenario):
         p = engine.project(s, ds, engine.Ledger())
         for e in p.events:
             kind = {"rent": "rent", "card_autopay": "card", "paycheck": "pay", "refund": "refund",
-                    "installment": "tuition"}.get(e.kind)
+                    "installment": "tuition", "new_job": "pay"}.get(e.kind)
             if kind:
                 out[kind].add(e.date)
         rel = engine.refund_release_date(ds, s)
@@ -1532,6 +1659,8 @@ def call_words(tool, a):
         return "your meal plan"
     if tool == "search_scholarships":
         return "scholarships and aid found online"
+    if tool == "find_jobs":
+        return ("what a new job would change" if a.get("hours_per_week") else "jobs near campus found online")
     if tool == "budget_status":
         return f"your {(a.get('category') or 'whole').lower()} budget, {date.fromisoformat(a['month'] + '-01'):%B}"
     if tool == "general_info":
@@ -2090,6 +2219,8 @@ def lookup_template(tool, result, c):
                 ["Open each link and read who can apply before you start."], note)
     if tool == "meal_plan":
         return meal_parts(f, c)[:4]
+    if tool == "find_jobs":
+        return jobs_parts(f, c)[:4]
     if tool == "budget_status":
         b = f["status"]
         if b.suggestion:
@@ -2282,6 +2413,8 @@ def lookup_facts(tool, result, c):
                         words=("check before applying", "check each", "check them")))
     elif tool == "meal_plan":
         out += meal_parts(f, c)[4]
+    elif tool == "find_jobs":
+        out += jobs_parts(f, c)[4]
     elif tool == "budget_status":
         b = f["status"]
         if b.suggestion:
@@ -2355,13 +2488,14 @@ def required_facts(plan, results, pack, ds, scenario):
             continue
         facts = lookup_facts(tool, r, pack.cite) if tool in LOOKUP_TOOLS else _core_facts(tool, r, pack, ds, scenario)
         out += [f for f in facts if f.key not in {x.key for x in out}]
-    for a in plan.assumptions:
-        out.append(Fact("assumption", "the assumption", a, date=config.DEMO_TODAY + timedelta(days=1), where="note"))
+    for a in plan.assumptions:              # the date the assumption names ("tomorrow, Tue, Oct 27"), if any
+        d = next((x for _, x, _ in find_dates(a) if x), None)
+        out.append(Fact("assumption", "the assumption", a, date=d, words=() if d else ("assum",), where="note"))
     return out
 
 
 LOOKUP_TOOLS = ("spending_summary", "find_transactions", "upcoming_bills", "work_summary", "balance_on",
-                "accounts_today", "money_ideas", "action_plan", "budget_status", "find_aid", "meal_plan",
+                "accounts_today", "money_ideas", "action_plan", "budget_status", "find_aid", "meal_plan", "find_jobs",
                 "search_scholarships", "general_info")
 
 
@@ -2767,6 +2901,10 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     t = time.perf_counter()
     names, private = merchant_accounts(ds), private_amounts(ds) if general else None
     events = None if general else event_dates(ds, scenario)
+    for r in results:                        # a job what-if's paydays are real paycheck dates in its answer
+        wi = r.facts.get("what_if") if isinstance(r.facts, dict) else None
+        if events is not None and wi is not None:
+            events["pay"] |= {p.pay_date for p in wi.pay}
     aid = ds.opportunities if any((r.tool or plan.tool) == "find_aid" for r in results) else False   # never certain
     web = any((r.tool or plan.tool) == "search_scholarships" for r in results)
     messages = explain_messages(plan.resolved_question or question, plan, results, pack, label, required, general)

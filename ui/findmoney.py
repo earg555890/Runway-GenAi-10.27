@@ -142,6 +142,7 @@ def near_campus(ds, scenario):
     """My college, then what's found near it online (jobs, the school's published costs)."""
     from ui import college as college_ui
     college_ui.setting()
+    college_ui.jobs_section(ds, scenario)
 
 
 def render(ds, scenario):

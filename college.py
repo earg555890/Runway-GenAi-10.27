@@ -291,3 +291,24 @@ def pay_number(text):
         return None
     m = re.search(r"\d+(?:\.\d{2})?", text)
     return Decimal(m.group(0)) if m else None
+
+
+# --- the last jobs she found (the chat's find_jobs tool cites them as web links) ------------------------------------
+ACTIVE_MODE = "maya"             # set by the UI on every run (ui/state.py): "maya" or "mine"
+
+
+def found_path(mode):
+    return path(mode).with_name(path(mode).stem + "-jobs.json")
+
+
+def save_found(mode, found):
+    p = found_path(mode)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(found, indent=1), encoding="utf-8")
+
+
+def load_found(mode):
+    try:
+        return json.loads(found_path(mode).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None

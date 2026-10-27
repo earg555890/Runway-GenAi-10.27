@@ -118,6 +118,7 @@ def init(subs):
     st.session_state.setdefault("prepared", [])      # what Runway has prepared and logged already
     meal_data()
     college_data()
+    college.ACTIVE_MODE = data_mode()                  # the chat's find_jobs tool reads this mode's results
 
 
 def _apply_done():
