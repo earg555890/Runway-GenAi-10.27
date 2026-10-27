@@ -94,7 +94,7 @@ def event_name(e):
     return {"rent": "rent", "card_autopay": "credit card payment", "installment": "tuition payment",
             "paycheck": "paycheck", "refund": "refund", "purchase": e.label,
             "subscription": e.label.rsplit(" ", 1)[0], "recurring_bill": e.label.rsplit(" ", 1)[0] + " payment",
-            "aid_if_approved": e.label, "meal_plan": e.label}[e.kind]
+            "aid_if_approved": e.label, "meal_plan": e.label, "new_job": e.label, "estimate": e.label}[e.kind]
 
 
 def describe(rec):

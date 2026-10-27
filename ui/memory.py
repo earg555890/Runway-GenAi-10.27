@@ -63,6 +63,10 @@ def meal_plan(text):
     safe(lambda m: m.remember_meal_plan(text))
 
 
+def college(text):
+    safe(lambda m: m.remember_college(text) if text else m.forget_college())
+
+
 def think_harder(on):
     safe(lambda m: m.remember_preference("Prefers Think harder answers (slower, with reasoning)." if on else
                                          "Prefers fast answers.", "think"))

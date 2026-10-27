@@ -138,10 +138,17 @@ def web_section(ds):
     background.slot(key, shown, web_results)
 
 
+def near_campus(ds, scenario):
+    """My college, then what's found near it online (jobs, the school's published costs)."""
+    from ui import college as college_ui
+    college_ui.setting()
+
+
 def render(ds, scenario):
     checks = engine.eligible_opportunities(None, scenario, ds)
     if not checks:
         st.info("Connect your school data to see grants and scholarships from your school.")
+        near_campus(ds, scenario)
         web_section(ds)
         return
     total = engine.opportunities_total(checks, engine.Ledger())
@@ -171,4 +178,5 @@ def render(ds, scenario):
         st.caption(f"Your forecast now includes {len(scenario.approved)} \"if approved\" what-if"
                    f"{'s' if len(scenario.approved) != 1 else ''}. Turn them off to see it without.")
     st.divider()
+    near_campus(ds, scenario)
     web_section(ds)

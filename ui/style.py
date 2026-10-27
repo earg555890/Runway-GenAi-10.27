@@ -27,7 +27,7 @@ PALETTE = {
 # Runway Body / Runway Mono (config.toml fontFaces): Atkinson Hyperlegible and DM Mono with DM Sans digits (plain zero)
 HEADING, BODY, MONO = "'Bricolage Grotesque', sans-serif", "'Runway Body', sans-serif", "'Runway Mono', monospace"
 CARDS = ('[class*="st-key-card_"], [class*="st-key-ci_card_"], [class*="st-key-fm_card_"], .st-key-balance_card, '
-         '.st-key-shift_planner, .st-key-meal_card')
+         '.st-key-shift_planner, .st-key-meal_card, .st-key-college_card, .st-key-jobs_card, .st-key-costs_card')
 HOVERED = ", ".join(s + ":hover" for s in CARDS.split(", "))
 
 

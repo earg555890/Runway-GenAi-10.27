@@ -9,6 +9,7 @@ import actions
 import agent
 import config
 import engine
+import college
 import mealplan
 import normalize
 from ui import fmt
@@ -93,7 +94,8 @@ def switch_mode():
     """Changing between Maya and My data starts fresh: what-ifs, budget, done items and the chat."""
     s = st.session_state
     keep = s.get("data_mode")
-    for k in [k for k in s.keys() if k.startswith(("wf_", "buy_", "bud_amt_", "ci_", "imp_", "meal_"))
+    for k in [k for k in s.keys() if k.startswith(("wf_", "buy_", "bud_amt_", "ci_", "imp_", "meal_", "college_", "job_",
+                                                       "cost_"))
               or k in ("done", "action_log", "prepared", "history", "bud_month", "bud_account", "bud_pick")]:
         del s[k]
     s.data_mode = keep
@@ -115,6 +117,7 @@ def init(subs):
     st.session_state.setdefault("action_log", [])    # [{"when", "what", "kind"}]
     st.session_state.setdefault("prepared", [])      # what Runway has prepared and logged already
     meal_data()
+    college_data()
 
 
 def _apply_done():
@@ -315,6 +318,23 @@ def meal_today(ds):
     return min(max(t, plan.start), plan.end) if plan else t
 
 
+def college_data():
+    """Her college, the jobs she added and the costs she confirmed for this mode (college.py), loaded once."""
+    s = st.session_state
+    if "college_data" not in s:
+        s.college_data = college.load(data_mode())
+    return s.college_data
+
+
+def save_college():
+    college.save(data_mode(), college_data())
+
+
+def college_part():
+    """Scenario fields for the jobs she added and the costs she confirmed (none in Maya's default state)."""
+    return college.scenario_part(college_data())
+
+
 def meal_part(ds):
     """Scenario fields for her meal plan and log (none in Maya's default state)."""
     return mealplan.scenario_part(meal_data(), ds, meal_today(ds)) if ds is not None else {}
@@ -349,7 +369,7 @@ def scenario(subs, ds=None):
         refund_released=s.wf_refund or "refund" in s.done, refund_submit_date=submit_date(),
         cancel_subscriptions=tuple(dict.fromkeys(cancels + done_cancels())),
         extra_shifts=base.extra_shifts, purchases=(p,) if p else (), budget=budget_scenario_part(),
-        approved=approved(), meal_moves=int(s.get("wf_meal_moves") or 0), **meal_part(ds))
+        approved=approved(), meal_moves=int(s.get("wf_meal_moves") or 0), **meal_part(ds), **college_part())
 
 
 def done_scenario(ds=None):
@@ -357,12 +377,13 @@ def done_scenario(ds=None):
     explored."""
     return engine.Scenario(refund_released="refund" in st.session_state.get("done", {}),
                            refund_submit_date=submit_date(), cancel_subscriptions=done_cancels(),
-                           budget=budget_scenario_part(), **meal_part(ds))
+                           budget=budget_scenario_part(), **meal_part(ds), **college_part())
 
 
 def changed(sc):
     return bool(sc.refund_released or sc.cancel_subscriptions or sc.extra_shifts or sc.purchases or sc.budget
-                or sc.approved or sc.meal_moves or sc.meal_settings or sc.meal_log or sc.meal_today)
+                or sc.approved or sc.meal_moves or sc.meal_settings or sc.meal_log or sc.meal_today or sc.new_jobs
+                or sc.cost_estimates)
 
 
 def summary(sc):
@@ -381,4 +402,8 @@ def summary(sc):
         parts.append(f"{sc.meal_moves} meal{'s' if sc.meal_moves != 1 else ''} a week on swipes")
     if sc.meal_settings or sc.meal_log:
         parts.append("your meal plan")
+    if sc.new_jobs:
+        parts.append(f"{len(sc.new_jobs)} new job{'s' if len(sc.new_jobs) != 1 else ''}")
+    if sc.cost_estimates:
+        parts.append("your estimated school costs")
     return ", ".join(parts)

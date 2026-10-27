@@ -57,6 +57,13 @@ def _not_sample_mode(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _college_to_tmp(monkeypatch, tmp_path):
+    """My college, the jobs she added and the costs she confirmed live in a temp folder per test."""
+    import college
+    monkeypatch.setattr(college, "FOLDER", tmp_path / "college")
+
+
+@pytest.fixture(autouse=True)
 def _meal_plan_to_tmp(monkeypatch, tmp_path):
     """The meal plan settings and log live in a temp folder per test, never the real .cache/ or user_data/."""
     import mealplan

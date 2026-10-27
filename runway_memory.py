@@ -92,6 +92,14 @@ class RunwayMemory:
         return self._add(text, "meal_plan", "You set this in the meal plan card", type="preference",
                          layer="long_term", tags=["meal_plan"], supersede_tag="meal_plan")
 
+    def remember_college(self, text):
+        return self._add(text, "college", "You set this in My college", type="preference", layer="long_term",
+                         tags=["college"], supersede_tag="college")
+
+    def forget_college(self):
+        for m in [m for m in self.engine.store.all() if "college" in m.tags and not m.superseded_by]:
+            self.forget(m.id)
+
     def remember_shifts(self, shifts, day_words):
         text = ("Plans extra shifts: " + ", ".join(f"{day_words(s.date)} ({float(s.hours):g} hours)" for s in shifts)
                 + ".") if shifts else "No extra shifts planned."

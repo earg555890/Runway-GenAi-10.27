@@ -158,6 +158,29 @@ class Purchase:
 
 
 @dataclass(frozen=True)
+class NewJob:
+    """A job she might get (or added to her plan). Only numbers she typed or confirmed: pay per hour, hours a week,
+    start date, pay schedule and the share withheld for taxes. Paid the Friday after each pay period (new_job_pay)."""
+    hourly_rate: Decimal
+    hours_per_week: Decimal
+    start: date
+    schedule: str = "biweekly"   # "weekly" or "biweekly"
+    withholding_pct: Decimal = Decimal("0")
+    name: str = "new job"
+
+
+@dataclass(frozen=True)
+class CostEstimate:
+    """A school cost she confirmed from her school's published costs (an estimate, never her real bill)."""
+    label: str
+    amount: Decimal              # positive: what she expects to pay this semester
+    due: date
+    school: str = ""
+    year: str = ""
+    url: str = ""
+
+
+@dataclass(frozen=True)
 class Scenario:
     refund_released: bool = False
     refund_submit_date: date | None = None     # when the missing form is submitted; None = day after DEMO_TODAY
@@ -171,9 +194,18 @@ class Scenario:
     meal_settings: object = None               # MealSettings she set (None: her school's plan, if any)
     meal_log: tuple = ()                       # MealEntry: meals and points she logged
     meal_today: date | None = None             # the meal plan's "today" (None: DEMO_TODAY)
+    new_jobs: tuple = ()                       # NewJob: a job she might get (what-if) or added to her plan
+    cost_estimates: tuple = ()                 # CostEstimate: published school costs she confirmed
 
     def __post_init__(self):
         today = config.DEMO_TODAY
+        for j in self.new_jobs:
+            problem = new_job_problem(j.hourly_rate, j.hours_per_week, j.start, j.schedule, j.withholding_pct)
+            if problem:
+                raise ValueError(problem)
+        for e in self.cost_estimates:
+            if e.amount <= 0:
+                raise ValueError("an estimated cost must be positive")
         for p in self.purchases:
             if p.account not in ("checking", "card"):
                 raise ValueError(f"purchase account must be 'checking' or 'card', got {p.account!r}")
@@ -222,6 +254,9 @@ class Scenario:
             parts.append(f"meal plan: {self.meal_settings.describe()}")
         if self.meal_log:
             parts.append(f"{len(self.meal_log)} meal log entr{'y' if len(self.meal_log) == 1 else 'ies'}")
+        parts += [f"{j.name}: {fmt_money(j.hourly_rate)}/hour, {j.hours_per_week} hours a week from {j.start}, paid "
+                  f"{j.schedule}" for j in self.new_jobs]
+        parts += [f"estimated {e.label} {fmt_money(e.amount)} due {e.due}" for e in self.cost_estimates]
         return "; ".join(parts) or "nothing changes"
 
 
@@ -406,6 +441,117 @@ def paychecks(ds, scenario, ledger):
     return out
 
 
+# ---------------------------------------------------------------------------------------
+# A new job (what-if or added to her plan) and estimated school costs
+# ---------------------------------------------------------------------------------------
+NEW_JOB_PAYDAY = 4                       # Friday: each pay period is paid the Friday after it ends (an assumption)
+MAX_RATE, MAX_WEEK_HOURS = Decimal("100"), Decimal("40")
+
+
+def new_job_problem(rate, hours, start, schedule="biweekly", withholding=0):
+    """A friendly message for job numbers that can't be used, or None."""
+    try:
+        rate, hours, withholding = Decimal(str(rate)), Decimal(str(hours)), Decimal(str(withholding or 0))
+    except Exception:
+        return "Enter numbers only."
+    if not 0 < rate <= MAX_RATE:
+        return f"Pay per hour must be more than $0 and at most ${MAX_RATE:.0f}."
+    if not 0 < hours <= MAX_WEEK_HOURS:
+        return f"Hours a week must be more than 0 and at most {MAX_WEEK_HOURS:.0f}."
+    if schedule not in ("weekly", "biweekly"):
+        return "Pick weekly or every two weeks."
+    if not 0 <= withholding < 50:
+        return "Taxes withheld must be from 0% to 49%."
+    if not config.DEMO_TODAY < start <= config.SEMESTER_END:
+        return f"Pick a start date after {fmt_date(config.DEMO_TODAY)} and by {fmt_date(config.SEMESTER_END)}."
+    return None
+
+
+@dataclass
+class NewJobPay:
+    pay_date: date
+    start: date
+    end: date
+    hours: Decimal
+    net: Computed
+
+
+def new_job_pay(job, ledger):
+    """Her paychecks from a new job that arrive by SEMESTER_END. Pay periods are whole weeks (Monday to Sunday) from
+    the week she starts, one or two weeks long; each is paid the Friday after it ends. Hours: her hours a week, for
+    the days she works in that period (a first, partial week counts its days from the start date)."""
+    length = 7 if job.schedule == "weekly" else 14
+    p_start, out = job.start - timedelta(days=job.start.weekday()), []
+    while True:
+        p_end = p_start + timedelta(days=length - 1)
+        pay = p_end + timedelta(days=(NEW_JOB_PAYDAY - p_end.weekday()) % 7)
+        if pay > config.SEMESTER_END:
+            break
+        worked = (p_end - max(p_start, job.start)).days + 1
+        hours = (Decimal(job.hours_per_week) * worked / 7).quantize(CENT, rounding=ROUND_HALF_UP)
+        gross = D(hours * job.hourly_rate)
+        wh = D(gross * Decimal(job.withholding_pct) / 100)
+        out.append(NewJobPay(pay, p_start, p_end, hours, ledger.add(
+            f"{job.name} paycheck {pay}", gross - wh, "USD",
+            f"Pay period {fmt_date(max(p_start, job.start))} to {fmt_date(p_end)}: {job.hours_per_week} hours a week x "
+            f"{worked} days / 7 = {hours} hours x {fmt_money(job.hourly_rate)}/hour = {fmt_money(gross)}, less "
+            f"{job.withholding_pct}% withheld ({fmt_money(wh)}) = {fmt_money(gross - wh)}, paid the Friday after the "
+            f"period ends ({fmt_date(pay)}). The numbers are the ones you entered.", [])))
+        p_start = p_end + timedelta(days=1)
+    return out
+
+
+@dataclass
+class JobWhatIf:
+    job: NewJob
+    before: "Projection"
+    after: "Projection"
+    pay: list                    # NewJobPay
+    first_pay: Computed | None   # date of the first paycheck by SEMESTER_END (None: none this semester)
+    total: Computed              # added to checking this semester
+    before_run_out: bool | None  # first paycheck before the run-out date (None: she doesn't run out, or no pay)
+    days_longer: Computed | None # how many more days the money lasts (when it ran out before)
+    rate: Computed
+    hours: Computed
+    ledger: "Ledger"
+
+
+def job_what_if(job, scenario=None, ds=None, ledger=None):
+    """What a new job would change: when its first paycheck arrives, whether that's before she runs out, and the
+    new lowest point and run-out date. Nothing changes her plan unless she adds the job (Scenario.new_jobs)."""
+    scenario, ds = scenario or Scenario(), _ds(ds)
+    ledger = ledger if ledger is not None else Ledger()
+    base = replace(scenario, new_jobs=tuple(j for j in scenario.new_jobs if j != job))
+    before = project(base, ds, ledger)
+    rate = ledger.add(f"{job.name}: pay per hour you entered", D(job.hourly_rate), "USD", "You entered this.", [])
+    hours = ledger.add(f"{job.name}: hours a week you entered", Decimal(job.hours_per_week), "hours",
+                       "You entered this.", [])
+    pay = new_job_pay(job, ledger)
+    first = ledger.add(f"{job.name}: first paycheck", pay[0].pay_date if pay else None, "date",
+                       (f"The first pay period ({fmt_date(max(pay[0].start, job.start))} to {fmt_date(pay[0].end)}) is "
+                        f"paid the Friday after it ends: {fmt_date(pay[0].pay_date)}.") if pay else
+                       "No paycheck from this job arrives by the end of the semester.",
+                       [rate, hours] + ([pay[0].net] if pay else []))
+    total = ledger.add(f"{job.name}: added this semester", D(sum((p.net.value for p in pay), ZERO)), "USD",
+                       f"{len(pay)} paycheck(s) by {fmt_date(config.SEMESTER_END)}, added up.", [p.net for p in pay])
+    after = project(base.plus(new_jobs=(job,)), ds, ledger)
+    out_before, out_after = before.first_below_zero.value, after.first_below_zero.value
+    early = (pay[0].pay_date < out_before) if (pay and out_before) else None
+    longer = None
+    if out_before:
+        end = out_after or config.SEMESTER_END + timedelta(days=1)
+        longer = ledger.add(f"{job.name}: days longer the money lasts", (end - out_before).days, "days",
+                            f"Runs out {fmt_date(out_after)} instead of {fmt_date(out_before)}." if out_after else
+                            f"Lasts through {fmt_date(config.SEMESTER_END)} instead of running out "
+                            f"{fmt_date(out_before)}.", [before.first_below_zero, after.first_below_zero])
+    return JobWhatIf(job, before, after, pay, first if pay else None, total, early, longer, rate, hours, ledger)
+
+
+def has_school_bill(ds):
+    """Her real student-account records (bursar ledger or payment plan): they always win over estimates."""
+    return bool(ds.ledger or ds.installments)
+
+
 def refund_release_date(ds, scenario):
     r = _held_refund(ds)
     return add_business_days(scenario.submit_date, r.release_business_days) if r else None
@@ -521,6 +667,16 @@ def project(scenario=None, ds=None, ledger=None):
                        f"{fmt_date(scenario.submit_date)}, it arrives {fmt_date(rel)}.", [refund.row_id]))
     for d, amount, label, computed in approved_events(scenario, ds, ledger):
         add(d, amount, "aid_if_approved", label, computed)
+    for j in scenario.new_jobs:
+        for pc in new_job_pay(j, ledger):
+            add(pc.pay_date, pc.net.value, "new_job", f"{j.name} paycheck", pc.net)
+    if scenario.cost_estimates and not has_school_bill(ds):        # her real school bill always wins
+        for e in scenario.cost_estimates:
+            add(e.due, -e.amount, "estimate", f"{e.label} (estimated)",
+                ledger.add(f"estimated {e.label} due {e.due}", D(-e.amount), "USD",
+                           f"Estimated from {e.school or 'your school'}'s published costs"
+                           + (f" ({e.year})" if e.year else "") + f": {fmt_money(e.amount)}, due {fmt_date(e.due)}, "
+                           "as you confirmed. Check your bill." + (f" {e.url}" if e.url else ""), []))
     if scenario.dining_dollars_added:
         add(today + timedelta(days=1), -scenario.dining_dollars_added, "meal_plan", "dining dollars added",
             ledger.add("dining dollars bought from checking", D(scenario.dining_dollars_added), "USD",
