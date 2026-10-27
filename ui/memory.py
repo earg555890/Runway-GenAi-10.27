@@ -6,6 +6,7 @@ import time
 import streamlit as st
 
 import agent
+import config
 import runway_memory
 from ui import fmt, state
 
@@ -19,8 +20,18 @@ def _memory():
 
 
 def get():
-    """The memory, or None in My data mode."""
-    return None if state.mine() else _memory()
+    """The memory, or None in My data mode. The hosted demo gives each visitor their own memory for the session (no
+    shared file every judge writes to); so does a disk that can't be written."""
+    if state.mine():
+        return None
+    if not config.HOSTED_DEMO:
+        try:
+            return _memory()
+        except OSError:
+            pass
+    if "memory_session" not in st.session_state:
+        st.session_state.memory_session = runway_memory.RunwayMemory(persist=False)
+    return st.session_state.memory_session
 
 
 def session_start():

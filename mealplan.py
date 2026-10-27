@@ -30,6 +30,8 @@ def empty():
 
 
 def load(mode):
+    if config.HOSTED_DEMO:                       # the hosted demo: each visitor's session only, never a shared file
+        return empty()
     p = path(mode)
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
@@ -39,9 +41,16 @@ def load(mode):
 
 
 def save(mode, data):
-    p = path(mode)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    """Saved on this computer. The hosted demo keeps it in the session only; a failed write (a read-only disk) keeps
+    it in the session too, and never breaks the app."""
+    if config.HOSTED_DEMO:
+        return
+    try:
+        p = path(mode)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def to_dict(s):

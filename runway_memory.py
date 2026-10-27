@@ -42,8 +42,9 @@ def when_words(ms):
 
 
 class RunwayMemory:
-    def __init__(self, persist_dir=None, clock=now_ms):
-        self.engine = hmem.HMEM(clock=clock, persist_dir=persist_dir or DIR, actor="runway",
+    def __init__(self, persist_dir=None, clock=now_ms, persist=True):
+        """persist=False: kept in memory only (one visitor's session on the hosted demo)."""
+        self.engine = hmem.HMEM(clock=clock, persist_dir=(persist_dir or DIR) if persist else None, actor="runway",
                                 domain_keywords=DOMAINS)
 
     # --- writing -------------------------------------------------------------------------------------------

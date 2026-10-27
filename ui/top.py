@@ -13,7 +13,14 @@ SHORT_NAMES = {"rent": "rent", "card_autopay": "card payment", "installment": "t
 MODES = {"maya": "Demo student (Maya)", "mine": "My data"}
 
 
+HOSTED_LINE = ("Live demo in sample mode: recorded answers, made-up student data. Run locally for live Nemotron and "
+               "Zetaris.")
+
+
 def mode_switch():
+    if config.HOSTED_DEMO:                       # no My data (bank file uploads) on a shared server
+        st.caption(HOSTED_LINE)
+        return
     with st.container(horizontal=True, horizontal_alignment="right", key="mode_row"):
         st.segmented_control("Whose money", list(MODES), format_func=MODES.get, key="data_mode", required=True,
                              on_change=state.switch_mode, label_visibility="collapsed")

@@ -87,7 +87,7 @@ def init_mode():
 
 def mine():
     """My data mode: the student's own bank file (private: no saved answers, no AI calls she didn't ask for)."""
-    return st.session_state.get("data_mode") == "mine"
+    return st.session_state.get("data_mode") == "mine" and not config.HOSTED_DEMO
 
 
 def switch_mode():

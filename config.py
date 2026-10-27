@@ -151,7 +151,14 @@ SEMESTER_END = date(2026, 12, 18)
 # Nightshift and no keys. Maya's local files and the recorded answers (DATA_BACKEND=local, ANSWER_MODE=replay);
 # no AI provider is called. SAMPLE_MODE=false uses DATA_BACKEND and ANSWER_MODE as set. With no .env at all (a fresh
 # clone), sample mode is on.
-SAMPLE_MODE = (get("SAMPLE_MODE") or ("false" if ENV_FILE.exists() else "true")).lower() in ("true", "1", "yes", "on")
+# HOSTED_DEMO (the public demo on Streamlit Community Cloud, docs/DEPLOY.md): on with HOSTED_DEMO=true in the app's
+# secrets (Cloud exposes root-level secrets as environment variables), or automatically when the app runs from
+# Cloud's checkout folder (/mount/src/...). It forces sample mode, hides My data (no uploads to a shared server) and
+# keeps every visitor's changes (meal log, college, memory) in their own session instead of shared files.
+HOSTED_DEMO = ((get("HOSTED_DEMO") or "").lower() in ("true", "1", "yes", "on")
+               or Path(__file__).resolve().as_posix().startswith("/mount/src/"))
+SAMPLE_MODE = HOSTED_DEMO or (get("SAMPLE_MODE") or ("false" if ENV_FILE.exists() else "true")).lower() in (
+    "true", "1", "yes", "on")
 
 # Data access (see data_access.py). Paths are relative to the project root.
 PROJECT_ROOT = Path(__file__).resolve().parent
