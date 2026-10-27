@@ -1,4 +1,4 @@
-"""What Runway remembers about Maya across sessions, on the H-MEM engine (hmem.py).
+"""What PocketMoney remembers about Maya across sessions, on the H-MEM engine (hmem.py).
 
 Every memory has provenance (where it came from, when, and the action that created it) and every change is in
 H-MEM's append-only trust ledger. Stored locally in .cache/memory/ (gitignored). Remembered:
@@ -8,7 +8,7 @@ H-MEM's append-only trust ledger. Stored locally in .cache/memory/ (gitignored).
     budget           "Monthly budget: Groceries $185, Eating out $96, ..."             long_term preference, supersedes
     planned shifts   "Plans extra shifts: Sat, Oct 31 (4 hours), Sat, Nov 7 (4 h)."    working, supersedes
     preferences      "Prefers Think harder answers."                                   long_term preference
-    conversations    "Asked "Can I afford ...?" Runway: "Yes, if you do 2 things.""    short_term summary, no AI call
+    conversations    "Asked "Can I afford ...?" PocketMoney: "Yes, if you do 2 things.""    short_term summary, no AI call
 
 Memories are recalled into PLAN only (so follow-ups across sessions work), never into the answer itself: numbers in
 an answer always come from the evidence pack. Memories never change the forecast on their own; the check-in asks
@@ -21,7 +21,7 @@ import config
 import hmem
 
 DIR = config.PROJECT_ROOT / ".cache" / "memory"
-DOMAINS = {   # Runway's domains for H-MEM's multi-pass classification (AGENTS.md section 5: tune per domain)
+DOMAINS = {   # PocketMoney's domains for H-MEM's multi-pass classification (AGENTS.md section 5: tune per domain)
     "school": ["aid", "refund", "form", "verification", "grant", "scholarship", "tuition", "bursar", "worksheet"],
     "money": ["budget", "rent", "card", "spotify", "subscription", "groceries", "eating", "shopping", "flight",
               "afford", "balance", "money", "spending"],
@@ -29,7 +29,7 @@ DOMAINS = {   # Runway's domains for H-MEM's multi-pass classification (AGENTS.m
     "personal": ["prefer", "prefers", "like", "dislike"],
 }
 PLAN_TOP_N = 3
-PLAN_THRESHOLD = 0.15   # tuned for Runway (AGENTS.md section 13: tune per domain); the spec default is 0.35
+PLAN_THRESHOLD = 0.15   # tuned for PocketMoney (AGENTS.md section 13: tune per domain); the spec default is 0.35
 
 
 def now_ms():
@@ -79,7 +79,7 @@ class RunwayMemory:
         return rec
 
     def remember_intent(self, kind, what):
-        return self._add(f"{what}.", "checkin:draft", f"Runway prepared this and you opened it",
+        return self._add(f"{what}.", "checkin:draft", f"PocketMoney prepared this and you opened it",
                          tags=["checkin", "intent", f"item:{kind}"])
 
     def remember_budget(self, amounts):
@@ -112,9 +112,9 @@ class RunwayMemory:
                          tags=["preference", f"pref:{key}"], supersede_tag=f"pref:{key}")
 
     def remember_conversation(self, question, answer_line, chat_id=None):
-        """A short summary of one question and Runway's answer line (no AI call: model-free capture, 4.3)."""
-        return self._add(f"Asked “{question}” Runway: “{answer_line}”", "chat",
-                         "From your chat with Runway", type="general", layer="short_term", tags=["chat"],
+        """A short summary of one question and PocketMoney's answer line (no AI call: model-free capture, 4.3)."""
+        return self._add(f"Asked “{question}” PocketMoney: “{answer_line}”", "chat",
+                         "From your chat with PocketMoney", type="general", layer="short_term", tags=["chat"],
                          origin="model_response", chat_id=chat_id)
 
     # --- reading -------------------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-"""Runway's memory on H-MEM (runway_memory.py, ui/memory.py): persisted across sessions with provenance and an
+"""PocketMoney's memory on H-MEM (runway_memory.py, ui/memory.py): persisted across sessions with provenance and an
 audit ledger, superseded (not deleted) when something changes, recalled into PLAN only (never EXPLAIN), forgettable,
 and used by the check-in in a later session."""
 import json
@@ -29,7 +29,7 @@ def test_memories_persist_across_sessions_with_provenance_and_a_ledger(tmp_path)
     again = runway_memory.RunwayMemory(persist_dir=tmp_path / "m")                     # a new session
     items = again.items()
     assert [m.content for m in items] == ["Asked “Can I afford a $400 flight home if I book it Nov 10?” "
-                                          "Runway: “Yes, if you do 2 things.”",
+                                          "PocketMoney: “Yes, if you do 2 things.”",
                                           "Marked done: Form sent (Send your verification form)."]
     done = items[1]
     assert done.layer == "long_term" and done.source == "checkin:done" and "item:refund" in done.tags
@@ -75,7 +75,7 @@ def test_memories_reach_plan_but_never_explain(mem, tmp_path, monkeypatch):
     llm = RecordingLLM(plans=[FLIGHT_PLAN], answers=[GOOD_FLIGHT])
     a = agent.ask(Q17, engine.Scenario(), ds=normalize.load(), mode="live", llm=llm, typing_s=0, memory=recall)
     plan_prompt = json.dumps(llm.plan_messages[0])
-    assert "What Runway remembers from earlier sessions (H-MEM)" in plan_prompt and "[MEMORY CONTEXT]" in plan_prompt
+    assert "What PocketMoney remembers from earlier sessions (H-MEM)" in plan_prompt and "[MEMORY CONTEXT]" in plan_prompt
     assert all("MEMORY CONTEXT" not in json.dumps(m) for _, m in llm.messages)        # EXPLAIN: evidence only
     assert a.models["memories"][0]["content"].startswith("Asked")
     trace = json.loads((config.LOGS_DIR / "traces.jsonl").read_text(encoding="utf-8").splitlines()[-1])
@@ -112,10 +112,10 @@ def test_the_check_in_remembers_across_sessions(monkeypatch):
     assert not first.exception
     second = AppTest.from_file("../ui/app.py", default_timeout=60)                    # a new session, same computer
     second.run()
-    second.button(key="chat_fab_btn").click()                # "What Runway remembers" is in the chat panel
+    second.button(key="chat_fab_btn").click()                # "What PocketMoney remembers" is in the chat panel
     second.run()
     texts = [m.value for m in second.markdown]
     assert any("Last time you clicked “Form sent”. Still true? Click it again." in t for t in texts)
-    remembers = next(e for e in second.expander if e.label.startswith("What Runway remembers"))
-    assert remembers.label == "What Runway remembers (1)"
+    remembers = next(e for e in second.expander if e.label.startswith("What PocketMoney remembers"))
+    assert remembers.label == "What PocketMoney remembers (1)"
     assert any("Marked done: Form sent (Send your verification form)." in m.value for m in remembers.markdown)

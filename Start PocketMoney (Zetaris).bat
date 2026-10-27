@@ -1,6 +1,6 @@
 @echo off
-rem Start Runway on http://localhost:8501 with Maya's data read through Zetaris, and open the browser.
-rem Needs Docker Desktop and the Zetaris containers running (JDBC port 10000). If Runway is already running,
+rem Start PocketMoney on http://localhost:8501 with Maya's data read through Zetaris, and open the browser.
+rem Needs Docker Desktop and the Zetaris containers running (JDBC port 10000). If PocketMoney is already running,
 rem just open the browser.
 setlocal
 cd /d "%~dp0"
@@ -17,5 +17,5 @@ if errorlevel 1 (
   exit /b 1
 )
 set "RUNWAY_BACKEND=zetaris"
-call "%~dp0Start Runway.bat"
+call "%~dp0Start PocketMoney.bat"
 endlocal

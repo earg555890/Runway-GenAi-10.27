@@ -220,7 +220,7 @@
     }
   ],
   "notes": [
-    "The AI answer didn't pass Runway's checks ($307.00 is not in the facts), so this is the quick answer built straight from your numbers."
+    "The AI answer didn't pass PocketMoney's checks ($307.00 is not in the facts), so this is the quick answer built straight from your numbers."
   ],
   "answer": "ANSWER: Yes, if you do 2 things first [C1].\nWHY:\n- Without changes, you'd be $1,862 below zero [C2].\n- With them, your lowest point is $5.81 [C4] on Mon, Nov 2.\nDO THIS:\n1. Send your verification form to financial aid. Your $1,850 refund comes around Thu, Nov 5 [C6].\n2. Cancel Spotify. That saves $23.98 this semester [C8].\nNOTE: Cancelling Apple Music saves $0.00 [C7] this semester. Its card bill is paid after the semester ends."
 }

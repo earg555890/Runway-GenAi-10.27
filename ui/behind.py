@@ -14,7 +14,7 @@ def sources(ds):
         st.markdown(fmt_rows(ds, ev))
         return
     st.markdown(f"#### Maya's {len(data.SOURCES)} data sources")
-    st.caption("Each source stays separate. Runway reads them through named queries, "
+    st.caption("Each source stays separate. PocketMoney reads them through named queries, "
                + ("from local copies of the files." if ds.backend == "local" else "federated by Zetaris."))
     counts = data.rows_per_source(ds)
     where = {"local": "local file", "zetaris": "Zetaris", "zetaris-cached": "Zetaris (cached)"}
@@ -26,7 +26,7 @@ def sources(ds):
 
 
 def answers():
-    st.markdown("#### Ask Runway")
+    st.markdown("#### Ask PocketMoney")
     st.caption(f"Answer mode: **{config.ANSWER_MODE}** (live = always ask the models; cached = reuse a saved answer "
                "for the same question and what-ifs; replay = saved answers only, typed out). PLAN model: "
                f"`{config.NVIDIA_PLAN_MODEL}` (thinking off). EXPLAIN model: `{config.fast_explain_model()}`, "
@@ -59,13 +59,13 @@ def answers():
 
 def action_log():
     st.markdown("#### Actions")
-    st.caption("What Runway prepared for Maya, and what she approved or marked done. Runway never sends, buys or "
+    st.caption("What PocketMoney prepared for Maya, and what she approved or marked done. PocketMoney never sends, buys or "
                "cancels anything itself: every action is a click by the student.")
     log = st.session_state.get("action_log") or []
     if not log:
         st.caption("Nothing yet.")
         return
-    words = {"prepared": "Runway prepared", "approved": "Maya approved", "done": "Maya marked done",
+    words = {"prepared": "PocketMoney prepared", "approved": "Maya approved", "done": "Maya marked done",
              "undone": "Maya undid"}
     st.dataframe(pd.DataFrame([{"when": x["when"], "who": words.get(x["kind"], x["kind"]), "what": x["what"]}
                                for x in reversed(log)]), hide_index=True, width="stretch",

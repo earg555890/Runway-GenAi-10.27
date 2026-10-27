@@ -1,4 +1,4 @@
-"""Runway's look: "night runway". Night navy, warm paper, one amber accent (runway lights); alert red only for below $0,
+"""PocketMoney's look: "night runway". Night navy, warm paper, one amber accent (runway lights); alert red only for below $0,
 signal green only for "covered / good news". Fonts (config.toml): Atkinson Hyperlegible body, Bricolage Grotesque
 headings, DM Mono for big numbers and dates (tabular figures).
 
@@ -73,6 +73,8 @@ def css(m="light"):
 .st-key-rw_header .st-key-badges [data-testid="stElementContainer"] > div > span,
 .st-key-rw_header .st-key-badges [data-testid="stMarkdownContainer"] span {{background: rgba(243,238,228,.10) !important;}}
 .rw-hello {{font-size: 1.05rem; opacity: .85; margin: 0;}}
+.rw-sub {{font-size: .92rem; opacity: .75; margin: .1rem 0 0;}}
+.st-key-rw_header .rw-sub {{color: rgba(243,238,228,.72); opacity: 1;}}
 .rw-brand {{font-size: 1.5rem; font-weight: 700; margin: 0;}}
 
 /* the status card, with a departure-board label */
@@ -201,7 +203,7 @@ button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-pri
   [data-testid="stDialog"] [role="dialog"] {{min-height: min(76vh, 760px);}}
 }}
 
-/* the floating "Ask Runway" button: fixed bottom-left on every tab; the page keeps room below its last element */
+/* the floating "Ask PocketMoney" button: fixed bottom-left on every tab; the page keeps room below its last element */
 .st-key-chat_fab {{position: fixed; left: 24px; bottom: 24px; z-index: 999990; width: auto !important;}}
 .st-key-chat_fab button {{width: 64px; height: 64px; min-height: 64px; border-radius: 50%; padding: 0;
   border: 2px solid rgba(15,27,45,.12); box-shadow: 0 8px 22px rgba(15,27,45,.32);}}

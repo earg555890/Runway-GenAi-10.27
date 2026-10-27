@@ -1,8 +1,8 @@
-# Ask Runway: how well it answers
+# Ask PocketMoney: how well it answers
 
-We asked Runway 29 realistic student questions (the original 10, plus 19 new ones: spending, transactions, bills, work hours, a balance on a date, two follow-ups, a multi-step plan, a general question, a vague one, "what should I do this week?", two budget questions, two about grants and scholarships, two about the meal plan and the shift planner), 3 separate times (87 answers in all), using the real NVIDIA Nemotron models. Every answer was graded automatically against numbers that Runway's money engine computes on its own. Follow-ups were asked after the question they follow, in the same chat.
+We asked PocketMoney 29 realistic student questions (the original 10, plus 19 new ones: spending, transactions, bills, work hours, a balance on a date, two follow-ups, a multi-step plan, a general question, a vague one, "what should I do this week?", two budget questions, two about grants and scholarships, two about the meal plan and the shift planner), 3 separate times (87 answers in all), using the real NVIDIA Nemotron models. Every answer was graded automatically against numbers that PocketMoney's money engine computes on its own. Follow-ups were asked after the question they follow, in the same chat.
 
-The model never does the math: Runway's engine computes every number, shows a quick answer from those numbers right away, and a checker rejects any AI answer with an amount, date or reason that doesn't match the student's records.
+The model never does the math: PocketMoney's engine computes every number, shows a quick answer from those numbers right away, and a checker rejects any AI answer with an amount, date or reason that doesn't match the student's records.
 
 ## Fast (Nemotron Lightning, thinking off; the default): 48/58 full answers (2 runs)
 
@@ -16,12 +16,12 @@ The model never does the math: Runway's engine computes every number, shows a qu
 - **Quick answer:** 0.83 s median after sending. **Full AI answer:** 2.95 s median.
 
 Not full answers: 3 because of NVIDIA service errors, 7 because of real mistakes:
-  - Run 1, "Can I afford new headphones for $150?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass Runway's checks (the answer copied a calculation note ("Without fixes the lowest balance is -$1,612.37; wi"); say it in plain words; -)
-  - Run 1, "Is there a week coming up where money gets really tight?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass Runway's checks (Mon, Nov 16 is not a date in the facts), so this is the quick answer built straight from your numbers.)
-  - Run 1, "What will my balance be on Thanksgiving?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass Runway's checks (the answer copied a calculation note ("is the projected end-of-day balance on Thu Nov 26,"); say it in plain words), )
+  - Run 1, "Can I afford new headphones for $150?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass PocketMoney's checks (the answer copied a calculation note ("Without fixes the lowest balance is -$1,612.37; wi"); say it in plain words; -)
+  - Run 1, "Is there a week coming up where money gets really tight?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass PocketMoney's checks (Mon, Nov 16 is not a date in the facts), so this is the quick answer built straight from your numbers.)
+  - Run 1, "What will my balance be on Thanksgiving?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass PocketMoney's checks (the answer copied a calculation note ("is the projected end-of-day balance on Thu Nov 26,"); say it in plain words), )
   - Run 1, "What happens if I stick to my budget?": picked budget_status with the wrong arguments
-  - Run 2, "Can I afford new headphones for $150?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass Runway's checks (the answer copied a calculation note ("Without fixes the lowest balance is -$1,612.37; ev"); say it in plain words; -)
-  - Run 2, "What will my balance be on Thanksgiving?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass Runway's checks (-$284.80 has a minus sign; write it as "$284.80 below zero"), so this is the quick answer built straight from your nu)
+  - Run 2, "Can I afford new headphones for $150?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass PocketMoney's checks (the answer copied a calculation note ("Without fixes the lowest balance is -$1,612.37; ev"); say it in plain words; -)
+  - Run 2, "What will my balance be on Thanksgiving?": the AI answer didn't pass the checks, so the quick answer stood in (The AI answer didn't pass PocketMoney's checks (-$284.80 has a minus sign; write it as "$284.80 below zero"), so this is the quick answer built straight from your nu)
   - Run 2, "What happens if I stick to my budget?": picked budget_status with the wrong arguments
 
 ## Think harder (Nemotron Super, thinking on): 28/29 full answers (1 run)
@@ -41,8 +41,8 @@ Not full answers: 0 because of NVIDIA service errors, 1 because of real mistakes
 ## After the fix (targeted re-run, not part of the scores above)
 
 In the fast runs above, 3 answers were counted as "NVIDIA service errors". They weren't outages: the planner (Nemotron
-Lightning) wrote the shift what-if plan with two closing brackets swapped (`]}` for `}]`), twice in a row, so Runway
-matched the question by keywords instead. Runway now repairs one swapped pair of brackets before checking the plan.
+Lightning) wrote the shift what-if plan with two closing brackets swapped (`]}` for `}]`), twice in a row, so PocketMoney
+matched the question by keywords instead. PocketMoney now repairs one swapped pair of brackets before checking the plan.
 We then asked only the two shift questions again ("What if I pick up a 5 hour shift on Nov 7?" and "What if I work
 4 hours this Saturday and next Saturday?"):
 
@@ -54,7 +54,7 @@ We then asked only the two shift questions again ("What if I pick up a 5 hour sh
 ### After fix: "What happens if I stick to my budget?"
 
 In all 3 runs above, the planner picked the "food" category for this question, though it names no category.
-Runway now keeps a budget category only if the student's question names it or a clear synonym ("food" for
+PocketMoney now keeps a budget category only if the student's question names it or a clear synonym ("food" for
 groceries and eating out, "restaurants", "shopping", "Uber"...). Otherwise it answers for the whole budget.
 (On a follow-up, the planner's rewritten question counts too.) We then asked only the two budget questions again:
 

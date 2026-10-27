@@ -188,7 +188,7 @@ ZETARIS_CACHE_DIR = PROJECT_ROOT / ".cache" / "zetaris"
 ZETARIS_CONTAINER = get("ZETARIS_CONTAINER") or "zetaris-driver-1"
 ZETARIS_DATA_ROOT = get("ZETARIS_DATA_ROOT") or "/home/zetaris/customer-data/shared/runway"
 
-# Ask Runway answers (agent.py): live = always call the models; cached = reuse a saved answer for the
+# Ask PocketMoney answers (agent.py): live = always call the models; cached = reuse a saved answer for the
 # same question and what-ifs if there is one (.cache/answers/ first, then demo_answers/); replay = only the
 # committed demo answers, typed out (no key needed). Live answers are saved to .cache/answers/;
 # pregenerate_answers.py writes demo_answers/.

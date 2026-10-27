@@ -1,5 +1,5 @@
 """The page layout: header, the important notices (status card + check-in), the tabs (Semester first), Behind the
-scenes at the bottom, and the floating "Ask Runway" button that opens the chat panel (st.dialog) with the whole chat.
+scenes at the bottom, and the floating "Ask PocketMoney" button that opens the chat panel (st.dialog) with the whole chat.
 Buttons in the panel that change the forecast update the page; the panel reopens and says so."""
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -37,15 +37,15 @@ def test_page_order_notices_then_tabs_then_behind_the_scenes(page):
 
 
 def test_the_chat_is_not_in_the_page_body_until_the_button_opens_the_panel(page):
-    assert [b.label for b in page.button if b.key == "chat_fab_btn"] == ["Ask Runway"]
+    assert [b.label for b in page.button if b.key == "chat_fab_btn"] == ["Ask PocketMoney"]
     assert not page.chat_input and not [b for b in page.button if str(b.key).startswith("ask_suggest_")]
-    assert not any(e.label.startswith("What Runway remembers") for e in page.expander)
+    assert not any(e.label.startswith("What PocketMoney remembers") for e in page.expander)
     page.button(key="chat_fab_btn").click()
     page.run()
     assert page.session_state["chat_open"] is True
     assert len([b for b in page.button if str(b.key).startswith("ask_suggest_")]) == 5
     assert len(page.chat_input) == 1 and any(t.key == "ask_think" for t in page.toggle)
-    assert any(e.label.startswith("What Runway remembers") for e in page.expander)
+    assert any(e.label.startswith("What PocketMoney remembers") for e in page.expander)
 
 
 def test_closing_and_reopening_keeps_the_thread(page, monkeypatch, tmp_path):
@@ -92,7 +92,7 @@ def test_forecast_signature_sees_what_ifs_done_items_and_budget():
 
 
 def test_the_panel_holds_only_the_chat_never_page_content(page):
-    """The chat panel's own element tree: chat elements only. (The bug report showed the graph under "What Runway
+    """The chat panel's own element tree: chat elements only. (The bug report showed the graph under "What PocketMoney
     remembers": a see-through overlay made the page under the panel's edge look like part of it; style.py now dims
     and blurs the page and gives the panel a solid card.)"""
     page.button(key="chat_fab_btn").click()

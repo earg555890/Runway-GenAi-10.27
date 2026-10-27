@@ -1,4 +1,4 @@
-"""Ask Runway: PLAN -> EXECUTE -> EXPLAIN -> CHECK -> ACTIONS (CLAUDE.md rules 2, 9, 10).
+"""Ask PocketMoney: PLAN -> EXECUTE -> EXPLAIN -> CHECK -> ACTIONS (CLAUDE.md rules 2, 9, 10).
 
     for kind, payload in agent.run("How long will my money last?", scenario):
         kind: "stage" (a friendly progress message), "text" (an answer chunk), "restart" (discard the
@@ -127,7 +127,7 @@ TOOLS = {
     "meal_plan": dict(
         does="Her meal plan, from her own settings and meal log: meals (swipes) and points (dining dollars) left "
              "today, this week or this semester, when they reset or run out, and what checking pays. When she says "
-             "she just used meals or points, pass log_meals / log_points: Runway only offers a button to log them.",
+             "she just used meals or points, pass log_meals / log_points: PocketMoney only offers a button to log them.",
         args={"about": "\"meals\" or \"points\" (optional; what the question is mostly about)",
               "log_meals": "whole number of meals she says she just used (optional)",
               "log_points": "dollars of points she says she just used (optional)"}),
@@ -218,7 +218,7 @@ class Answer:
 
 
 def event_answer(text):
-    """A message from Runway that isn't an answer to a question (e.g. after the student marks something done).
+    """A message from PocketMoney that isn't an answer to a question (e.g. after the student marks something done).
     Built from the engine; no model call. mode "event": the chat shows it, PLAN never sees it."""
     return Answer("", text, None, None, asdict(Plan("event", None, {}, source="none")), {"items": [], "context": []},
                   {}, "", [], [], "event", "none", [], {}, {}, {}, "", time.time())
@@ -448,7 +448,7 @@ def _turn_summary(a):
     sec = a.sections or {}
     said = sec.get("answer") or a.text.split("\n")[0]
     return (f"Student: {a.question}\nRunway checked: {plan_words(Plan(**a.plan))}\n"
-            f"Runway answered: {strip_citations(said)[:200]}")
+            f"PocketMoney answered: {strip_citations(said)[:200]}")
 
 
 def plan_messages(question, scenario, sub_names, history=(), memory_context=""):
@@ -460,11 +460,11 @@ def plan_messages(question, scenario, sub_names, history=(), memory_context=""):
                   "\"why?\" or \"and if I also cancel Apple Music?\" against it:\n"
                   + "\n\n".join(_turn_summary(a) for a in history[-3:]) + "\n")
     if memory_context:
-        recent += ("\nWhat Runway remembers from earlier sessions (H-MEM). Use it only to understand what the "
+        recent += ("\nWhat PocketMoney remembers from earlier sessions (H-MEM). Use it only to understand what the "
                    "student means (\"the flight\", \"my budget\", \"the form\"); never as numbers:\n"
                    + memory_context + "\n")
     system = (
-        "You are the planner for Runway, a money app for one college student. Pick the tool(s) for the student's "
+        "You are the planner for PocketMoney, a money app for one college student. Pick the tool(s) for the student's "
         "question and their arguments. You never do math and never answer the question yourself.\n"
         f"Today is {w.day(config.DEMO_TODAY)}, {config.DEMO_TODAY.isoformat()}. The semester ends "
         f"{w.day(config.SEMESTER_END)}, {config.SEMESTER_END.isoformat()}. Calendar: {' '.join(CALENDAR)}\n"
@@ -705,7 +705,7 @@ def _jobs_result(a, scenario, ds, ledger):
     for r in (found.get("results") or [])[:4]:
         pay = college.pay_number(r.get("pay"))
         stated = ledger.add(f"pay stated on {r['url']}", engine.D(pay), "USD",
-                            f"Written on the page: \"{r['pay']}\". Not checked by Runway.", []) if pay else None
+                            f"Written on the page: \"{r['pay']}\". Not checked by PocketMoney.", []) if pay else None
         rows.append((r, stated))
         key += [stated] if stated else []
     facts = {"jobs": rows, "college": college.current(data, college.ACTIVE_MODE), "what_if": None,
@@ -773,7 +773,7 @@ def jobs_parts(f, c):
         why.append(f"[{r['title']}]({r['url']}) ({r['employer']}): pay {pay}.")
     return (f"Here {'is 1 job page' if len(rows) == 1 else f'are {len(rows)} job pages'} near {where} I found "
             "online. Check before applying.", why, [ask],
-            "Runway didn't check who can apply or whether a job is still open. None of this is in your forecast.",
+            "PocketMoney didn't check who can apply or whether a job is still open. None of this is in your forecast.",
             [check])
 
 
@@ -964,7 +964,7 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
             amount = deadline = None
             if r["amount"] != websearch.SEE:
                 amount = ledger.add(f"amount stated on {r['url']}", engine.D(re.sub(r"[^0-9.]", "", r["amount"])), "USD",
-                                    f"Written on the page: \"{r['amount']}\". Not checked by Runway.", [])
+                                    f"Written on the page: \"{r['amount']}\". Not checked by PocketMoney.", [])
             parsed = find_dates(r["deadline"]) if r["deadline"] != websearch.SEE else []
             if parsed and parsed[0][1]:
                 deadline = ledger.add(f"deadline stated on {r['url']}", parsed[0][1], "date",
@@ -1353,7 +1353,7 @@ QUALIFY_CLAIM = re.compile(r"\byou (?:qualify|are eligible|'re eligible|will get
 def web_claim_problems(text):
     """Online results are unchecked: never tell her she qualifies for them."""
     m = QUALIFY_CLAIM.search(strip_citations(text))
-    return [f"\"{m.group(0)}\": Runway didn't check online results; say \"check before applying\""] if m else []
+    return [f"\"{m.group(0)}\": PocketMoney didn't check online results; say \"check before applying\""] if m else []
 
 
 def assumption_place_problems(text, required):
@@ -1427,12 +1427,12 @@ def copied_how_problems(text, pack):
 
 
 def invented_budget_problems(text, pack=None):
-    """A step that sets a budget or limit with a dollar amount Runway never computed invents a number (a budget
+    """A step that sets a budget or limit with a dollar amount PocketMoney never computed invents a number (a budget
     amount from the facts, e.g. her own budget, is fine)."""
     sec = parse_sections(text) or {}
     money = allowed_values(pack)[0] if pack is not None else set()
     rounded = {_rounded(v) for v in money}
-    return [f"\"{x[:50]}\" sets a budget or limit Runway didn't compute" for x in sec.get("do", [])
+    return [f"\"{x[:50]}\" sets a budget or limit PocketMoney didn't compute" for x in sec.get("do", [])
             if BUDGET_RE.search(x) and not all(abs(v) in money or ("." not in s and abs(v) in rounded)
                                                for s, v in find_amounts(x))]
 
@@ -1555,7 +1555,7 @@ def check_answer(text, pack, require_format=False, *, names=None, finish_reason=
 # EXPLAIN, template answers, verdicts
 # ---------------------------------------------------------------------------------------
 EXPLAIN_SYSTEM = (
-    "You are Runway, a friendly money coach for a stressed college student.\n"
+    "You are PocketMoney, a friendly money coach for a stressed college student.\n"
     "Write at a grade 6-8 reading level. Short sentences (under 15 words). One idea per sentence.\n"
     "Reply in EXACTLY this format, under 110 words in total:\n"
     "ANSWER: <one short sentence with the answer>\n"
@@ -1587,7 +1587,7 @@ EXPLAIN_SYSTEM = (
     "- No jargon: never say scenario, projection, ledger, evidence or computed. No bold, no headings.")
 
 GENERAL_SYSTEM = (
-    "You are Runway, a friendly money coach for a college student. Answer a GENERAL money question in plain "
+    "You are PocketMoney, a friendly money coach for a college student. Answer a GENERAL money question in plain "
     "words. It is not about the student's own accounts.\n"
     "Write at a grade 6-8 reading level. Short sentences (under 15 words). One idea per sentence.\n"
     "Reply in EXACTLY this format, under 90 words in total:\n"
@@ -1604,7 +1604,7 @@ def explain_messages(question, plan, results, pack, verdict_label, required=(), 
         return [{"role": "system", "content": GENERAL_SYSTEM},
                 {"role": "user", "content": f"Question: {question}\n\nWrite the answer now, in the format."}]
     facts = pack.prompt_text()
-    head = f"Question: {question}\nWhat Runway checked: {plan_words(plan)}"
+    head = f"Question: {question}\nWhat PocketMoney checked: {plan_words(plan)}"
     if verdict_label:
         head += f"\nThe answer: {verdict_label}"
     if required:
@@ -1618,7 +1618,7 @@ def explain_messages(question, plan, results, pack, verdict_label, required=(), 
 
 
 def plan_words(plan):
-    """What Runway checked, in plain words (every call of a multi-step plan, joined)."""
+    """What PocketMoney checked, in plain words (every call of a multi-step plan, joined)."""
     if not plan.calls:
         return "nothing (off-topic)"
     return "; ".join(call_words(c["tool"], c["args"]) for c in plan.calls)
@@ -2072,7 +2072,7 @@ def meal_parts(f, c):
         head = f"After you log {what}: {line[0].lower()}{line[1:]}"
         button = f"Log {what}"
         facts = [Fact("after", f"what's left after logging {what}", head, where="answer", **kw)]
-        note = f"Tap “{button}” to save it. Runway logs nothing until you tap."
+        note = f"Tap “{button}” to save it. PocketMoney logs nothing until you tap."
         facts.append(Fact("tap", "that nothing is logged until she taps the button", note,
                           words=("tap", "button", "click")))
     else:
@@ -2213,7 +2213,7 @@ def lookup_template(tool, result, c):
             a = f"{w.dollars(amount.value)} {c(amount)}" if amount else "see website"
             d = f"{w.day(deadline.value)} {c(deadline)}" if deadline else "see website"
             why.append(f"[{r['title']}]({r['url']}) ({r['organization']}): amount {a}; deadline {d}.")
-        note = ("Check each one before applying: Runway didn't check who can apply, and none of this is in your "
+        note = ("Check each one before applying: PocketMoney didn't check who can apply, and none of this is in your "
                 "forecast." + (f" Searched {w.day(when.value)} {c(when)}." if when else ""))
         return (f"Here are {len(rows)} scholarships and grants I found online. Check before applying.", why,
                 ["Open each link and read who can apply before you start."], note)
@@ -2800,7 +2800,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     think: Nemotron Super with thinking on (slower, shows its reasoning); default: Lightning, thinking off.
     done: check-in item kinds the student marked done (left out of "what should I do" answers). budget: the
     amounts she set in the Budget tab (budget questions). private: her own data (My data mode): never read or
-    write saved answers, always answer live (rule 7). memory: an H-MEM recall (hmem.QueryResult) of what Runway
+    write saved answers, always answer live (rule 7). memory: an H-MEM recall (hmem.QueryResult) of what PocketMoney
     remembers from earlier sessions; it goes to PLAN only, never to EXPLAIN."""
     scenario, ds = scenario or engine.Scenario(), ds or normalize.load()
     mode, llm = (mode or config.ANSWER_MODE).lower(), llm or llm_client
@@ -2849,7 +2849,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
         plan = widen_broad_plan(plan, question)
         retries["plan_json"] = res.json_retries + res.retries
     except Exception as exc:                                       # slow, down, or unusable: keywords
-        notes.append(f"The planner wasn't available ({type(exc).__name__}); Runway matched your question "
+        notes.append(f"The planner wasn't available ({type(exc).__name__}); PocketMoney matched your question "
                      "by keywords.")
     if plan is None:
         plan = keyword_plan(question, sub_names) or Plan("off_topic", None, {}, None, [], "keywords")
@@ -2937,7 +2937,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
     else:
         source = "template"
         if answered_by is not None:
-            notes.append("The AI answer didn't pass Runway's checks (" + "; ".join(check.problems[:3]) + "), so this "
+            notes.append("The AI answer didn't pass PocketMoney's checks (" + "; ".join(check.problems[:3]) + "), so this "
                          "is the quick answer built straight from your numbers.")
         elif general:
             notes.append(f"General info isn't available right now ({'; '.join(errors)}).")
@@ -2967,7 +2967,7 @@ def run(question, scenario=None, ds=None, mode=None, llm=None, typing_s=0.035, h
 
 
 def trace_record(a):
-    """How Runway reached one answer, for logs/traces.jsonl: the plan, every tool and query (source, backend, rows,
+    """How PocketMoney reached one answer, for logs/traces.jsonl: the plan, every tool and query (source, backend, rows,
     time), every model call (provider, requested and routed model, Meterless receipt), timings and the checks."""
     sources = [it for it in a.pack.get("items", []) if it.get("kind") == "source"]
     return {

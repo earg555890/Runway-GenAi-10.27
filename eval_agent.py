@@ -1,4 +1,4 @@
-"""Live evaluation of Ask Runway: 29 realistic questions against the real NVIDIA models (not part of pytest).
+"""Live evaluation of Ask PocketMoney: 29 realistic questions against the real NVIDIA models (not part of pytest).
 
     .venv/Scripts/python eval_agent.py                       # one fast run -> eval_results.md / eval_results.json
     .venv/Scripts/python eval_agent.py fast,fast,think 240   # 3 runs (fast, fast, Think harder), 240 s apart
@@ -192,7 +192,7 @@ def _mistake(r):
     if r["source"] != "llm" and r["expected_tools"]:
         return "the AI answer didn't pass the checks, so the quick answer stood in (" + \
             "; ".join(n for n in r["notes"] if "didn't pass" in n)[:160] + ")"
-    return "left out a required fact (Runway added it: " + ", ".join(r["appended"]) + ")"
+    return "left out a required fact (PocketMoney added it: " + ", ".join(r["appended"]) + ")"
 
 
 def mode_block(runs, think):
@@ -233,17 +233,17 @@ def mode_block(runs, think):
 
 def summary(runs):
     total = sum(len(run) for run in runs)
-    lines = ["# Ask Runway: how well it answers", "",
-             f"We asked Runway {len(CASES)} realistic student questions (the original 10, plus "
+    lines = ["# Ask PocketMoney: how well it answers", "",
+             f"We asked PocketMoney {len(CASES)} realistic student questions (the original 10, plus "
              f"{sum(c.new for c in CASES)} new ones: spending, transactions, bills, work hours, a balance on a date, "
              "two follow-ups, a multi-step plan, a general question, a vague one, \"what should I do this week?\", "
              "two budget questions, two about grants and scholarships, two about the meal plan and the shift "
              "planner), "
              f"{len(runs)} separate times ({total} answers in all), using the "
-             "real NVIDIA Nemotron models. Every answer was graded automatically against numbers that Runway's money "
+             "real NVIDIA Nemotron models. Every answer was graded automatically against numbers that PocketMoney's money "
              "engine computes on its own. Follow-ups were asked after the question they follow, in the same chat.",
              "",
-             "The model never does the math: Runway's engine computes every number, shows a quick answer from those "
+             "The model never does the math: PocketMoney's engine computes every number, shows a quick answer from those "
              "numbers right away, and a checker rejects any AI answer with an amount, date or reason that doesn't "
              "match the student's records.", ""]
     for think in (False, True):
@@ -279,7 +279,7 @@ def main():
             Path(".cache/eval_one.json").write_text(json.dumps(runs, indent=2, default=str), encoding="utf-8")
             continue
         with open("eval_results.md", "w", encoding="utf-8") as f:
-            f.write(f"# Ask Runway live evaluation (latest run, {mode})\n\nScore: **{sum(r['passed'] for r in last)}/"
+            f.write(f"# Ask PocketMoney live evaluation (latest run, {mode})\n\nScore: **{sum(r['passed'] for r in last)}/"
                     f"{len(last)}**\n\n{table(last)}\n")
         with open("eval_results.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(runs, indent=2, default=str))

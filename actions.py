@@ -1,4 +1,4 @@
-"""The check-in and its actions: plain words for each attention item (engine.attention_items), and what Runway
+"""The check-in and its actions: plain words for each attention item (engine.attention_items), and what PocketMoney
 prepares for the student to approve: calendar reminders (.ics), an email (mailto: link + text to copy), the
 official page to cancel a subscription, and "mark as done". Nothing here sends anything or does money math.
 
@@ -20,7 +20,7 @@ AID_EMAIL = "finaid@stateu.example"           # synthetic: .example is a reserve
 # Official cancel pages, from each service's own help docs (checked Oct 24, 2026):
 # Spotify's "How to cancel Premium plans" (support.spotify.com/us/article/cancel-premium/) links "Manage your
 # plan" to the URL below. Apple's "How to cancel Apple Music" (support.apple.com/en-us/118399) gives steps on
-# music.apple.com but no direct cancel URL, so Runway links to that help page.
+# music.apple.com but no direct cancel URL, so PocketMoney links to that help page.
 CANCEL_PAGES = {
     "Spotify": ("https://www.spotify.com/account/subscription/manage/", "Open Spotify's cancel page"),
     "Apple Music": ("https://support.apple.com/en-us/118399", "How to cancel Apple Music (Apple help)"),
@@ -125,7 +125,7 @@ def step(item):
 
 
 def application(check, ds, situation=""):
-    """(to, subject, body) for an aid application, in plain words, with what the application needs. Runway never
+    """(to, subject, body) for an aid application, in plain words, with what the application needs. PocketMoney never
     sends it. situation: one true sentence about why she's applying, built from the engine (or empty)."""
     o = check.opp
     reqs = [r for r in ds.opp_requirements if r.opp_id == o.row_id]
@@ -146,7 +146,7 @@ def done_label(item):
     return f"Cancelled {item.fix[1]}" if item.kind == "subscriptions" else DONE_LABELS.get(item.kind, "Done")
 
 
-# --- what Runway prepares --------------------------------------------------------------------------------
+# --- what PocketMoney prepares --------------------------------------------------------------------------------
 @dataclass
 class Action:
     kind: str                    # "email", "calendar", "cancel"
@@ -167,7 +167,7 @@ class Reminder:
 
 
 def email(ds):
-    """The financial aid email: (to, subject, body). Never sent by Runway."""
+    """The financial aid email: (to, subject, body). Never sent by PocketMoney."""
     refund = next((r for r in ds.refunds if r.status == "HELD"), None)
     reqs = [r for r in ds.requirements if r.status not in ("SATISFIED", "RECEIVED")]
     doc = reqs[0].description if reqs else "the missing document"
@@ -211,7 +211,7 @@ def reminder(item):
                         f"Up to {w.dollars(f['amount'].value)} if approved. Decided in about "
                         f"{f['decision_days'].value} business days.")
     if item.kind == "meal_plan" and "per" in f:
-        return Reminder("meals-short", "Meals run short", d, note="Check your meals and points left in Runway.")
+        return Reminder("meals-short", "Meals run short", d, note="Check your meals and points left in PocketMoney.")
     if item.kind == "meal_plan":
         return Reminder("dining-dollars", "Dining dollars run out", d,
                         note="Use swipes for 2 meals a week so both last the semester.")
@@ -243,7 +243,7 @@ def ics(reminders, now=None):
     reminders are 30 minutes in local (floating) time; all-day ones remind at 9 AM the day before."""
     now = now or datetime.now(timezone.utc)
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Runway//Student money check-in//EN", "CALSCALE:GREGORIAN",
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PocketMoney//Student money check-in//EN", "CALSCALE:GREGORIAN",
              "METHOD:PUBLISH"]
     for r in reminders:
         lines += ["BEGIN:VEVENT", f"UID:{r.uid}-{r.day:%Y%m%d}@runway.example", f"DTSTAMP:{stamp}",
@@ -264,9 +264,9 @@ def ics(reminders, now=None):
 
 
 def for_item(item, ds):
-    """What Runway prepares for one item (1-2 actions; "mark as done" is always there too)."""
+    """What PocketMoney prepares for one item (1-2 actions; "mark as done" is always there too)."""
     r = reminder(item)
-    cal = Action("calendar", "Add to calendar", data=ics([r]), file_name=f"runway-{r.uid}.ics",
+    cal = Action("calendar", "Add to calendar", data=ics([r]), file_name=f"pocketmoney-{r.uid}.ics",
                  extra={"title": r.title, "day": r.day})
     if item.kind == "refund":
         to, subject, body = email(ds)
@@ -286,7 +286,7 @@ def all_deadlines(items, now=None):
 
 # --- after "mark as done" -------------------------------------------------------------------------------
 def done_message(item, ds, after, remaining=0):
-    """Runway's short chat message once the student marks an item done: what it changes, from the engine.
+    """PocketMoney's short chat message once the student marks an item done: what it changes, from the engine.
     after: the scenario with everything marked done so far (this item included); remaining: items still open."""
     p = engine.project(after, ds, engine.Ledger())
     if p.lasts_through_semester:

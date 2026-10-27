@@ -16,7 +16,7 @@ from actions import text
 MAX_WORDS = 30
 TIMEOUT_S = 20
 
-SYSTEM = ("You are Runway, a warm money coach for a stressed college student named Maya. Write ONE short, "
+SYSTEM = ("You are PocketMoney, a warm money coach for a stressed college student named Maya. Write ONE short, "
           "encouraging sentence (under 20 words) in your own words that nudges her to start with the first item "
           "below. The cards under your sentence already show every amount and date, so use NO numbers, amounts or "
           "dates, and don't copy the item text. Never claim one item pays for, covers or fixes another. No greeting "

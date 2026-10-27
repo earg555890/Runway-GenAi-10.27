@@ -15,7 +15,7 @@ as environment variables). It is also on automatically when the app runs from Cl
   live Nemotron and Zetaris."
 - "My data" is hidden: nobody can upload a bank file to a shared server.
 - Each visitor's changes stay in their own browser session: the meal log, My college, the jobs and estimates they
-  add, "What Runway remembers", and the actions they mark done. Nothing is written to a shared file, and a refresh
+  add, "What PocketMoney remembers", and the actions they mark done. Nothing is written to a shared file, and a refresh
   starts fresh.
 - A disk that can't be written never crashes the app: the change stays in the session.
 

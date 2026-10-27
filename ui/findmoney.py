@@ -81,10 +81,10 @@ def card(x, ds, scenario):
                 st.caption("A demo address: Maya's data is made up. Use your school's real address.")
                 st.link_button("Open in my email app", actions.mailto(to, subject, body), icon=":material/open_in_new:",
                                key=f"fm_mail_{key}", on_click=state.log,
-                               args=(f"Opened the application for {o.name} in the email app (not sent by Runway)",))
+                               args=(f"Opened the application for {o.name} in the email app (not sent by PocketMoney)",))
                 st.code(body, language=None, wrap_lines=True)
-                st.caption("Or copy it with the button above. Runway never sends anything.")
-            st.download_button("Remind", _reminder(x), file_name=f"runway-apply-{key.lower()}.ics", mime=MIME_ICS,
+                st.caption("Or copy it with the button above. PocketMoney never sends anything.")
+            st.download_button("Remind", _reminder(x), file_name=f"pocketmoney-apply-{key.lower()}.ics", mime=MIME_ICS,
                                type="tertiary", icon=":material/event:", key=f"fm_cal_{key}", on_click=state.log,
                                args=(f"Downloaded a reminder to apply for {o.name}",))
             if o.type == "work_study":              # pay depends on hours worked: nothing to add as a what-if
@@ -115,7 +115,7 @@ def web_results(found):
         lines.append(f"- [{fmt.md(r['title'])}]({r['url']})  \n  {fmt.md(r['organization'])} · Amount: "
                      f"{fmt.md(amount)} · Deadline: {fmt.md(deadline)}")
     st.markdown("\n".join(lines))
-    st.caption(f"{found_at_words(found)} with {found.get('provider', 'web search')}. Runway didn't check who can "
+    st.caption(f"{found_at_words(found)} with {found.get('provider', 'web search')}. PocketMoney didn't check who can "
                "apply. None of these are in your forecast. Amounts and deadlines show only when the page says "
                "them.")
 

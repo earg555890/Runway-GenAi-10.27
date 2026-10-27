@@ -1,5 +1,5 @@
 """One-question health check before recording the live demo: the Meterless Nightshift checks (connection,
-authorization, model discovery, text requests), then Runway asks "How long will my money last?" live, in fast mode,
+authorization, model discovery, text requests), then PocketMoney asks "How long will my money last?" live, in fast mode,
 on Maya's local files, and prints which provider and model answered, whether it passed the checks, and how long it
 took. Exit code 0 = ready, 1 = Nightshift or NVIDIA is slow or failing right now (try again in a few minutes).
 

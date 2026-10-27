@@ -134,7 +134,7 @@ class LLMResult:
     receipt_id: str | None = None  # meterless.compute_receipt.v1 receipt id
 
     def call_record(self, role):
-        """One model call, for "How Runway thought about this" and the trace."""
+        """One model call, for "How PocketMoney thought about this" and the trace."""
         return {"role": role, "provider": self.provider, "fallback": self.fallback, "requested_model": self.model,
                 "routed_model": self.routed_model or self.model, "receipt_id": self.receipt_id,
                 "thinking": self.thinking, "duration_s": round(self.duration_s, 2), "retries": self.retries,

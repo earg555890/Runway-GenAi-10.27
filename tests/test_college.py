@@ -342,7 +342,7 @@ def test_costs_card_lookup_confirm_and_clear(at, monkeypatch):
     at.button(key="FormSubmitter:cost_form-Use these as my estimates").click()
     run(at)
     assert college.estimates(college.load("maya"))[0].amount == D("9265.00")
-    assert any("Your school bill is on file, so Runway uses it." in plain(c.value) for c in at.caption)
+    assert any("Your school bill is on file, so PocketMoney uses it." in plain(c.value) for c in at.caption)
     assert status(at) == before                                                    # her real bill wins
     at.button(key="cost_clear").click()
     run(at)

@@ -41,9 +41,9 @@ def _email(act, key, kind):
         st.link_button(act.label, act.url, icon=":material/open_in_new:", key=f"ci_mail_{key}",
                        on_click=state.opened, args=(kind, "email", act.extra["subject"],
                                                     f"Opened the email to {act.extra['to']} in the email app "
-                                                    "(not sent by Runway)"))
+                                                    "(not sent by PocketMoney)"))
         st.code(act.data, language=None, wrap_lines=True)
-        st.caption("Or copy it with the button above. Runway never sends anything.")
+        st.caption("Or copy it with the button above. PocketMoney never sends anything.")
 
 
 def actions_row(item, ds, key):
@@ -127,7 +127,7 @@ def render(ds, done_scenario):
                         card(it, ds, it.kind)
             if items:
                 st.download_button("Add all deadlines to my calendar", actions.all_deadlines(items),
-                                   file_name="runway-deadlines.ics", mime=MIME_ICS, icon=":material/calendar_add_on:",
+                                   file_name="pocketmoney-deadlines.ics", mime=MIME_ICS, icon=":material/calendar_add_on:",
                                    type="tertiary", key="ci_cal_all", on_click=state.log,
                                    args=(f"Downloaded all {len(items)} deadlines as one calendar file",))
             _done_buttons()

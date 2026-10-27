@@ -26,9 +26,12 @@ def mode_switch():
                              on_change=state.switch_mode, label_visibility="collapsed")
 
 
+TAGLINE = "The Financing App Built For Students"
+
+
 def header_empty():
-    st.markdown('<p class="rw-brand">Runway</p><p class="rw-hello">Your money, from your own bank file.</p>',
-                unsafe_allow_html=True)
+    st.markdown(f'<p class="rw-brand">PocketMoney</p><p class="rw-hello">{TAGLINE}</p>'
+                '<p class="rw-sub">Your money, from your own bank file.</p>', unsafe_allow_html=True)
 
 
 def header(ds, note=None):
@@ -36,7 +39,8 @@ def header(ds, note=None):
     left, right = band.columns([3, 2], vertical_alignment="bottom")
     hello = ("How long your money lasts this semester." if not state.mine() else
              f"How long your money lasts until {fmt.day(config.SEMESTER_END)}.")
-    left.markdown(f'<p class="rw-brand">Runway</p><p class="rw-hello">{fmt.html(hello)}</p>', unsafe_allow_html=True)
+    left.markdown(f'<p class="rw-brand">PocketMoney</p><p class="rw-hello">{TAGLINE}</p>'
+                  f'<p class="rw-sub">{fmt.html(hello)}</p>', unsafe_allow_html=True)
     with right.container(horizontal=True, horizontal_alignment="right", gap="small", key="badges"):
         if config.SAMPLE_MODE:
             st.badge("Sample mode", color="orange")

@@ -46,11 +46,11 @@ def _show(r):
 def render():
     st.markdown("#### AI provider")
     if config.SAMPLE_MODE:
-        st.caption("Sample mode: Runway shows recorded answers and calls no AI provider. Set SAMPLE_MODE=false and "
+        st.caption("Sample mode: PocketMoney shows recorded answers and calls no AI provider. Set SAMPLE_MODE=false and "
                    "start Meterless Nightshift for live answers (NVIDIA Nemotron through Nightshift).")
         return
     if config.AI_PROVIDER != "meterless":
-        st.caption("Runway is set to call the NVIDIA API directly (AI_PROVIDER=nvidia). Meterless Nightshift is the "
+        st.caption("PocketMoney is set to call the NVIDIA API directly (AI_PROVIDER=nvidia). Meterless Nightshift is the "
                    "default; remove AI_PROVIDER from .env to use it.")
         return
     background.start(KEY, meterless.run_checks)

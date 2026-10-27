@@ -1,5 +1,5 @@
 """The student's what-if choices, kept in session state, turned into an engine.Scenario on every rerun. Also
-what the student marked done in the check-in (kept for the session) and the log of Runway's actions."""
+what the student marked done in the check-in (kept for the session) and the log of PocketMoney's actions."""
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -115,7 +115,7 @@ def init(subs):
         st.session_state.setdefault(k, v)
     st.session_state.setdefault("done", {})          # item kind -> {"label", "title", "fix"}
     st.session_state.setdefault("action_log", [])    # [{"when", "what", "kind"}]
-    st.session_state.setdefault("prepared", [])      # what Runway has prepared and logged already
+    st.session_state.setdefault("prepared", [])      # what PocketMoney has prepared and logged already
     meal_data()
     college_data()
     college.ACTIVE_MODE = data_mode()                  # the chat's find_jobs tool reads this mode's results
@@ -147,7 +147,7 @@ def log(what, kind="approved"):
 
 
 def opened(kind, how, title, what):
-    """She opened something Runway prepared (the email draft, a reminder, a cancel page): logged and remembered."""
+    """She opened something PocketMoney prepared (the email draft, a reminder, a cancel page): logged and remembered."""
     log(what)
     from ui import memory
     memory.intent(kind, how, title)
@@ -159,7 +159,7 @@ def _remember_shifts():
 
 
 def prepared(key, what):
-    """Log once that Runway prepared something (a draft, a reminder, a link) for the student to approve."""
+    """Log once that PocketMoney prepared something (a draft, a reminder, a link) for the student to approve."""
     if key not in st.session_state.prepared:
         st.session_state.prepared.append(key)
         log(what, "prepared")
@@ -167,7 +167,7 @@ def prepared(key, what):
 
 def mark_done(item, ds):
     """The student marks an item done: fixes turn on in the forecast (the form counts as sent today), the
-    check-in drops it, and Runway says what changed in the chat."""
+    check-in drops it, and PocketMoney says what changed in the chat."""
     s = st.session_state
     label, title = actions.done_label(item), actions.text(item)[0]
     s.done[item.kind] = {"label": label, "title": title, "fix": list(item.fix)}
@@ -291,7 +291,7 @@ def submit_date():
 
 
 def choices():
-    """What the student decided that Runway can't suggest as a fix: the form date and the planned shifts."""
+    """What the student decided that PocketMoney can't suggest as a fix: the form date and the planned shifts."""
     return engine.Scenario(refund_submit_date=submit_date(), extra_shifts=shifts())
 
 

@@ -1290,7 +1290,7 @@ def cash_crunches(scenario=None, ds=None, ledger=None):
 
 
 # ---------------------------------------------------------------------------------------
-# Lookups for Ask Runway's data questions (spending, transactions, bills, work, balances, money ideas).
+# Lookups for Ask PocketMoney's data questions (spending, transactions, bills, work, balances, money ideas).
 # Each returns Computed records that cite the rows they were read from.
 # ---------------------------------------------------------------------------------------
 SPENT_HOW = "Money out only; card payments are transfers between your own accounts, not spending."
@@ -2035,7 +2035,7 @@ class BudgetStatus:
     left: Computed | None
     pace: str | None
     effect: BudgetEffect | None  # the forecast with the budget vs without
-    suggestion: Suggestion | None    # when no budget is set: what Runway would suggest for next month
+    suggestion: Suggestion | None    # when no budget is set: what PocketMoney would suggest for next month
     refund_released: bool = False
     one_offs: Computed | None = None     # $100+ one-offs in these categories this month (not counted, shown apart)
 

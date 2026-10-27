@@ -1,5 +1,5 @@
 """The official H-MEM conformance suite (engines/hmem/conformance in github.com/Meterless/Meterless), run against
-Runway's hmem.py: the unchanged vectors.json and a Python port of runner.ts, one test per vector id. A green run is
+PocketMoney's hmem.py: the unchanged vectors.json and a Python port of runner.ts, one test per vector id. A green run is
 the spec's definition of done ("An implementation is done when this suite is green")."""
 import json
 import math

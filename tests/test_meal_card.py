@@ -101,7 +101,7 @@ def test_just_used_2_meals_is_a_preview(bare):
     head, why, do, note, facts = agent.meal_parts(r.facts, c)
     assert args == {"log_meals": 2}
     assert head == "After you log 2 meals: you have 11 meals left this week [C]."
-    assert "Runway logs nothing until you tap" in note and "after" in [f.key for f in facts]
+    assert "PocketMoney logs nothing until you tap" in note and "after" in [f.key for f in facts]
     assert sc.meal_log == entries                                              # nothing logged
     too_many = tool("I just used 2 meals", e.Scenario(meal_settings=dataclasses.replace(WEEK, start=OCT26 + e.timedelta(days=1))), bare)[1]
     assert too_many.facts["problem"] and not too_many.facts["after"]           # can't log: no preview, no button

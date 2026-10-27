@@ -195,7 +195,7 @@ def card(ds, scenario):
             st.markdown(fmt.md(f"At this pace, you'd pay **about {fmt.dollars(m.c['cost'].value)} for meals** from "
                                "checking (estimated)."))
         elif m.cost_unknown:
-            st.caption("Log a meal you paid for with points, and Runway can estimate what extra meals cost.")
+            st.caption("Log a meal you paid for with points, and PocketMoney can estimate what extra meals cost.")
         elif m.pooled and m.runs_out and m.tip_works and not s.get("wf_meal_moves"):
             st.caption(fmt.md("Tip: use 2 swipes a week instead of dining dollars, and both last."))
         if m.pooled:                                 # the what-if: meals a week paid with swipes, not points

@@ -1,5 +1,5 @@
-"""What Runway remembers (Meterless H-MEM, runway_memory.py): one shared memory for this computer, the hooks the UI
-calls when Maya does something worth remembering, the check-in's "Last time..." line, and the small "What Runway
+"""What PocketMoney remembers (Meterless H-MEM, runway_memory.py): one shared memory for this computer, the hooks the UI
+calls when Maya does something worth remembering, the check-in's "Last time..." line, and the small "What PocketMoney
 remembers" section with Forget controls. Off in My data mode (her own data is never remembered, rule 7)."""
 import time
 
@@ -118,7 +118,7 @@ def last_time(kind):
     return None
 
 
-# --- "What Runway remembers" --------------------------------------------------------------------------------------
+# --- "What PocketMoney remembers" --------------------------------------------------------------------------------------
 def _forget(memory_id):
     safe(lambda m: m.forget(memory_id))
 
@@ -136,12 +136,12 @@ def render():
     if mem is None:
         return
     items = mem.items()
-    with st.expander(f"What Runway remembers ({len(items)})", icon=":material/memory:"):
+    with st.expander(f"What PocketMoney remembers ({len(items)})", icon=":material/memory:"):
         if not items:
-            st.caption("Nothing yet. Runway remembers what you mark done, your budget, the shifts you plan and "
+            st.caption("Nothing yet. PocketMoney remembers what you mark done, your budget, the shifts you plan and "
                        "short notes from your chats, so it can pick up where you left off.")
             return
-        st.caption("Runway uses these to understand your questions. Your numbers always come from your records.")
+        st.caption("PocketMoney uses these to understand your questions. Your numbers always come from your records.")
         for m in items[:12]:
             left, right = st.columns([7, 2], vertical_alignment="center")
             when = runway_memory.when_words(m.provenance.get("learnedAt") or m.timestamp)

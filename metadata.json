@@ -1,6 +1,6 @@
 {
-  "project": "Runway",
-  "tagline": "An AI money agent for college students that tells you how long your money lasts, and explains why, with proof.",
+  "project": "PocketMoney",
+  "tagline": "The Financing App Built For Students. An AI money agent for college students that tells you how long your money lasts, and explains why, with proof.",
   "hackathon": "GenAI Works Open Agent Hackathon (HackOS)",
   "track": "The Agent That Can Explain Why",
   "repository": "https://github.com/earg555890/Runway-GenAi-10.27",
@@ -20,7 +20,7 @@
       "meterless.py (connection, authorization, discovery, text-request checks, Auto Detect)",
       "ui/provider.py (checks shown in Behind the scenes)"
     ],
-    "routed_model_shown": "From meterless.compute_receipt.v1 (routed_model, receipt_id) on every answer: 'How Runway thought about this', Behind the scenes and logs/traces.jsonl",
+    "routed_model_shown": "From meterless.compute_receipt.v1 (routed_model, receipt_id) on every answer: 'How PocketMoney thought about this', Behind the scenes and logs/traces.jsonl",
     "fallback": "NVIDIA API directly, only when the Meterless Runtime is unreachable or refuses the token, labelled 'fallback' on the answer"
   },
   "nvidia_models": [
@@ -41,7 +41,7 @@
     {
       "engine": "H-MEM (hierarchical memory)",
       "implementation": "hmem.py: a Python port of the reference in engines/hmem of github.com/Meterless/Meterless (Apache-2.0)",
-      "feature": "What Runway remembers: what the student marked done, what she opened (email draft, reminder, cancel page), her budget, planned shifts, preferences and short chat summaries, each with provenance and an append-only trust ledger; recalled into PLAN across sessions; the check-in asks 'Last time you clicked Form sent. Still true?'; Forget / This isn't right / Forget everything",
+      "feature": "What PocketMoney remembers: what the student marked done, what she opened (email draft, reminder, cancel page), her budget, planned shifts, preferences and short chat summaries, each with provenance and an append-only trust ledger; recalled into PLAN across sessions; the check-in asks 'Last time you clicked Form sent. Still true?'; Forget / This isn't right / Forget everything",
       "files": [
         "hmem.py",
         "runway_memory.py",
@@ -75,7 +75,7 @@
     ],
     "parity_test": "tests/test_data_access.py::test_zetaris_parity: every named query returns the same rows on Zetaris and on the local files"
   },
-  "cursor": "Cursor was the development environment for the whole build. Runway's code was written by Claude Code running in Cursor's integrated PowerShell terminal; Cursor was used to open and run the project, watch Claude Code's changes and progress live, read and review the generated files, and run the app and tests. Cursor's own AI features (Composer, Grok) were not used for code generation.",
+  "cursor": "Cursor was the development environment for the whole build. PocketMoney's code was written by Claude Code running in Cursor's integrated PowerShell terminal; Cursor was used to open and run the project, watch Claude Code's changes and progress live, read and review the generated files, and run the app and tests. Cursor's own AI features (Composer, Grok) were not used for code generation.",
   "sample_mode": "SAMPLE_MODE=true (the default in .env.example, and when there is no .env): Maya's local files and recorded answers; no Zetaris, Nightshift or keys needed",
   "traces": "logs/traces.jsonl (one JSON line per live question: plan, tools, queries, model calls with routed model and receipt, timings, checks); example: docs/example_trace.json",
   "data": "Synthetic demo student (Maya). No real accounts connected."

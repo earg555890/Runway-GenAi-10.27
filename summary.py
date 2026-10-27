@@ -76,7 +76,7 @@ def sentence(sp, per):
             f"({w.dollars(top[1].spent.value)}).")
 
 
-SYSTEM = ("You are Runway, a friendly money coach for a college student named Maya. In at most two short sentences "
+SYSTEM = ("You are PocketMoney, a friendly money coach for a college student named Maya. In at most two short sentences "
           "(under 40 words), say where her money went and the one thing worth noticing. Use only the amounts below, "
           "rounded like \"$461\" (keep cents under $100, like \"$81.32\"). No new numbers, no percentages, no dates, "
           "no advice about rent or school, no headings, no lists.")

@@ -236,7 +236,7 @@ def test_explain_retry_then_warn(ds):
     events, a = run_all(FLIGHT_Q, llm, ds=ds)
     # the AI answer failed twice: the quick answer (built from the engine) stays, with a note saying why
     assert a.explain_source == "template" and a.text == a.quick and a.check["ok"]
-    assert any("didn't pass Runway's checks" in n and "$412.50" in n for n in a.notes)
+    assert any("didn't pass PocketMoney's checks" in n and "$412.50" in n for n in a.notes)
     assert ("quick", a.quick) in events
     assert not list(config.ANSWER_CACHE_DIR.glob("*.json"))          # failed answers are not cached
 

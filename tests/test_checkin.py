@@ -1,4 +1,4 @@
-"""The check-in: attention items in plain words, the greeting line (fixed or AI, checked), and what Runway
+"""The check-in: attention items in plain words, the greeting line (fixed or AI, checked), and what PocketMoney
 prepares for each item. No network: the AI greeting uses a fake model."""
 from types import SimpleNamespace
 
@@ -74,7 +74,7 @@ def test_greeting_is_off_in_tests_and_replay(monkeypatch):
     assert not greeting.enabled()
 
 
-# --- what Runway prepares --------------------------------------------------------------------------------
+# --- what PocketMoney prepares --------------------------------------------------------------------------------
 
 def parse_ics(text):
     """A strict little RFC 5545 reader: CRLF lines of at most 75 octets, folded lines unfolded, BEGIN/END
@@ -133,7 +133,7 @@ def test_calendar_files_parse_back(items):
     refund = parse_ics(actions.ics([actions.reminder(items[0])]))[0]
     assert refund["DESCRIPTION"] == "Your $1,850 refund is on hold until financial aid gets it."     # "\," unescaped
     one = actions.for_item(items[0], normalize.load())[1]
-    assert one.kind == "calendar" and one.file_name == "runway-refund.ics" and len(parse_ics(one.data)) == 1
+    assert one.kind == "calendar" and one.file_name == "pocketmoney-refund.ics" and len(parse_ics(one.data)) == 1
 
 
 def test_long_lines_are_folded():

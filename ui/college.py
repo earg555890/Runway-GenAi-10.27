@@ -1,5 +1,5 @@
 """My college (Find money tab): her college and city, on or off campus, and how far she can travel for work. Saved on
-this computer (college.py) and remembered in "What Runway remembers" (Maya mode; never in My data mode, rule 7)."""
+this computer (college.py) and remembered in "What PocketMoney remembers" (Maya mode; never in My data mode, rule 7)."""
 import re
 
 import streamlit as st
@@ -267,7 +267,7 @@ def _results(found, ds):
         left.markdown(f"[{fmt.md(r['title'])}]({r['url']})  \n:gray[{fmt.md(' · '.join(meta))}]")
         right.button("What if I got this job?", key=f"job_try_{i}", type="tertiary", icon=":material/calculate:",
                      on_click=_try, args=(ds, college.pay_number(r["pay"]), short_title(r["title"])))
-    st.caption(f"{found_words(found)} with {found.get('provider', 'web search')}. Runway didn't check who can apply "
+    st.caption(f"{found_words(found)} with {found.get('provider', 'web search')}. PocketMoney didn't check who can apply "
                "or whether a job is still open. Pay and hours show only when the page says them.")
 
 
@@ -314,7 +314,7 @@ def jobs_section(ds, scenario):
     """Jobs near campus: found online (check before applying), and a what-if on numbers she confirms."""
     s, c = st.session_state, current()
     st.markdown("#### Jobs near campus")
-    st.caption("Found online, check before applying. Runway never applies for you.")
+    st.caption("Found online, check before applying. PocketMoney never applies for you.")
     with st.container(border=True, key="jobs_card"):
         if offline():
             st.caption("Searching online is off in this offline demo. You can still try a job's numbers below.")
@@ -483,7 +483,7 @@ def costs_section(ds):
                 st.markdown(fmt.md(f"{x.label}: {fmt.dollars(x.amount)} due {fmt.day(x.due)} (estimated from "
                                    f"{x.school}'s published costs, check your bill)."))
             if engine.has_school_bill(ds):
-                st.caption("Your school bill is on file, so Runway uses it. These estimates are for comparison and "
+                st.caption("Your school bill is on file, so PocketMoney uses it. These estimates are for comparison and "
                            "aren't in your forecast.")
             else:
                 st.caption("These are in your forecast as estimates until your real bill arrives.")

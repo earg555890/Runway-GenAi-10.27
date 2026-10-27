@@ -147,7 +147,7 @@ def test_found_cards_and_proof(at):
     assert "- You had $718.08 the night before rent." in how and "- Rent took you to $6.92 below zero." in how
 
 
-# --- Ask Runway (mocked models) -----------------------------------------------------------------
+# --- Ask PocketMoney (mocked models) -----------------------------------------------------------------
 
 @pytest.fixture
 def asked(at, monkeypatch, tmp_path):

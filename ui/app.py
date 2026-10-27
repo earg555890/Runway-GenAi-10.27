@@ -1,4 +1,4 @@
-"""Runway front end.  streamlit run ui/app.py   (DATA_BACKEND=local or zetaris, from .env or the environment)
+"""PocketMoney front end.  streamlit run ui/app.py   (DATA_BACKEND=local or zetaris, from .env or the environment)
 
 Two modes (switch in the header): the demo student Maya (synthetic, eight sources) and My data (the student's own
 bank file, kept on this computer; rule 7). Reads everything through normalize and engine; the UI does no money math
@@ -55,7 +55,7 @@ def page(ds, note):
     ask.panel(ds, scenario)                           # the floating chat button and, when open, the chat panel
 
 
-st.set_page_config(page_title="Runway", page_icon=":material/flight_takeoff:", layout="wide",
+st.set_page_config(page_title="PocketMoney", page_icon=":material/flight_takeoff:", layout="wide",
                    initial_sidebar_state="collapsed")
 style.apply()
 state.init_mode()

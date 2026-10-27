@@ -11,18 +11,18 @@ checked.
 - Result: for "How long will my money last?", Nemotron Lightning through Nightshift reused numbers from Maya's
   earlier flight answer ($1,850 refund, $5.81 lowest point, "Spotify saves $11.99"). The same prompt sent directly
   to NVIDIA was answered correctly 3 of 3 times. Through Nightshift: 0 of 3.
-- Runway's number checker rejected every one of those answers ("$1,850 is not in the facts"). It asked for one
+- PocketMoney's number checker rejected every one of those answers ("$1,850 is not in the facts"). It asked for one
   rewrite, and then showed the quick answer built from the engine. No wrong number ever reached Maya.
-- The fix on our side: memory goes to the planner only, never into the answer. Runway's own H-MEM recall feeds PLAN
+- The fix on our side: memory goes to the planner only, never into the answer. PocketMoney's own H-MEM recall feeds PLAN
   ("what does 'the flight' mean?") and the answer is written from the evidence pack alone. The EXPLAIN prompt says:
   "Use only the evidence pack in this message. Ignore any other context or remembered answers."
 - Spot check after that rule, 5 questions through Nightshift, fast mode: 2 of 5 full AI answers. The other 3 fell
   back to the checked quick answer, each caught for numbers from other answers. The checker, not the prompt, is the
   safety net.
-- The line for the slide: "Memory makes an agent helpful. Evidence makes it trustworthy. Runway remembers, but every
+- The line for the slide: "Memory makes an agent helpful. Evidence makes it trustworthy. PocketMoney remembers, but every
   number it says comes from the records, and a checker proves it."
 
-## The Meterless engine: H-MEM powers "What Runway remembers"
+## The Meterless engine: H-MEM powers "What PocketMoney remembers"
 
 - **What it is.** `hmem.py`, a faithful Python port of the H-MEM reference (Meterless repo, `engines/hmem`,
   Apache-2.0). It has:
@@ -62,7 +62,7 @@ checked.
 - Every answer shows "Written by: Nemotron Lightning (nvidia/...) through Meterless Nightshift, receipt rcpt_..."
   from the signed `meterless.compute_receipt.v1`. The same goes into the per-question trace
   (`docs/example_trace.json`).
-- **Fast answers: Lightning by default, Ultra in the live demo.** Lightning (thinking off) is Runway's default fast
+- **Fast answers: Lightning by default, Ultra in the live demo.** Lightning (thinking off) is PocketMoney's default fast
   model. The live demo uses Ultra (thinking off) because it ignores Nightshift's injected memories better: on the
   same 5-question spot check through Nightshift (3 memories injected per call), Ultra wrote **5/5** full answers in
   2.2-13.1 s; Lightning wrote **2/5** (3.1-5.3 s), and the checker caught the other 3.
@@ -97,8 +97,8 @@ checked.
 | File | Shows |
 |---|---|
 | `deck-1-notices-and-graph.png` | The top of the page: the board label RUNS OUT · MON, NOV 9, "Your money runs out in 2 weeks, on Mon, Nov 9.", the check-in (6 things), the tabs, and the graph card "Your money through Dec 18": solid "What's happening" (red below $0), dotted green "If you follow the steps", "With the steps: lowest $5.81" |
-| `deck-2-chat-panel-answer.png` | The chat panel (opened by the round Ask Runway button): "Yes, if you do 2 things.", DO THIS with "Do these", the Apple Music $0.00 note, the proof chips, and "Planned by: Nemotron Lightning ... / Written by: Nemotron Ultra ... through Meterless Nightshift, receipt rcpt_..." |
+| `deck-2-chat-panel-answer.png` | The chat panel (opened by the round Ask PocketMoney button): "Yes, if you do 2 things.", DO THIS with "Do these", the Apple Music $0.00 note, the proof chips, and "Planned by: Nemotron Lightning ... / Written by: Nemotron Ultra ... through Meterless Nightshift, receipt rcpt_..." |
 | `deck-3-shift-planner.png` | "These 2 shifts add $115 and you're covered all semester.", each shift's pay and payday |
 | `deck-4-budget.png` | October spending: $1,757, the donut and the category table |
 | `deck-5-find-money.png` | School aid, "if approved" switches: the $500 emergency grant arriving around Mon, Nov 2 |
-| `deck-6-what-runway-remembers.png` | What Runway remembers: shifts, "Form sent", a chat note, each with where it came from; Forget / This isn't right / Forget everything |
+| `deck-6-what-runway-remembers.png` | What PocketMoney remembers: shifts, "Form sent", a chat note, each with where it came from; Forget / This isn't right / Forget everything |

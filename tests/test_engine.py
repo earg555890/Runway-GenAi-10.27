@@ -243,7 +243,7 @@ def test_latest_shift_paid_before_run_out(ds):
     assert (shift.value, pay.value) == (date(2026, 11, 15), date(2026, 11, 18))
 
 
-# --- lookups for Ask Runway's data questions ----------------------------------------------------
+# --- lookups for Ask PocketMoney's data questions ----------------------------------------------------
 
 def test_spending_summary_october_by_category():
     sp = e.spending_summary("2026-10-01", "2026-10-31")

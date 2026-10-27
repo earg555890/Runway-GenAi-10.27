@@ -1,4 +1,4 @@
-"""Ask Runway as a conversation: the new tools, multi-step plans, follow-ups, the quick answer, fast vs Think harder,
+"""Ask PocketMoney as a conversation: the new tools, multi-step plans, follow-ups, the quick answer, fast vs Think harder,
 general info, and the smarter checks. Mocked models, no network."""
 import json
 from datetime import date
@@ -152,7 +152,7 @@ def test_follow_up_gets_history_and_resolves(ds):
     _, a2 = run_all("what about Nov 17 instead?", follow, ds, history=[a1])
     system = follow.plan_messages[0][0]["content"]
     assert "Recent conversation" in system and FLIGHT_Q in system                 # the earlier turn reached PLAN
-    assert "Runway answered: Yes, if you do 2 things first" in system
+    assert "PocketMoney answered: Yes, if you do 2 things first" in system
     assert a2.plan["resolved_question"] == resolved and a2.plan["args"]["date"] == "2026-11-17"
     assert agent.cache_path("what about Nov 17 instead?", engine.Scenario(), history=[a1]) != \
         agent.cache_path("what about Nov 17 instead?", engine.Scenario())        # follow-ups cache separately

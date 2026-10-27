@@ -31,7 +31,7 @@ ONE_OFF_THRESHOLD = Decimal("100.00")
 RECURRING_MIN_MONTHS = 3
 
 # ---------------------------------------------------------------------------------------
-# Student-friendly spending categories (shared by Ask Runway and the Budget tab). The ONE rules table.
+# Student-friendly spending categories (shared by Ask PocketMoney and the Budget tab). The ONE rules table.
 #   (direction, match, key, category): direction "out" (money out) or "in"; match is "category" (the
 #   classification above), "keyword" (substring of the raw description), "purpose" (MERCHANT_RULES), or
 #   "card" (the card's own category column). The first matching rule wins. Card payments are "Transfer":

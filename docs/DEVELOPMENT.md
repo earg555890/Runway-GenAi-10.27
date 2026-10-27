@@ -1,6 +1,6 @@
-# Runway: developer notes
+# PocketMoney: developer notes
 
-How to set up, run and check Runway in development. For the overview and the quick demo, see the [README](../README.md). Commands are run from the repo root.
+How to set up, run and check PocketMoney in development. For the overview and the quick demo, see the [README](../README.md). Commands are run from the repo root.
 
 ## Setup
 
@@ -51,7 +51,7 @@ engine.find_leaks(); engine.refund_status(); engine.cash_crunches()
 
 Each number is a `Computed` record (`C#`: label, value, unit, how, inputs = row IDs and other `C#` ids) that the EXPLAIN step can cite.
 
-## Ask Runway (the agent)
+## Ask PocketMoney (the agent)
 
 `agent.py`: `agent.run(question, scenario, history=..., think=False)` yields progress stages, the quick answer, streamed text and a final `Answer`. Per question:
 
@@ -74,7 +74,7 @@ Tools: `can_afford`, `runway`, `what_if`, `find_leaks`, `refund_status`, `cash_c
 .venv/Scripts/python eval_agent.py fast,fast,think 180   # live: 20 questions x 3 runs -> eval_summary.md (+ eval_results.*)
 ```
 
-Windows launchers in the repo root: `Start Runway.bat` (local data, saved answers first; starts the app on 8501 in a window titled "Runway" only if nothing is listening there, waits for the health check, opens the browser), `Start Runway (Zetaris).bat` (the same with `DATA_BACKEND=zetaris`, after checking that the Zetaris JDBC port answers) and `Stop Runway.bat` (stops whatever serves 8501, and its "Runway" window).
+Windows launchers in the repo root: `Start PocketMoney.bat` (local data, saved answers first; starts the app on 8501 in a window titled "PocketMoney" only if nothing is listening there, waits for the health check, opens the browser), `Start PocketMoney (Zetaris).bat` (the same with `DATA_BACKEND=zetaris`, after checking that the Zetaris JDBC port answers) and `Stop PocketMoney.bat` (stops whatever serves 8501, and its "PocketMoney" window).
 
 ## Checks
 

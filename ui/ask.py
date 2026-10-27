@@ -1,6 +1,6 @@
-"""Ask Runway: a floating chat button (bottom-left, on every tab) opens a chat panel (st.dialog) with the thread
+"""Ask PocketMoney: a floating chat button (bottom-left, on every tab) opens a chat panel (st.dialog) with the thread
 (newest at the bottom), suggested questions while it's empty, the question box, "Think harder", "New chat" and "What
-Runway remembers". The thread lives in session state, so closing and reopening the panel keeps it, and a question
+PocketMoney remembers". The thread lives in session state, so closing and reopening the panel keeps it, and a question
 still being answered when the panel closes is asked again when it reopens.
 
 Each reply first shows the instant quick answer (built from the engine), then the AI answer streams in over it;
@@ -91,9 +91,9 @@ def _mode_words(a):
 
 
 def _thinking(a, key):
-    with st.expander("How Runway thought about this", icon=":material/psychology:"):
+    with st.expander("How PocketMoney thought about this", icon=":material/psychology:"):
         plan = agent.Plan(**a.plan)
-        st.markdown("**What Runway checked:** " + fmt.md(agent.plan_words(plan))
+        st.markdown("**What PocketMoney checked:** " + fmt.md(agent.plan_words(plan))
                     + ("  \n:gray[Matched by keywords because the planner wasn't available.]"
                        if plan.source == "keywords" else ""))
         t = a.timings or {}
@@ -119,7 +119,7 @@ def _thinking(a, key):
         if facts:
             added = [f["label"] for f in facts if f["appended"]]
             st.markdown(f"**Required facts:** {len(facts) - len(added)} of {len(facts)} written by the model"
-                        + (f"; Runway added the rest from your numbers ({fmt.md(', '.join(added))})." if added
+                        + (f"; PocketMoney added the rest from your numbers ({fmt.md(', '.join(added))})." if added
                            else ".") + (" One rewrite was needed." if a.retries.get("explain_rewrite") else ""))
         recalled = a.models.get("memories") or []
         if recalled:
@@ -132,8 +132,8 @@ def _thinking(a, key):
             with st.container(height=220):
                 st.text(a.reasoning)
         if plan.tool and st.toggle("Details for nerds", key=f"nerd_plan_{key}"):
-            st.caption("The plan Nemotron wrote (checked by Runway before any tool ran):" if plan.source == "llm"
-                       else "The plan Runway matched by keywords (the planner wasn't available):")
+            st.caption("The plan Nemotron wrote (checked by PocketMoney before any tool ran):" if plan.source == "llm"
+                       else "The plan PocketMoney matched by keywords (the planner wasn't available):")
             st.code(json.dumps({"resolved_question": plan.resolved_question, "calls": plan.calls,
                                 "assumptions": plan.assumptions}, indent=2, default=str),
                     language="json", wrap_lines=True)
@@ -173,7 +173,7 @@ def _action_cards(a, key):
                 st.markdown(f"**:material/mail: Draft email to {fmt.md(act['to'])}**")
                 st.markdown(f"Subject: {fmt.md(act['subject'])}")
                 st.code(act["body"], language=None, wrap_lines=True)
-                st.caption("Runway never sends anything. Use the copy button, then send it from your student email.")
+                st.caption("PocketMoney never sends anything. Use the copy button, then send it from your student email.")
                 st.checkbox("Mark as done", key=f"done_{key}_{act['id']}")
             else:
                 st.markdown(f"**:material/checklist: {fmt.md(act['title'])}**")
@@ -251,7 +251,7 @@ def answer_meal_log(a):
 
 
 def _meal_button(a, key, latest, ds=None):
-    """ "Log 2 meals": one tap logs what she said she used. Runway never logs it without her tap."""
+    """ "Log 2 meals": one tap logs what she said she used. PocketMoney never logs it without her tap."""
     offer = answer_meal_log(a)
     if not (latest and offer):
         return
@@ -286,7 +286,7 @@ def _is_general(a):
 
 
 def reply(a, latest=True, ds=None):
-    """Runway's message: the answer, notes, proof chips, drafts and how it thought."""
+    """PocketMoney's message: the answer, notes, proof chips, drafts and how it thought."""
     key = str(int(a.created * 1000))
     notes = _footnotes(a)
     if _is_general(a):
@@ -322,7 +322,7 @@ def student(question, resolved=None):
 
 
 def _ask(question, ds, scenario):
-    """Run the agent inside Runway's message: friendly stages, the quick answer at once, then the AI answer
+    """Run the agent inside PocketMoney's message: friendly stages, the quick answer at once, then the AI answer
     streaming over it."""
     s = st.session_state
     student(question)
@@ -370,7 +370,7 @@ def render(ds, scenario):
     with st.container(key="ask_thread"):
         newest = next((a for a in s.history if a.mode != "event"), None)   # its buttons stay live under events
         for a in reversed(s.history):
-            if a.mode == "event":                         # Runway speaking up (e.g. after "mark as done")
+            if a.mode == "event":                         # PocketMoney speaking up (e.g. after "mark as done")
                 with st.chat_message("assistant"):
                     st.markdown(fmt.md(a.text))
                 continue
@@ -427,13 +427,13 @@ def _closed():
 
 
 def fab():
-    """The round "Ask Runway" button, fixed bottom-left by style.py (keyed container, not a fragile selector)."""
+    """The round "Ask PocketMoney" button, fixed bottom-left by style.py (keyed container, not a fragile selector)."""
     with st.container(key="chat_fab"):
-        st.button("Ask Runway", key="chat_fab_btn", icon=":material/forum:", on_click=_open, type="primary",
-                  help="Ask Runway about your money")
+        st.button("Ask PocketMoney", key="chat_fab_btn", icon=":material/forum:", on_click=_open, type="primary",
+                  help="Ask PocketMoney about your money")
 
 
-@st.dialog("Ask Runway", width="large", on_dismiss=_closed)
+@st.dialog("Ask PocketMoney", width="large", on_dismiss=_closed)
 def _panel(ds, scenario):
     s = st.session_state
     sig = forecast_sig()

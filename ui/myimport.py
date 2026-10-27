@@ -11,7 +11,7 @@ import mydata
 from ui import fmt
 
 PRIVACY = ("Your file stays on this computer, in user_data/. Nothing from it is committed or uploaded. When you ask "
-           "Runway a question, it goes through Meterless Nightshift on this computer. Nightshift keeps a local log of "
+           "PocketMoney a question, it goes through Meterless Nightshift on this computer. Nightshift keeps a local log of "
            "requests. It sends only that question and the numbers it needs to NVIDIA to write the answer.")
 
 
@@ -58,7 +58,7 @@ def render():
     """The import screen (My data mode with no data yet, or "Import a different file")."""
     st.markdown("### Use your own bank data")
     st.markdown(fmt.md("Download your checking account history as a CSV file from your bank's website, then add it "
-                       "here. Runway reads the dates, amounts and balance and shows you what it found before "
+                       "here. PocketMoney reads the dates, amounts and balance and shows you what it found before "
                        "importing."))
     st.caption(PRIVACY)
     up = st.file_uploader("Your bank export (.csv)", type=["csv", "txt"], key="imp_file")
@@ -91,7 +91,7 @@ def render():
                                   format="%.2f", key="imp_balance")
     last = rows[-1]["date"]
     end = st.date_input("Plan until", value=mydata.default_end(last), min_value=last + timedelta(days=7),
-                        format="MM/DD/YYYY", key="imp_end", help="Runway shows how long your money lasts until this "
+                        format="MM/DD/YYYY", key="imp_end", help="PocketMoney shows how long your money lasts until this "
                         "date (for example, the end of your semester).")
     if st.button("Import my data", type="primary", icon=":material/upload_file:", key="imp_go"):
         mydata.save(rows, m, up.name, balance_today=balance, end_date=end)

@@ -12,7 +12,7 @@ folders are gitignored.
 
 Online results (jobs, costs) use the same web search as the scholarships (websearch.py: Firecrawl keyless search)
 and the same guardrails: only what is written on each page is shown. Pay, hours, place, amounts and the academic
-year appear only if that exact text is on the page; otherwise "see website". Runway never says she qualifies, never
+year appear only if that exact text is on the page; otherwise "see website". PocketMoney never says she qualifies, never
 applies for her, and nothing found online enters her forecast until she types or confirms the numbers herself.
 """
 import json
