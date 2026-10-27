@@ -1543,7 +1543,7 @@ def attention_items(scenario=None, ds=None, ledger=None):
         out.append(_attention("meal_plan", meal.c["dd_runs_out"], meal.c["cost"],
                               {**meal.c, "tip_dd_end": meal.tip["dd_end"], "tip_sw_end": meal.tip["sw_end"]}, ledger,
                               row_ids=[ds.meal_plan.row_id] if ds.meal_plan else []))
-    elif meal and meal.runs_out:
+    elif meal and meal.runs_out and meal.c["cost"].value:     # a day or week plan: only when it costs checking money
         a = min((x for x in (meal.meals, meal.points) if x.runs_out.value), key=lambda x: x.runs_out.value)
         out.append(_attention("meal_plan", a.runs_out, meal.c["cost"],
                               {"cost": meal.c["cost"], "short": a.short, "short_periods": a.short_periods,

@@ -214,3 +214,23 @@ def test_nothing_from_user_data_is_ever_committed():
                            capture_output=True, text=True)
     assert probe.returncode == 0                                              # ignored
     assert "user_data/" in (root / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_meal_plan_in_my_data_mode(userdir, monkeypatch):
+    """My data mode: her own meal plan, all manual entry, kept apart from Maya's."""
+    import mealplan
+    imported("c")
+    at = _app(monkeypatch)
+    assert any("Add your meal plan to count your meals and points." in t for t in _texts(at))
+    at.number_input(key="meal_set_meals").set_value(14)
+    at.selectbox(key="meal_set_meals_per").set_value("week")
+    at.number_input(key="meal_set_points").set_value(150.0)
+    at.button(key="FormSubmitter:meal_settings_form-Save").click()
+    at.run()
+    at.button(key="meal_plus").click()
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    row = next(t for t in _texts(at) if 'class="rw-meal-row"' in t and "<style" not in t)
+    assert ">this week<" in row and ">13<" in row and ">$150<" in row
+    assert mealplan.load("mine")["settings"]["meals"] == 14 and len(mealplan.load("mine")["log"]) == 1
+    assert mealplan.load("maya") == mealplan.empty()                                       # Maya's stays apart

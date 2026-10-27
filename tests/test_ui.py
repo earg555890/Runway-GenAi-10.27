@@ -548,13 +548,4 @@ def test_application_draft_is_plain_and_true(at):
     assert link.proto.url.startswith("mailto:finaid@stateu.example?subject=Application%3A%20Student%20Emergency")
 
 
-def test_meal_plan_card_and_slider(at):
-    meal = next(plain(m.value) for m in at.markdown if "swipes and" in m.value)
-    assert meal == ("56 swipes and $117 in dining dollars left. At this pace, your dining dollars run out around "
-                    "Sun, Nov 22. You'll have about 40 swipes left on Fri, Dec 18.")
-    assert any("Tip: use 2 swipes a week instead of dining dollars, and both last." in plain(c.value) for c in at.caption)
-    at.slider(key="wf_meal_moves").set_value(2)
-    run(at)
-    meal = next(plain(m.value) for m in at.markdown if "swipes and" in m.value)
-    assert "your dining dollars last the semester. You'll have about 25 swipes left" in meal
-    assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)            # swipes: $0 to checking
+# the meal plan card and its slider: tests/test_meal_card.py (the card was replaced in the meal plan upgrade)

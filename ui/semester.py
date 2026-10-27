@@ -5,7 +5,7 @@ import streamlit as st
 
 import config
 import engine
-from ui import chart, fmt, state, style
+from ui import chart, fmt, meal, state, style
 
 
 def _card(title, sentence, key, more=None, more_label="Change", done=False):
@@ -90,10 +90,10 @@ def render(ds, subs, base, current, changed, deltas=None):
         with cols[1]:
             _card(f"Cancel {sub.merchant}", f"Saves {fmt.dollars(fixes[sub.merchant].savings.value)} this semester.",
                   state.cancel_key(sub.merchant), done=state.is_done(("cancel", sub.merchant)))
-    _rest(ds, subs, fixes, helpful, useless)
+    _rest(ds, subs, fixes, helpful, useless, current.scenario)
 
 
-def _rest(ds, subs, fixes, helpful, useless):
+def _rest(ds, subs, fixes, helpful, useless, scenario):
     shift_planner(ds, subs)
     for sub in useless + helpful[1:]:
         f = fixes[sub.merchant]
@@ -108,7 +108,7 @@ def _rest(ds, subs, fixes, helpful, useless):
                                f"- Its next charge is {fmt.day(charge)}.\n"
                                f"- You pay that card bill on {fmt.day(paid)}, after the semester.\n"
                                f"- So cancelling saves {fmt.money(f.savings.value)} this semester."))
-    meal_card(ds)
+    meal.card(ds, scenario)
     st.button("Start over", type="tertiary", icon=":material/restart_alt:", on_click=state.reset, args=(subs,),
               key="start_over")
 
@@ -149,7 +149,7 @@ def shift_planner(ds, subs):
         if not ds.job:
             st.caption("Connect your work schedule to plan extra shifts.")
             return
-        plan = engine.shift_plan(state.shifts(), state.scenario(subs), ds)
+        plan = engine.shift_plan(state.shifts(), state.scenario(subs, ds), ds)
         run_out = plan.before.first_below_zero.value
         if plan.shifts:
             st.markdown(f"**{fmt.md(plan_sentence(plan))}**")
@@ -186,24 +186,3 @@ def shift_planner(ds, subs):
             st.button("Reset shifts", key="shift_reset", type="tertiary", icon=":material/restart_alt:",
                       on_click=state.reset_shifts)
 
-
-def meal_card(ds):
-    """The meal plan, compact: what's left, when the dining dollars run out, the swipe tip, and a pace slider."""
-    s = st.session_state
-    m = engine.meal_plan_status(engine.Scenario(meal_moves=int(s.get("wf_meal_moves") or 0)), ds)
-    if not m:
-        return
-    c = m.c
-    with st.container(border=True, key="meal_card"):
-        st.markdown("**:material/restaurant: Meal plan**")
-        left = (f"{c['swipes_left'].value} swipes and {fmt.dollars(c['dd_left'].value)} in dining dollars left.")
-        when = (f"At this pace, your dining dollars run out around {fmt.day(m.runs_out)}." if m.runs_out else
-                "At this pace, your dining dollars last the semester.")
-        spare = (f"You'll have about {c['swipes_end'].value:.0f} swipes left on {fmt.day(config.SEMESTER_END)}."
-                 if c["swipes_end"].value >= 0 else "Your swipes run out before the semester ends.")
-        cost = (f"Checking pays {fmt.dollars(c['cost'].value)} for meals." if c["cost"].value else "")
-        st.markdown(fmt.md(" ".join(x for x in (left, when, spare, cost) if x)))
-        if m.runs_out and m.tip_works and not s.get("wf_meal_moves"):
-            st.caption(fmt.md("Tip: use 2 swipes a week instead of dining dollars, and both last."))
-        st.slider("Dining-dollar meals a week moved to swipes", min_value=0, max_value=5, key="wf_meal_moves",
-                  help="Each move uses a swipe instead of dining dollars.")

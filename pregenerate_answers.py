@@ -27,7 +27,8 @@ SCENARIOS = {
 EXTRA = [("What if I pick up a 5 hour shift on Nov 7?", "nothing changed"),
          ("What should I do this week?", "nothing changed"), ("Where did my money go in October?", "nothing changed"),
          ("Are there any grants or scholarships I qualify for?", "nothing changed"),
-         ("Will my dining dollars last?", "nothing changed")]
+         ("Will my dining dollars last?", "nothing changed"),
+         ("How many meals do I have left this week?", "nothing changed")]
 REASONING_HEAD, REASONING_TAIL = 2000, 1000          # characters of the reasoning trace kept
 
 

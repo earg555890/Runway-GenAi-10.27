@@ -105,6 +105,24 @@ div[data-testid="stTabs"] button p {{font-size: 1.1rem;}}
   line-height: 1.25; letter-spacing: -0.02em;}}
 .rw-fig-when {{font-size: .9rem; opacity: .8;}}
 .rw-card-head {{font-size: 1.2rem; font-weight: 700; margin: 0 0 .5rem;}}
+
+/* the meal plan card: two big counters, then one-tap logging with big touch targets */
+.rw-meal-row {{display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin: .2rem 0 .4rem;}}
+.rw-meal-box {{border: 1px solid var(--rw-card-border); border-radius: 14px; padding: .8rem .95rem;}}
+.rw-meal-label {{font-size: 1rem; font-weight: 700;}}
+.rw-meal-num {{font-family: {MONO}; font-variant-numeric: tabular-nums; font-size: 2.4rem; font-weight: 500;
+  line-height: 1.1; letter-spacing: -0.03em; margin-top: .15rem;}}
+.rw-meal-period {{font-size: 1rem; opacity: .85;}}
+.rw-meal-line, .rw-meal-lose {{font-size: 1rem; line-height: 1.45; margin-top: .45rem;}}
+.rw-meal-lose {{color: var(--rw-muted);}}
+.rw-meal-today {{font-size: 1.1rem; min-width: 8.5rem; text-align: center;}}
+.rw-meal-today b {{font-family: {MONO}; font-size: 1.5rem; font-weight: 500;}}
+.rw-meal-recent {{font-size: 1rem; font-weight: 700; margin-top: .4rem;}}
+.st-key-meal_minus button, .st-key-meal_plus button {{width: 3.25rem; height: 3.25rem; min-height: 3.25rem;
+  border-radius: 50%; font-size: 1.4rem;}}
+.st-key-meal_points_row button {{min-height: 2.75rem; min-width: 4.5rem;}}
+[class*="st-key-meal_rm_"] button {{min-width: 2.75rem; min-height: 2.75rem;}}
+@media (max-width: 640px) {{.rw-meal-row {{grid-template-columns: 1fr;}}}}
 .rw-legend {{font-size: .95rem; opacity: .9; margin: .9rem 0 0;}}
 .rw-sw {{display: inline-block; width: 24px; height: 0; vertical-align: middle; margin: 0 .45rem 0 1rem;}}
 .rw-sw:first-child {{margin-left: 0;}}

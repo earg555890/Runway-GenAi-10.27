@@ -147,7 +147,7 @@ def _todo_cards(act, key, ds):
     if ds is None:
         return
     done = st.session_state.get("done") or {}
-    items = {it.kind: it for it in engine.attention_items(state.done_scenario(), ds)}
+    items = {it.kind: it for it in engine.attention_items(state.done_scenario(ds), ds)}
     for kind in act["items"]:
         if kind in done:
             st.caption(f":material/check: {fmt.md(done[kind]['label'])}: done.")
@@ -214,7 +214,7 @@ def sections_html(sec, notes):
     return out
 
 
-def _structured(a, notes, key, latest):
+def _structured(a, notes, key, latest, ds=None):
     """The answer, with "Do these" beside DO THIS when the answer's fixes aren't all on yet."""
     sec, s = a.sections, st.session_state
     fixes = [SimpleNamespace(**f) for f in a.fixes] if a.verdict == "yes_if" else []
@@ -237,6 +237,29 @@ def _structured(a, notes, key, latest):
     if note:
         st.markdown(f'<div class="rw-note">{_html_cited(note, notes)}</div>', unsafe_allow_html=True)
     _shift_button(a, key, latest)
+    _meal_button(a, key, latest, ds)
+
+
+def answer_meal_log(a):
+    """(meals, points) a meal_plan answer offers to log ("I just used 2 meals"), or None. Only when the answer
+    showed what's left after logging them (nothing to log, or it couldn't be logged: no button)."""
+    if not any(f.get("key") == "after" for f in getattr(a, "facts", None) or []):
+        return None
+    call = next((c for c in a.plan.get("calls") or [] if c.get("tool") == "meal_plan"), None)
+    meals, points = agent.meal_log_offer((call or {}).get("args") or {})
+    return (meals, points) if meals or points else None
+
+
+def _meal_button(a, key, latest, ds=None):
+    """ "Log 2 meals": one tap logs what she said she used. Runway never logs it without her tap."""
+    offer = answer_meal_log(a)
+    if not (latest and offer):
+        return
+    if key in (st.session_state.get("meal_logged") or ()):
+        st.caption(":material/check: Logged in your meal plan.")
+        return
+    st.button(state.meal_log_label(*offer), key=f"ans_meal_{key}", icon=":material/restaurant:", type="primary",
+              on_click=state.log_meal_from_chat, args=(offer, key, ds))
 
 
 def answer_shifts(a):
@@ -269,7 +292,7 @@ def reply(a, latest=True, ds=None):
     if _is_general(a):
         st.badge("General info", color="gray", icon=":material/info:")
     if getattr(a, "sections", None):
-        _structured(a, notes, key, latest)
+        _structured(a, notes, key, latest, ds)
     else:                                                    # off-topic, no-key and older saved answers
         if a.verdict_label:
             st.badge(a.verdict_label, color="green" if a.verdict in ("yes", "covered") else "orange")
@@ -389,7 +412,8 @@ def forecast_sig():
     changes it needs the whole page to rerun."""
     s = st.session_state
     keys = sorted(str(k) for k in s.keys() if str(k).startswith(("wf_", "bud_amt_", "opp_")))
-    return repr([(k, s.get(k)) for k in keys] + [("done", sorted((s.get("done") or {}).keys()))])
+    return repr([(k, s.get(k)) for k in keys] + [("done", sorted((s.get("done") or {}).keys())),
+                                                 ("meal", s.get("meal_data"))])
 
 
 def _open():

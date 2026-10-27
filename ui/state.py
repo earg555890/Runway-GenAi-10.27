@@ -9,6 +9,7 @@ import actions
 import agent
 import config
 import engine
+import mealplan
 import normalize
 from ui import fmt
 
@@ -92,7 +93,7 @@ def switch_mode():
     """Changing between Maya and My data starts fresh: what-ifs, budget, done items and the chat."""
     s = st.session_state
     keep = s.get("data_mode")
-    for k in [k for k in s.keys() if k.startswith(("wf_", "buy_", "bud_amt_", "ci_", "imp_"))
+    for k in [k for k in s.keys() if k.startswith(("wf_", "buy_", "bud_amt_", "ci_", "imp_", "meal_"))
               or k in ("done", "action_log", "prepared", "history", "bud_month", "bud_account", "bud_pick")]:
         del s[k]
     s.data_mode = keep
@@ -113,6 +114,7 @@ def init(subs):
     st.session_state.setdefault("done", {})          # item kind -> {"label", "title", "fix"}
     st.session_state.setdefault("action_log", [])    # [{"when", "what", "kind"}]
     st.session_state.setdefault("prepared", [])      # what Runway has prepared and logged already
+    meal_data()
 
 
 def _apply_done():
@@ -169,7 +171,7 @@ def mark_done(item, ds):
     log(f"Marked done: {label} ({title})", "done")
     from ui import memory
     memory.done(item.kind, label, title)
-    after = done_scenario()
+    after = done_scenario(ds)
     remaining = len([i for i in engine.attention_items(after, ds) if i.kind not in s.done])
     s.history = ([agent.event_answer(actions.done_message(item, ds, after, remaining))]
                  + s.get("history", []))[:MAX_TURNS]
@@ -293,7 +295,53 @@ def done_cancels():
     return tuple(d["fix"][1] for d in st.session_state.get("done", {}).values() if d["fix"][:1] == ["cancel"])
 
 
-def scenario(subs):
+def data_mode():
+    return "mine" if mine() else "maya"
+
+
+def meal_data():
+    """Her meal plan settings and log for this mode (mealplan.py), loaded once per session."""
+    s = st.session_state
+    if "meal_data" not in s:
+        s.meal_data = mealplan.load(data_mode())
+    return s.meal_data
+
+
+def meal_today(ds):
+    """The meal log's "today": the demo's today for Maya; the real date in My data mode (inside her plan's dates)."""
+    if not mine():
+        return config.DEMO_TODAY
+    t, plan = date.today(), mealplan.settings(meal_data(), ds)
+    return min(max(t, plan.start), plan.end) if plan else t
+
+
+def meal_part(ds):
+    """Scenario fields for her meal plan and log (none in Maya's default state)."""
+    return mealplan.scenario_part(meal_data(), ds, meal_today(ds)) if ds is not None else {}
+
+
+def meal_log_label(meals, points):
+    """The chat's button: "Log 2 meals", "Log $8.50 in points"."""
+    what = [f"{meals} meal{'' if meals == 1 else 's'}" if meals else "",
+            f"{fmt.dollars(points)} in points" if points else ""]
+    return "Log " + " and ".join(x for x in what if x)
+
+
+def log_meal_from_chat(offer, answer_key, ds=None):
+    """Her tap on a chat answer's "Log 2 meals": the entry goes into her meal log (today) and is saved."""
+    s, (meals, points) = st.session_state, offer
+    day = meal_today(ds)
+    problem = mealplan.add(meal_data(), day, meals=meals, points=points, ds=ds, today=day)
+    if problem:
+        s.meal_msg = problem
+        return
+    mealplan.save(data_mode(), s.meal_data)
+    s.meal_msg = None
+    s.meal_logged = set(s.get("meal_logged") or ()) | {answer_key}
+    log(f"{meal_log_label(meals, points)}: logged from the chat", "meal")
+
+
+def scenario(subs, ds=None):
     s, base = st.session_state, choices()
     p = purchase() if s.buy_active else None
     cancels = tuple(x.merchant for x in subs if s[cancel_key(x.merchant)])
@@ -301,19 +349,20 @@ def scenario(subs):
         refund_released=s.wf_refund or "refund" in s.done, refund_submit_date=submit_date(),
         cancel_subscriptions=tuple(dict.fromkeys(cancels + done_cancels())),
         extra_shifts=base.extra_shifts, purchases=(p,) if p else (), budget=budget_scenario_part(),
-        approved=approved(), meal_moves=int(s.get("wf_meal_moves") or 0))
+        approved=approved(), meal_moves=int(s.get("wf_meal_moves") or 0), **meal_part(ds))
 
 
-def done_scenario():
-    """What the student has actually done (marked done in the check-in), without the what-ifs being explored."""
+def done_scenario(ds=None):
+    """What the student has actually done (marked done in the check-in, her meal log), without the what-ifs being
+    explored."""
     return engine.Scenario(refund_released="refund" in st.session_state.get("done", {}),
                            refund_submit_date=submit_date(), cancel_subscriptions=done_cancels(),
-                           budget=budget_scenario_part())
+                           budget=budget_scenario_part(), **meal_part(ds))
 
 
 def changed(sc):
     return bool(sc.refund_released or sc.cancel_subscriptions or sc.extra_shifts or sc.purchases or sc.budget
-                or sc.approved or sc.meal_moves)
+                or sc.approved or sc.meal_moves or sc.meal_settings or sc.meal_log or sc.meal_today)
 
 
 def summary(sc):
@@ -330,4 +379,6 @@ def summary(sc):
         parts.append(f"{len(sc.approved)} aid award{'s' if len(sc.approved) != 1 else ''} if approved")
     if sc.meal_moves:
         parts.append(f"{sc.meal_moves} meal{'s' if sc.meal_moves != 1 else ''} a week on swipes")
+    if sc.meal_settings or sc.meal_log:
+        parts.append("your meal plan")
     return ", ".join(parts)

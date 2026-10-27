@@ -24,7 +24,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
@@ -117,8 +117,12 @@ TOOLS = {
         does="Scholarships and emergency aid found ONLINE (not her school's list): titles, sites and links, with an "
              "amount or deadline only if the page says it. She must check each one before applying.", args={}),
     "meal_plan": dict(
-        does="Her campus meal plan: swipes and dining dollars left, when the dining dollars run out, swipes left at "
-             "the end of the semester, and how to make both last.", args={}),
+        does="Her meal plan, from her own settings and meal log: meals (swipes) and points (dining dollars) left "
+             "today, this week or this semester, when they reset or run out, and what checking pays. When she says "
+             "she just used meals or points, pass log_meals / log_points: Runway only offers a button to log them.",
+        args={"about": "\"meals\" or \"points\" (optional; what the question is mostly about)",
+              "log_meals": "whole number of meals she says she just used (optional)",
+              "log_points": "dollars of points she says she just used (optional)"}),
     "action_plan": dict(
         does="What the student should DO (this week, first, next): the items that need attention, most urgent "
              "first, each with its next step.",
@@ -361,6 +365,19 @@ def validate_call(tool, args, sub_names):
         clean = {"start": start.isoformat(), "end": end.isoformat()}
     elif tool == "general_info":
         clean = {"topic": str(args.get("topic") or "").strip()[:80]}
+    elif tool == "meal_plan":                        # no args: {} (the recorded demo answers' plan)
+        about = str(args.get("about") or "").strip().lower()
+        if about:
+            if about not in ("meals", "points"):
+                raise ValueError(f'about must be "meals" or "points", got {about!r}')
+            clean["about"] = about
+        if args.get("log_meals") not in (None, "", 0, "0"):
+            n = _money(args["log_meals"], "log_meals")
+            if n != int(n) or n > engine.MAX_MEALS_ENTRY:
+                raise ValueError(f"log_meals must be a whole number from 1 to {engine.MAX_MEALS_ENTRY}")
+            clean["log_meals"] = int(n)
+        if args.get("log_points") not in (None, "", 0, "0"):
+            clean["log_points"] = str(_money(args["log_points"], "log_points"))
     return clean, assumptions
 
 
@@ -466,6 +483,9 @@ def plan_messages(question, scenario, sub_names, history=(), memory_context=""):
         '- Are there any grants or scholarships I qualify for? -> [{"tool": "find_aid"}]\n'
         '- Is there emergency money? -> [{"tool": "find_aid", "args": {"type": "emergency_grant"}}]\n'
         '- Will my dining dollars last? / How many swipes do I have left? -> [{"tool": "meal_plan"}]\n'
+        '- How many meals do I have left this week? -> [{"tool": "meal_plan", "args": {"about": "meals"}}]\n'
+        '- Will my points last? -> [{"tool": "meal_plan", "args": {"about": "points"}}]\n'
+        '- I just used 2 meals -> [{"tool": "meal_plan", "args": {"log_meals": 2}}]\n'
         '- Find me scholarships online -> [{"tool": "search_scholarships"}]\n'
         '- What happens if I stick to my budget? / Am I on budget? -> [{"tool": "budget_status"}]\n'
         '- Help me get through the semester -> [{"tool": "runway"}, {"tool": "money_ideas"}, {"tool": '
@@ -578,8 +598,8 @@ def keyword_plan(question, sub_names):
     elif any(k in q for k in ("grant", "scholarship", "emergency money", "work-study", "work study", "financial help")):
         args = {"type": "emergency_grant"} if "emergency" in q else {}
         p = Plan("find_aid", "find_aid", validate_call("find_aid", args, sub_names)[0])
-    elif any(k in q for k in ("dining", "swipe", "meal plan")):
-        p = Plan("meal_plan", "meal_plan", {})
+    elif any(k in q for k in ("dining", "swipe", "meal plan", "meals", "my points", "points left", "a meal")):
+        p = Plan("meal_plan", "meal_plan", validate_call("meal_plan", meal_words(q), sub_names)[0])
     elif "budget" in q:
         cat = next((c for c in (*engine.BUDGET_GROUPS, *normalize.FLEXIBLE) if c.lower() in q), None)
         p = Plan("budget_status", "budget_status", validate_call("budget_status", {"category": cat}, sub_names)[0])
@@ -632,6 +652,45 @@ class ToolResult:
     args: dict = field(default_factory=dict)
 
 
+def meal_words(q):
+    """meal_plan args from a question's words: "I just used 2 meals" -> {"log_meals": 2}; "my points" -> about."""
+    a = {}
+    used = re.search(r"\b(?:used|had|ate|swiped)\s+(\d+|a|one|two|three)\s+meals?\b", q)
+    if used:
+        a["log_meals"] = {"a": 1, "one": 1, "two": 2, "three": 3}.get(used.group(1)) or int(used.group(1))
+    pts = re.search(r"(?:used|spent)\s+\$?(\d+(?:\.\d\d)?)\s+(?:in\s+)?(?:points|dining dollars)", q)
+    if pts:
+        a["log_points"] = pts.group(1)
+    if not a and not any(k in q for k in ("dining", "swipe", "meal plan")):     # the school-plan questions: as before
+        a["about"] = "points" if ("point" in q or "dining dollar" in q) and "meal" not in q else "meals"
+    return a
+
+
+def meal_log_offer(args):
+    """(meals, points) she said she just used, from a meal_plan call's args: the "Log 2 meals" button's entry."""
+    return int(args.get("log_meals") or 0), Decimal(args.get("log_points") or 0)
+
+
+def _meal_result(a, scenario, ds, ledger):
+    """Her meal plan now and, when she says she just used meals or points, the same plan after logging them (a
+    preview: nothing is logged until she taps the button)."""
+    m = engine.meal_plan_status(scenario, ds, ledger)
+    facts = {"meal": m, "about": a.get("about"), "after": None, "problem": None, "log": meal_log_offer(a)}
+    if not m:
+        return ToolResult(None, [], ledger, facts=facts)
+    key = [*m.c.values(), *m.tip.values()]
+    meals, points = facts["log"]
+    if meals or points:
+        today = scenario.meal_today or config.DEMO_TODAY
+        facts["problem"] = engine.meal_entry_problem(today, meals, points, m.settings, today)
+        if not facts["problem"]:
+            entry = engine.MealEntry(today, meals, engine.D(points), "", "NEW")
+            after = engine.meal_plan_status(replace(scenario, meal_log=scenario.meal_log + (entry,)), ds, ledger)
+            facts["after"] = after
+            key = [*after.c.values()] + key
+    return ToolResult(None, key, ledger, facts=facts)
+
+
 def _without_fixes(scenario):
     return engine.Scenario(refund_submit_date=scenario.refund_submit_date, extra_shifts=scenario.extra_shifts)
 
@@ -669,7 +728,7 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
     """One tool call. done: check-in item kinds the student marked done (action_plan leaves them out). budget:
     {category: monthly dollars} she set in the Budget tab (budget_status)."""
     ledger = engine.Ledger()
-    if tool in NEEDS and not NEEDS[tool](ds):         # My data mode: no school data for this tool
+    if tool in NEEDS and not NEEDS[tool](ds) and not (tool == "meal_plan" and scenario.meal_settings):   # My data mode
         return ToolResult(None, [], ledger, facts={"unavailable": True})
     if tool == "can_afford":
         v = engine.can_afford(Decimal(a["cost"]), a["date"], a["account"], _without_fixes(scenario), ds, a["item"])
@@ -794,8 +853,7 @@ def execute_call(tool, a, scenario, ds, done=(), budget=None):
             key.append(when)
         return ToolResult(None, key, ledger, facts={"web": rows, "found_at": when})
     if tool == "meal_plan":
-        m = engine.meal_plan_status(scenario, ds, ledger)
-        return ToolResult(None, [*m.c.values(), *m.tip.values()] if m else [], ledger, facts={"meal": m})
+        return _meal_result(a, scenario, ds, ledger)
     if tool == "budget_status":
         b = engine.budget_status(budget, a["month"], a.get("category"), scenario, ds, ledger)
         if b.suggestion:
@@ -1795,6 +1853,129 @@ def _spending_step(sp):
     return f"Start with {_short(sp.groups[0][0])}, your biggest merchant."
 
 
+def _meal_left(m, kind, c):
+    """(sentence, Fact) for meals or points left in her current period ("You have 9 meals left this week")."""
+    if m.pooled:
+        k, when = (m.c["swipes_left"], "this semester") if kind == "meals" else (m.c["dd_left"], "this semester")
+    else:
+        a = m.meals if kind == "meals" else m.points
+        k, when = a.left, {"day": "today", "week": "this week", "semester": "this semester"}[a.per]
+    v = k.value
+    if kind == "meals":
+        n = f"{abs(v):g}"
+        line = (f"You have {n} meal{'' if n == '1' else 's'} left {when} {c(k)}." if v >= 0 else
+                f"You've used {n} meal{'' if n == '1' else 's'} more than your plan {when} {c(k)}.")
+        return line, dict(words=(n,))
+    line = (f"You have {w.dollars(v)} in points left {when} {c(k)}." if v >= 0 else
+            f"You've used {w.dollars(-v)} more points than your plan {when} {c(k)}.")
+    return line, dict(money=(abs(v),))
+
+
+def _meal_when(m, kind, c):
+    """(sentence, Fact kwargs): when this allowance resets or runs out (day and week plans), or runs out (a pool)."""
+    if m.pooled:
+        k = m.c
+        if kind == "meals":
+            n = f"{k['swipes_end'].value:.0f}"
+            if k["swipes_end"].value >= 0:
+                return (f"You'll have about {n} meals left on {w.day(config.SEMESTER_END)} {c(k['swipes_end'])}.",
+                        dict(words=(n,)))
+            return (f"At this pace, your meals run out before {w.day(config.SEMESTER_END)} {c(k['swipes_end'])}.",
+                    dict(date=config.SEMESTER_END))
+        if m.runs_out:
+            return (f"At this pace, your points run out around {w.day(m.runs_out)} {c(k['dd_runs_out'])}.",
+                    dict(date=m.runs_out))
+        return f"At this pace, your points last the semester {c(k['dd_runs_out'])}.", dict(words=("last",))
+    a = m.meals if kind == "meals" else m.points
+    word = "meals" if kind == "meals" else "points"
+    if a.left.value <= 0 and a.per == "semester":
+        return f"Your {word} for this semester are used up {c(a.left)}.", dict(words=("used up",))
+    if a.resets is not None:
+        return f"Your {word} reset {w.day(a.resets.value)} {c(a.resets)}.", dict(date=a.resets.value)
+    d = a.runs_out.value
+    return ((f"At this pace, your {word} run out around {w.day(d)} {c(a.runs_out)}.", dict(date=d)) if d else
+            (f"At this pace, your {word} last the semester {c(a.runs_out)}.", dict(words=("last",))))
+
+
+def _meal_cost(m, c):
+    k = m.c["cost"]
+    return (f"Checking pays {w.dollars(k.value)} for meals {c(k)}." if not k.value else
+            f"Checking would pay about {w.dollars(k.value)} for meals (estimated) {c(k)}.")
+
+
+def meal_parts(f, c):
+    """(answer, why, do, note, [Fact]) for a meal_plan call: her plan now, or after logging what she said she
+    used (a preview, with a button to log it). A semester pool with no "about" and nothing to log keeps the
+    school-plan answer exactly (the recorded demo answer)."""
+    m = f["meal"]
+    if not m:
+        return "I don't see a meal plan.", ["No meal plan is on file."], [], "", []
+    about, after, problem = f.get("about"), f.get("after"), f.get("problem")
+    meals, points = f.get("log") or (0, Decimal(0))
+    k = m.c
+    if m.pooled and not about and not after and not problem:
+        head = (f"Your dining dollars run out around {w.day(m.runs_out)} {c(k['dd_runs_out'])}." if m.runs_out else
+                f"Your dining dollars last the semester {c(k['dd_runs_out'])}.")
+        why = [f"You have {k['swipes_left'].value} swipes {c(k['swipes_left'])} and {w.dollars(k['dd_left'].value)} "
+               f"in dining dollars {c(k['dd_left'])} left.",
+               f"You'll have about {k['swipes_end'].value:.0f} swipes left on {w.day(config.SEMESTER_END)} "
+               f"{c(k['swipes_end'])}."]
+        why.append(f"Swipes cover the gap, so checking pays {w.dollars(k['cost'].value)} {c(k['cost'])}."
+                   if not k["cost"].value else
+                   f"Checking would pay {w.dollars(k['cost'].value)} for meals {c(k['cost'])}.")
+        do = ([f"Use 2 swipes a week instead of dining dollars: you'd still have {w.dollars(m.tip['dd_end'].value)} "
+               f"in dining dollars on {w.day(config.SEMESTER_END)} {c(m.tip['dd_end'])}."]
+              if m.runs_out and m.tip_works else [])
+        facts = [Fact("runs_out", "when the dining dollars run out", head, date=m.runs_out,
+                      words=() if m.runs_out else ("last",), where="answer"),
+                 Fact("swipes_end", "the swipes left on Dec 18", why[1], words=(f"{k['swipes_end'].value:.0f}",)),
+                 Fact("cost", "what checking pays for meals",
+                      f"Checking pays {w.dollars(k['cost'].value)} for meals {c(k['cost'])}.",
+                      money=(k["cost"].value,))]
+        return head, why, do, "", facts
+    kind = about or ("points" if points and not meals else "meals")
+    other = "points" if kind == "meals" else "meals"
+    now = after or m
+    if after:
+        what = " and ".join(x for x in ((f"{meals} meal{'' if meals == 1 else 's'}" if meals else ""),
+                                        (f"{w.dollars(points)} in points" if points else "")) if x)
+        line, kw = _meal_left(after, kind, c)
+        head = f"After you log {what}: {line[0].lower()}{line[1:]}"
+        button = f"Log {what}"
+        facts = [Fact("after", f"what's left after logging {what}", head, where="answer", **kw)]
+        note = f"Tap “{button}” to save it. Runway logs nothing until you tap."
+        facts.append(Fact("tap", "that nothing is logged until she taps the button", note,
+                          words=("tap", "button", "click")))
+    else:
+        line, kw = _meal_left(m, kind, c)
+        head, note = line, ""
+        facts = [Fact("left", f"the {kind} left", line, where="answer", **kw)]
+        if problem:
+            note = f"I can't log that: {problem}"
+    o_line, o_kw = _meal_left(now, other, c)
+    facts.append(Fact(f"{other}_left", f"the {other} left", o_line, **o_kw))
+    why = [o_line]
+    when, w_kw = _meal_when(now, kind, c)
+    why.append(when)
+    facts.append(Fact("when", f"when the {kind} reset or run out", when, **w_kw))
+    if not now.pooled:
+        a = now.meals if kind == "meals" else now.points
+        if a.short_periods is not None and a.short_periods.value:
+            why.append(f"At your pace, you run short {a.short_periods.value} of {a.periods_left.value} "
+                       f"{a.per}s {c(a.short_periods)}.")
+    cost = _meal_cost(now, c)
+    why.append(cost)
+    facts.append(Fact("cost", "what checking pays for meals", cost, money=(now.c["cost"].value,)))
+    do = []
+    a = None if now.pooled else (now.meals if kind == "meals" else now.points)
+    if a is not None and a.unused_period is not None and a.unused_period.value >= 1 and a.resets is not None:
+        spare = (f"{a.unused_period.value:.0f} {kind}" if kind == "meals" else f"{w.dollars(a.unused_period.value)} "
+                 "in points")
+        do.append(f"Use about {spare} before {w.day(a.resets.value)}: unused ones don't roll over "
+                  f"{c(a.unused_period)}.")
+    return head, why, do, note, facts
+
+
 def lookup_template(tool, result, c):
     """(answer, why, do, note) for the data-lookup tools, built only from engine values, with citations."""
     f = result.facts
@@ -1908,23 +2089,7 @@ def lookup_template(tool, result, c):
         return (f"Here are {len(rows)} scholarships and grants I found online. Check before applying.", why,
                 ["Open each link and read who can apply before you start."], note)
     if tool == "meal_plan":
-        m = f["meal"]
-        if not m:
-            return "I don't see a meal plan.", ["No meal plan is on file."], [], ""
-        k = m.c
-        head = (f"Your dining dollars run out around {w.day(m.runs_out)} {c(k['dd_runs_out'])}." if m.runs_out else
-                f"Your dining dollars last the semester {c(k['dd_runs_out'])}.")
-        why = [f"You have {k['swipes_left'].value} swipes {c(k['swipes_left'])} and {w.dollars(k['dd_left'].value)} "
-               f"in dining dollars {c(k['dd_left'])} left.",
-               f"You'll have about {k['swipes_end'].value:.0f} swipes left on {w.day(config.SEMESTER_END)} "
-               f"{c(k['swipes_end'])}."]
-        why.append(f"Swipes cover the gap, so checking pays {w.dollars(k['cost'].value)} {c(k['cost'])}."
-                   if not k["cost"].value else
-                   f"Checking would pay {w.dollars(k['cost'].value)} for meals {c(k['cost'])}.")
-        do = ([f"Use 2 swipes a week instead of dining dollars: you'd still have {w.dollars(m.tip['dd_end'].value)} "
-               f"in dining dollars on {w.day(config.SEMESTER_END)} {c(m.tip['dd_end'])}."]
-              if m.runs_out and m.tip_works else [])
-        return head, why, do, ""
+        return meal_parts(f, c)[:4]
     if tool == "budget_status":
         b = f["status"]
         if b.suggestion:
@@ -2116,19 +2281,7 @@ def lookup_facts(tool, result, c):
         out.append(Fact("check", "that she must check before applying", "Check before applying.",
                         words=("check before applying", "check each", "check them")))
     elif tool == "meal_plan":
-        m = f["meal"]
-        if m:
-            k = m.c
-            out.append(Fact("runs_out", "when the dining dollars run out",
-                            f"Your dining dollars run out around {w.day(m.runs_out)} {c(k['dd_runs_out'])}."
-                            if m.runs_out else f"Your dining dollars last the semester {c(k['dd_runs_out'])}.",
-                            date=m.runs_out, words=() if m.runs_out else ("last",), where="answer"))
-            out.append(Fact("swipes_end", "the swipes left on Dec 18",
-                            f"You'll have about {k['swipes_end'].value:.0f} swipes left on {w.day(config.SEMESTER_END)} "
-                            f"{c(k['swipes_end'])}.", words=(f"{k['swipes_end'].value:.0f}",)))
-            out.append(Fact("cost", "what checking pays for meals",
-                            f"Checking pays {w.dollars(k['cost'].value)} for meals {c(k['cost'])}.",
-                            money=(k["cost"].value,)))
+        out += meal_parts(f, c)[4]
     elif tool == "budget_status":
         b = f["status"]
         if b.suggestion:

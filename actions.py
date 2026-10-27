@@ -68,6 +68,12 @@ def text(item, cite=_none):
                 f"It's decided in about {f['decision_days'].value} days{_c(cite, f['decision_days'])}. Apply by "
                 f"{w.day(item.due.value)}{_c(cite, item.due)} and, if approved, it arrives before "
                 f"{w.day(f['runs_out'].value)}{_c(cite, f['runs_out'])}.")
+    if k == "meal_plan" and "per" in f:                 # her own day or week plan
+        word = "meals" if f["kind"] == "meals" else "points"
+        return (f"Your {word} run short around {w.day(item.due.value)}",
+                f"At your pace, you run short {f['short_periods'].value} of {f['periods_left'].value} "
+                f"{f['per']}s{_c(cite, f['short_periods'])}. Checking would pay about {w.dollars(f['cost'].value)}"
+                f"{_c(cite, f['cost'])} for meals (estimated).")
     if k == "meal_plan":
         return (f"Your dining dollars run out around {w.day(item.due.value)}",
                 f"You'll have about {f['swipes_end'].value:.0f} swipes{_c(cite, f['swipes_end'])} left on "
@@ -113,7 +119,9 @@ def step(item):
             "subscriptions": f"Cancel {f['pick'].value} before {w.day(item.due.value)}." if "pick" in f else "",
             "tight_week": f"Set money aside for tuition on {w.day(item.due.value)}.",
             "grant": f"Apply for the emergency grant by {w.day(item.due.value)}.",
-            "meal_plan": "Use 2 swipes a week instead of dining dollars."}.get(item.kind, "")
+            "meal_plan": ("Use 2 swipes a week instead of dining dollars." if "per" not in f else
+                          f"Plan for about {w.dollars(f['cost'].value)} for meals from checking (estimated).")
+            }.get(item.kind, "")
 
 
 def application(check, ds, situation=""):
@@ -202,6 +210,8 @@ def reminder(item):
         return Reminder("emergency-grant", "Apply for the emergency grant", d, REMINDER_TIME,
                         f"Up to {w.dollars(f['amount'].value)} if approved. Decided in about "
                         f"{f['decision_days'].value} business days.")
+    if item.kind == "meal_plan" and "per" in f:
+        return Reminder("meals-short", "Meals run short", d, note="Check your meals and points left in Runway.")
     if item.kind == "meal_plan":
         return Reminder("dining-dollars", "Dining dollars run out", d,
                         note="Use swipes for 2 meals a week so both last the semester.")

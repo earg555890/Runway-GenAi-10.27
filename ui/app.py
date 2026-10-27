@@ -24,7 +24,7 @@ def page(ds, note):
     state.init(subs)
     if mine:
         state.fit_dates()
-    scenario = state.scenario(subs)
+    scenario = state.scenario(subs, ds)
     changed = state.changed(scenario)
     ledger = engine.Ledger()
     base = engine.project(engine.Scenario(refund_submit_date=scenario.refund_submit_date), ds, ledger)
@@ -36,7 +36,7 @@ def page(ds, note):
         myimport.manage()
     with st.container(key="notices"):                 # 2. the important notices: status card + check-in
         top.status(current)
-        checkin.render(ds, state.done_scenario())
+        checkin.render(ds, state.done_scenario(ds))
 
     tab1, tab_budget, tab2, tab_money, tab3 = st.tabs(["Semester", "Budget", "Afford it?", "Find money", "Findings"])
     with tab1:

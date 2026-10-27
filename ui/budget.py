@@ -209,7 +209,7 @@ def allocate(ds, scenario):
         head = f"{month}'s bills are {fmt.dollars(m.amount.value)} more than your money."
     st.markdown(f'<div class="rw-bud-head">{fmt.html(head)}</div>', unsafe_allow_html=True)
     if m.amount.value <= 0 and not scenario.refund_released:
-        refund = next((it for it in engine.attention_items(state.done_scenario(), ds) if it.kind == "refund"), None)
+        refund = next((it for it in engine.attention_items(state.done_scenario(ds), ds) if it.kind == "refund"), None)
         if refund:                                   # the action itself, right here: email, reminder, "Form sent"
             checkin.actions_row(refund, ds, "bud_refund")
     _how(m)
