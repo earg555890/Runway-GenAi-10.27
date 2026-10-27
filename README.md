@@ -136,6 +136,8 @@ Maya's demo data.
 | **Shift planner:** each shift's pay and payday. | **Budget:** where the money went, by category. |
 | ![Find money](docs/images/deck-5-find-money.png) | ![What Runway remembers](docs/images/deck-6-what-runway-remembers.png) |
 | **Find money:** the school's grants, "if approved" only. | **What Runway remembers** (Meterless H-MEM): each memory with where it came from. |
+| ![Meal plan card](docs/images/meal-plan.png) | |
+| **Meal plan:** meals and points per day, week or semester; one tap logs a meal. | |
 
 ## Dependencies
 
