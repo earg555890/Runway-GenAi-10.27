@@ -213,3 +213,26 @@ def test_chat_log_button(at, tmp_path, monkeypatch):
     assert [(x["date"], x["meals"]) for x in mealplan.load("maya")["log"]] == [("2026-10-26", 2)]
     assert any("Logged in your meal plan." in plain(x.value) for x in at.caption)
     assert '>54<' in counters(at)
+
+
+# --- a new plan of her own counts from its start (today by default) ------------------------------------------------
+def test_new_plan_counts_from_today(ds):
+    mine = dataclasses.replace(WEEK, start=OCT26)                       # 14 a week + $150 a semester, from today
+    m = e.meal_plan_status(e.Scenario(meal_settings=mine), ds)
+    assert m.meals.left.value == 14                                       # not "$133 more than your plan":
+    assert m.points.left.value == Decimal("143.01")                       # $150 - today's $6.99 lunch (MEAL-051)
+    assert m.points.used.inputs == ["MEAL-051"]
+    assert e.meal_plan_status(e.Scenario(meal_settings=WEEK), ds).points.left.value == Decimal("-133.00")  # from Aug 24
+
+
+def test_saving_a_plan_starts_today(at):
+    assert at.date_input(key="meal_set_start").value == OCT26
+    at.number_input(key="meal_set_meals").set_value(14)
+    at.selectbox(key="meal_set_meals_per").set_value("week")
+    at.number_input(key="meal_set_points").set_value(150.0)
+    at.button(key="FormSubmitter:meal_settings_form-Save").click()
+    run(at)
+    t = counters(at)
+    assert ">14<" in t and ">$143<" in t and "more than your plan" not in t
+    assert mealplan.load("maya")["settings"]["start"] == "2026-10-26"
+    assert ">Your money runs out in 2 weeks, on Mon, Nov 9.<" in status(at)

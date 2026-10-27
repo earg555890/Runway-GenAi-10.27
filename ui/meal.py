@@ -154,13 +154,15 @@ def _remember(plan):
 
 
 def _forms(ds, force=False):
-    """The settings form starts from her plan (or a typical week plan in My data mode)."""
+    """The settings form starts from her plan (or a typical week plan in My data mode). A new plan of her own starts
+    today (only what she uses from then on counts; she can set an earlier start to count her history); a plan she
+    saved keeps its start."""
     s = st.session_state
     plan = mealplan.settings(s.meal_data, ds)
     vals = {"meal_set_meals": plan.meals if plan else 14, "meal_set_meals_per": plan.meals_per if plan else "week",
             "meal_set_points": float(plan.points) if plan else 0.0,
             "meal_set_points_per": plan.points_per if plan else "semester",
-            "meal_set_start": plan.start if plan else config.SEMESTER_START,
+            "meal_set_start": plan.start if s.meal_data.get("settings") and plan else state.meal_today(ds),
             "meal_set_end": plan.end if plan else config.SEMESTER_END,
             "meal_set_reset": WEEKDAYS[plan.week_starts if plan else 0],
             "meal_set_rolls": plan.rolls_over if plan else False}
