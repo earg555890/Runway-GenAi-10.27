@@ -2,7 +2,7 @@
 
 **An AI money agent for college students that tells you how long your money lasts, and explains why, with proof.**
 
-**Live demo:** [LIVE DEMO LINK](https://LIVE-DEMO-LINK.streamlit.app) (sample mode: recorded answers, made-up student data; see [docs/DEPLOY.md](docs/DEPLOY.md))
+**Live demo:** [https://runway-genai-1027-wcfik2tzidzu48b5pfmt83.streamlit.app](https://runway-genai-1027-wcfik2tzidzu48b5pfmt83.streamlit.app/) (sample mode: recorded answers, made-up student data; see [docs/DEPLOY.md](docs/DEPLOY.md))
 
 > **Run it in 2 minutes. No keys needed** (sample mode; tested on Python 3.13 and 3.14):
 > `git clone https://github.com/earg555890/Runway-GenAi-10.27 runway && cd runway` · `pip install -r requirements.txt` · `streamlit run ui/app.py`

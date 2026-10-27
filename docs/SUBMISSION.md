@@ -54,6 +54,8 @@ change: when its first paycheck lands and whether that's before the money runs o
 
 **GitHub URL:** https://github.com/earg555890/Runway-GenAi-10.27 (**make it public before submitting**)
 
+**Live demo:** https://runway-genai-1027-wcfik2tzidzu48b5pfmt83.streamlit.app/ (sample mode: recorded answers, made-up student data; docs/DEPLOY.md)
+
 **Demo video:** [LINK TO ADD]
 
 **Slide deck:** [LINK OR FILE TO ADD]
