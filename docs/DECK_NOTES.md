@@ -44,7 +44,7 @@ checked.
   - **Planner only:** recall goes to the planner (PLAN) so follow-ups across sessions work. It never goes into the
     answer's numbers.
   - **Forgetting:** Forget one memory, "This isn't right" (H-MEM's `wrong` feedback), Forget everything (screenshot
-    `docs/images/deck-6-what-runway-remembers.png`).
+    `docs/images/deck-6-what-pocketmoney-remembers.png`).
 
 ## Meterless Nightshift: how requests are routed, and which models answered
 
@@ -101,4 +101,4 @@ checked.
 | `deck-3-shift-planner.png` | "These 2 shifts add $115 and you're covered all semester.", each shift's pay and payday |
 | `deck-4-budget.png` | October spending: $1,757, the donut and the category table |
 | `deck-5-find-money.png` | School aid, "if approved" switches: the $500 emergency grant arriving around Mon, Nov 2 |
-| `deck-6-what-runway-remembers.png` | What PocketMoney remembers: shifts, "Form sent", a chat note, each with where it came from; Forget / This isn't right / Forget everything |
+| `deck-6-what-pocketmoney-remembers.png` | What PocketMoney remembers: shifts, "Form sent", a chat note, each with where it came from; Forget / This isn't right / Forget everything |

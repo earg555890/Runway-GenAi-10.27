@@ -140,7 +140,7 @@ Maya's demo data.
 | **It speaks up first:** the status card and the check-in, then the graph: what's happening (solid) and if you follow the steps (dotted). | **Ask PocketMoney** (the round button, bottom-left): every number cited, and which model answered, through Meterless Nightshift. |
 | ![Shift planner](docs/images/deck-3-shift-planner.png) | ![Budget tab](docs/images/deck-4-budget.png) |
 | **Shift planner:** each shift's pay and payday. | **Budget:** where the money went, by category. |
-| ![Find money](docs/images/deck-5-find-money.png) | ![What PocketMoney remembers](docs/images/deck-6-what-runway-remembers.png) |
+| ![Find money](docs/images/deck-5-find-money.png) | ![What PocketMoney remembers](docs/images/deck-6-what-pocketmoney-remembers.png) |
 | **Find money:** the school's grants, "if approved" only. | **What PocketMoney remembers** (Meterless H-MEM): each memory with where it came from. |
 | ![Meal plan card](docs/images/meal-plan.png) | |
 | **Meal plan:** meals and points per day, week or semester; one tap logs a meal. | |
