@@ -1,6 +1,6 @@
 # HackOS submission: PocketMoney
 
-Everything below is ready to paste into the HackOS submission form. Nothing has been submitted.
+Submitted on HackOS on Tue, Oct 27, 2026. Everything below is what was entered in the submission form.
 **Deadline: Tue, Oct 27, 2026, 23:45 UTC (7:45 PM ET).**
 
 ## Pre-submit checklist
