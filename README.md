@@ -8,7 +8,7 @@
 
 **Demo video:** [https://youtu.be/l3YWt1nytks](https://youtu.be/l3YWt1nytks)
 
-**Pitch deck:** <PASTE DECK LINK>
+**Pitch deck:** [https://drive.google.com/file/d/1pB_WtmTWr2-rMyE2li8CkejiNKG6f1Be/view?usp=sharing](https://drive.google.com/file/d/1pB_WtmTWr2-rMyE2li8CkejiNKG6f1Be/view?usp=sharing)
 
 > **Run it in 2 minutes. No keys needed** (sample mode; tested on Python 3.13 and 3.14):
 > `git clone https://github.com/earg555890/Runway-GenAi-10.27 runway && cd runway` · `pip install -r requirements.txt` · `streamlit run ui/app.py`

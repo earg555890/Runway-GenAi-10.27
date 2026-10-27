@@ -10,7 +10,7 @@ Status: **done**, **to do (user)**, or **to do (Claude Code)**. Evidence is in b
 | # | Requirement | Status | Evidence |
 |---|---|---|---|
 | 1 | Demo video, 1-4 minutes, uploaded (YouTube unlisted, Vimeo, Drive "anyone with the link", or MP4 < 300 MB) | done | https://youtu.be/l3YWt1nytks (recorded live on the app, ElevenLabs narration) |
-| 2 | Slide deck covers the 8 required points | done; link to add (user) | `PocketMoney SubmissionDeck.pdf` (13 slides); deck link: <PASTE DECK LINK> |
+| 2 | Slide deck covers the 8 required points | done | `PocketMoney SubmissionDeck.pdf` (13 slides); deck link: https://drive.google.com/file/d/1pB_WtmTWr2-rMyE2li8CkejiNKG6f1Be/view?usp=sharing |
 | 3 | Repository public, with README (setup, usage, dependencies) | done | https://github.com/earg555890/Runway-GenAi-10.27 is public (checked with `gh repo view`, Oct 27); README: Dependencies, Setup (sample and full mode), sample inputs and outputs |
 | 4 | Sponsor explanation covers Zetaris, Meterless and NVIDIA | done | `docs/SPONSOR_TECH.md` (pasted below), including how Cursor was used |
 | 5 | Zetaris as the data layer | done | 8 Lightning databases, 21 named queries, a federated query, a parity test (`tests/test_data_access.py`) |
@@ -58,7 +58,7 @@ change: when its first paycheck lands and whether that's before the money runs o
 
 **Demo video:** https://youtu.be/l3YWt1nytks
 
-**Slide deck:** <PASTE DECK LINK>
+**Slide deck:** https://drive.google.com/file/d/1pB_WtmTWr2-rMyE2li8CkejiNKG6f1Be/view?usp=sharing
 
 **Sponsor technology explanation:** paste the text of `docs/SPONSOR_TECH.md`. The short version, if the form has a
 character limit:
