@@ -40,7 +40,9 @@ separate in Zetaris and projects the checking balance day by day with plain, tes
 through Meterless Nightshift, plans which tools to run and writes the answer. A checker rejects any number that
 isn't in the records. Runway drafts the fixes (an email to financial aid, calendar reminders) for the student to
 approve, and remembers what she did with Meterless H-MEM. It explains timing, too: cancelling Apple Music saves
-$0.00 this semester because that card bill is paid in January, so cancel Spotify instead.
+$0.00 this semester because that card bill is paid in January, so cancel Spotify instead. With her college set, it
+finds jobs near campus and the school's published costs online (check before applying), and shows what a job would
+change: when its first paycheck lands and whether that's before the money runs out.
 
 **Track:** The Agent That Can Explain Why
 
