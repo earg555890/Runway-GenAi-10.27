@@ -154,7 +154,7 @@ no AI provider. Needs Python 3.11 or newer and git.
 **macOS / Linux**
 
 ```bash
-git clone https://github.com/earg555890/Hackathon1 runway && cd runway
+git clone https://github.com/earg555890/Runway-GenAi-10.27 runway && cd runway
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env
 .venv/bin/streamlit run ui/app.py
@@ -163,7 +163,7 @@ cp .env.example .env
 **Windows (PowerShell)**
 
 ```powershell
-git clone https://github.com/earg555890/Hackathon1 runway; cd runway
+git clone https://github.com/earg555890/Runway-GenAi-10.27 runway; cd runway
 py -m venv .venv; .venv\Scripts\pip install -r requirements.txt
 copy .env.example .env
 .venv\Scripts\streamlit run ui/app.py

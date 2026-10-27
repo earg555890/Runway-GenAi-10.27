@@ -11,7 +11,7 @@ Status: **done**, **to do (user)**, or **to do (Claude Code)**. Evidence is in b
 |---|---|---|---|
 | 1 | Demo video, 1-4 minutes, uploaded (YouTube unlisted, Vimeo, Drive "anyone with the link", or MP4 < 300 MB) | to do (user) | Script ready: `docs/DEMO_SCRIPT.md` (3:42, live, typed questions, under-the-hood beat) |
 | 2 | Slide deck covers the 8 required points | to do (user / project lead) | Facts for the deck: `docs/DECK_NOTES.md`, screenshots in `docs/images/` |
-| 3 | Repository public, with README (setup, usage, dependencies) | to do (user): make https://github.com/earg555890/Hackathon1 public | README: Dependencies, Setup (sample and full mode), sample inputs and outputs |
+| 3 | Repository public, with README (setup, usage, dependencies) | to do (user): make https://github.com/earg555890/Runway-GenAi-10.27 public | README: Dependencies, Setup (sample and full mode), sample inputs and outputs |
 | 4 | Sponsor explanation covers Zetaris, Meterless and NVIDIA | done | `docs/SPONSOR_TECH.md` (pasted below), including how Cursor was used |
 | 5 | Zetaris as the data layer | done | 8 Lightning databases, 21 named queries, a federated query, a parity test (`tests/test_data_access.py`) |
 | 6 | A Meterless Engine working, with a passing test | done | H-MEM (`hmem.py`), official conformance vectors 13/13 (`tests/test_hmem_conformance.py`), feature tests 8/8 (`tests/test_runway_memory.py`) |
@@ -50,7 +50,7 @@ $0.00 this semester because that card bill is paid in January, so cancel Spotify
 - GitHub: earg555890
 - Role: product, agent orchestration, Zetaris and Meterless integration, UI
 
-**GitHub URL:** https://github.com/earg555890/Hackathon1 (**make it public before submitting**)
+**GitHub URL:** https://github.com/earg555890/Runway-GenAi-10.27 (**make it public before submitting**)
 
 **Demo video:** [LINK TO ADD]
 
